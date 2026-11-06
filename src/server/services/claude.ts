@@ -9,7 +9,7 @@ import { errorCode, log } from "@/server/log";
 let client: Anthropic | null = null;
 function anthropic(): Anthropic {
   if (!features.claude()) throw new HttpError(503, "claude_not_configured", "Claude is not configured.");
-  client ??= new Anthropic({ apiKey: env.anthropicApiKey, maxRetries: 2, timeout: 120_000 });
+  client ??= new Anthropic({ apiKey: env.anthropicApiKey, maxRetries: env.claudeMaxRetries, timeout: env.claudeTimeoutMs });
   return client;
 }
 

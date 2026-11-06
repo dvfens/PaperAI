@@ -1,7 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import type { RetentionChoice } from "@/lib/types";
 import { assertSameOrigin, deviceOwnerHash, formFile, formJson, HttpError, rateLimit, readForm, route } from "@/server/http";
+import { errorCode, log } from "@/server/log";
 import { approveAndStore, purgeExpired } from "@/server/services/documents";
 import { zCategory, zLang } from "@/server/validation";
 
@@ -23,7 +24,8 @@ const Meta = z.object({
 export const POST = route("documents.approve", async (req: NextRequest) => {
   assertSameOrigin(req);
   rateLimit(req, "approve", 10);
-  void purgeExpired();
+  // Retention purge runs after the response (kept alive on serverless via waitUntil); a daily cron also runs it.
+  after(() => purgeExpired().then(() => undefined).catch((err) => log.warn("retention.failed", { code: errorCode(err) })));
   const form = await readForm(req, 25_000_000);
   if (form.get("consent") !== "yes") throw new HttpError(400, "consent_required", "Explicit consent is required.");
   const pdf = await formFile(form, "pdf", 20_000_000);

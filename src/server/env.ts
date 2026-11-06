@@ -13,10 +13,17 @@ function str(name: string, fallback = ""): string {
 }
 
 const isProd = process.env.NODE_ENV === "production";
-const dataDir = resolve(str("DATA_DIR", ".data"));
+/**
+ * Serverless platforms (Vercel, AWS Lambda) give each instance a read-only filesystem except /tmp,
+ * and /tmp is neither persistent nor shared between instances.
+ */
+const ephemeral = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const dataDir = resolve(str("DATA_DIR", ephemeral ? "/tmp/saathi" : ".data"));
+const databaseUrl = str("DATABASE_URL");
 
 export const env = {
   isProd,
+  ephemeral,
   appUrl: str("APP_URL", "http://localhost:3000"),
   dataDir,
 
@@ -33,7 +40,18 @@ export const env = {
   arkivAccessKey: str("ARKIV_ACCESS_KEY"),
   arkivPrivateKey: str("ARKIV_PRIVATE_KEY"),
 
-  databaseUrl: str("DATABASE_URL"),
+  databaseUrl,
+  /**
+   * Where encrypted documents are kept: "database" (a table in Postgres — required on serverless) or
+   * "filesystem" (STORAGE_DIR). Defaults to the database whenever a Postgres URL is configured, and
+   * is always the database on serverless hosts, whose disk is wiped when an instance is recycled.
+   */
+  storageDriver: (!ephemeral && str("STORAGE_DRIVER", databaseUrl ? "database" : "filesystem") === "filesystem"
+    ? "filesystem"
+    : "database") as "database" | "filesystem",
+  /** Request timeout for Claude calls; serverless functions have a hard duration limit. */
+  claudeTimeoutMs: Number(str("CLAUDE_TIMEOUT_MS", ephemeral ? "100000" : "120000")),
+  claudeMaxRetries: ephemeral ? 1 : 2,
   storageDir: resolve(str("STORAGE_DIR", join(dataDir, "vault"))),
   ocrCacheDir: resolve(str("OCR_CACHE_DIR", join(dataDir, "tessdata"))),
   demoTools: str("NEXT_PUBLIC_DEMO_TOOLS", isProd ? "false" : "true") === "true",

@@ -17,6 +17,8 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import type { Box, FieldAnswer, FormField } from "@/lib/types";
+import { env } from "@/server/env";
+import { HttpError } from "@/server/http";
 import { log } from "@/server/log";
 import type { DecodedImage } from "./image";
 import { loadPdf } from "./pdfForm";
@@ -54,7 +56,11 @@ async function embedFonts(doc: PDFDocument): Promise<Fonts> {
   const devaBytes = readFont("NotoSansDevanagari-Regular.woff");
   const latin = latinBytes ? await doc.embedFont(latinBytes, { subset: true }) : await doc.embedFont(StandardFonts.Helvetica);
   const devanagari = devaBytes ? await doc.embedFont(devaBytes, { subset: true }) : null;
-  if (!devaBytes) log.warn("pdf.font_missing", { reason: "devanagari" });
+  if (!latinBytes || !devaBytes) {
+    log.error("pdf.font_missing", { reason: !latinBytes ? "latin" : "devanagari" });
+    // In production a missing font would silently drop Hindi text from people's forms: fail instead.
+    if (env.isProd) throw new HttpError(500, "font_missing", "The PDF fonts are not installed on this server.");
+  }
   return { latin, devanagari };
 }
 

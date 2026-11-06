@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { Hex } from "viem";
 import type { CommitmentReceipt, RetentionChoice } from "@/lib/types";
 import { generationToken, hmacHex, randomToken, safeEqualHex, sha256Hex } from "@/server/crypto";
@@ -121,6 +121,16 @@ export async function approveAndStore(input: {
   return receiptFrom(row);
 }
 
+/**
+ * Enforce retention on every read, not only when the purge job runs: a stored document past its
+ * retention date is destroyed now and reported as erased.
+ */
+async function expireIfDue(row: DocumentRow): Promise<DocumentRow> {
+  if (row.status !== "stored" || row.retentionUntil.getTime() > Date.now()) return row;
+  await destroyDocument(row, "retention_expired");
+  return { ...row, status: "erased", storageKey: null, wrappedKey: null };
+}
+
 export async function getOwnedDocument(id: string, ownerHash: string): Promise<DocumentRow> {
   const d = await db();
   const [row] = await d
@@ -128,7 +138,7 @@ export async function getOwnedDocument(id: string, ownerHash: string): Promise<D
     .from(documents)
     .where(and(eq(documents.id, id), eq(documents.ownerHash, ownerHash)));
   if (!row) throw new HttpError(404, "not_found", "Document not found.");
-  return row;
+  return expireIfDue(row);
 }
 
 export async function documentReceipt(id: string, ownerHash: string) {
@@ -249,12 +259,16 @@ export async function revokeShareLink(id: string, shareId: string, ownerHash: st
 
 async function destroyDocument(row: DocumentRow, reason: "owner_request" | "retention_expired") {
   const d = await db();
+  // Destroy the wrapped data key first (crypto-shredding) and revoke links, atomically; then remove
+  // the ciphertext itself. If the second step fails, what is left can no longer be decrypted.
+  await d.transaction(async (tx) => {
+    await tx
+      .update(documents)
+      .set({ status: "erased", storageKey: null, wrappedKey: null, erasedAt: new Date() })
+      .where(eq(documents.id, row.id));
+    await tx.update(shareLinks).set({ revokedAt: new Date() }).where(and(eq(shareLinks.documentId, row.id), isNull(shareLinks.revokedAt)));
+  });
   if (row.storageKey) await secureStorage().destroy(row.storageKey);
-  await d
-    .update(documents)
-    .set({ status: "erased", storageKey: null, wrappedKey: null, erasedAt: new Date() })
-    .where(eq(documents.id, row.id));
-  await d.update(shareLinks).set({ revokedAt: new Date() }).where(and(eq(shareLinks.documentId, row.id), isNull(shareLinks.revokedAt)));
   await audit(row.id, "erased", { reason });
 }
 
@@ -278,7 +292,8 @@ export async function resolveShare(token: string, countAccess: boolean) {
   const d = await db();
   const [share] = await d.select().from(shareLinks).where(eq(shareLinks.tokenHash, hmacHex(`share:${token}`)));
   if (!share || share.revokedAt || share.expiresAt.getTime() < Date.now()) return { valid: false as const };
-  const [row] = await d.select().from(documents).where(eq(documents.id, share.documentId));
+  const [found] = await d.select().from(documents).where(eq(documents.id, share.documentId));
+  const row = found ? await expireIfDue(found) : undefined;
   if (!row || row.status !== "stored" || !row.storageKey || !row.wrappedKey) return { valid: false as const };
 
   let arkivChecked = false;
@@ -288,7 +303,7 @@ export async function resolveShare(token: string, countAccess: boolean) {
     arkivChecked = true;
   }
   if (countAccess) {
-    await d.update(shareLinks).set({ accessCount: share.accessCount + 1 }).where(eq(shareLinks.id, share.id));
+    await d.update(shareLinks).set({ accessCount: sql`${shareLinks.accessCount} + 1` }).where(eq(shareLinks.id, share.id));
     await audit(row.id, "share_accessed");
   }
   return {

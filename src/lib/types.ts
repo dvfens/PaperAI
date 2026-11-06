@@ -221,7 +221,7 @@ export interface ServiceStatus {
   claude: boolean;
   elevenlabs: boolean;
   arkiv: { configured: boolean; writerAddress: string | null; chainId: number; explorerUrl: string };
-  database: "postgres" | "pglite";
+  database: "postgres" | "pglite" | "pglite-ephemeral";
   demoTools: boolean;
 }
 

@@ -2,13 +2,17 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { sql } from "drizzle-orm";
 import { decryptDocument, encryptDocument } from "@/server/crypto";
+import { db } from "@/server/db/client";
 import { env } from "@/server/env";
 
 /**
  * SecureStorageService — stores completed PDFs encrypted at rest.
- * The interface is storage-agnostic so the local-disk implementation can be swapped for S3/GCS
- * (with server-side encryption on top of this envelope encryption) without touching callers.
+ * Two implementations behind one interface:
+ *  - LocalEncryptedStorage: files on disk (local development, single servers);
+ *  - DatabaseEncryptedStorage: rows in Postgres (serverless hosts such as Vercel, which have no
+ *    persistent disk). Either way the bytes are AES-256-GCM ciphertext under a per-document key.
  */
 export interface SecureStorageService {
   put(documentId: string, plaintext: Uint8Array): Promise<{ storageKey: string; wrappedKey: string }>;
@@ -61,8 +65,37 @@ class LocalEncryptedStorage implements SecureStorageService {
   }
 }
 
+class DatabaseEncryptedStorage implements SecureStorageService {
+  async put(documentId: string, plaintext: Uint8Array) {
+    const { ciphertext, wrappedKey } = encryptDocument(documentId, plaintext);
+    const storageKey = `${randomUUID()}.bin`;
+    const d = await db();
+    await d.execute(sql`INSERT INTO vault_objects (storage_key, ciphertext) VALUES (${storageKey}, ${ciphertext})`);
+    return { storageKey, wrappedKey };
+  }
+
+  async get(documentId: string, storageKey: string, wrappedKey: string) {
+    if (!SAFE_KEY.test(storageKey)) throw new Error("invalid storage key");
+    const d = await db();
+    const res = (await d.execute(sql`SELECT ciphertext FROM vault_objects WHERE storage_key = ${storageKey}`)) as unknown as {
+      rows: { ciphertext: Uint8Array }[];
+    };
+    const row = res.rows[0];
+    if (!row) throw new Error("document not found in vault");
+    return decryptDocument(documentId, Buffer.from(row.ciphertext), wrappedKey);
+  }
+
+  async destroy(storageKey: string) {
+    // Removes the ciphertext from the live database (the caller has already deleted the wrapped key).
+    // Postgres MVCC and the provider's restore history can keep old copies of both for a while — see
+    // db/migrations/0002_vault_objects.sql; overwriting in place would not change that.
+    const d = await db();
+    await d.execute(sql`DELETE FROM vault_objects WHERE storage_key = ${storageKey}`);
+  }
+}
+
 let instance: SecureStorageService | null = null;
 export function secureStorage(): SecureStorageService {
-  instance ??= new LocalEncryptedStorage(env.storageDir);
+  instance ??= env.storageDriver === "database" ? new DatabaseEncryptedStorage() : new LocalEncryptedStorage(env.storageDir);
   return instance;
 }

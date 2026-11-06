@@ -13,6 +13,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ARKIV_CHAIN_ID, ARKIV_EXPLORER, commitmentExpiry, findActiveGrant, verifyHashOnArkiv } from "@/lib/arkiv/read";
 import { Commitment, Consent, ShareGrant, key, str, u64, type ConsentAction } from "@/lib/arkiv/schemas";
 import type { VerificationResult } from "@/lib/types";
+import { withAdvisoryLock } from "@/server/db/client";
 import { env, features } from "@/server/env";
 import { errorCode, log } from "@/server/log";
 
@@ -50,6 +51,9 @@ export interface BlockchainVerificationService {
   explorerTxUrl(txHash: string): string;
 }
 
+/** Advisory-lock id for Arkiv writes from Saathi's single writer wallet. */
+const ARKIV_WRITE_LOCK = 727_274_002;
+
 const nowSeconds = (d = new Date()) => BigInt(Math.floor(d.getTime() / 1000));
 
 class ArkivVerificationService implements BlockchainVerificationService {
@@ -69,7 +73,9 @@ class ArkivVerificationService implements BlockchainVerificationService {
   }
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(fn);
+    // In-process queue plus a Postgres advisory lock: predicted entity keys and transaction nonces
+    // both assume a single in-flight batch per wallet, across every server instance.
+    const run = this.queue.then(() => withAdvisoryLock(ARKIV_WRITE_LOCK, fn));
     this.queue = run.catch(() => undefined);
     return run;
   }

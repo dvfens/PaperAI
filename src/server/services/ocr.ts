@@ -1,5 +1,6 @@
 import "server-only";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { createWorker, type Worker } from "tesseract.js";
 import type { Box } from "@/lib/types";
 import { env } from "@/server/env";
@@ -33,6 +34,19 @@ export interface DocumentOCRService {
 }
 
 const LANGS = ["eng", "hin"];
+/** OCR is an aid, not essential: Claude reads the page itself. Never let it hang a request. */
+const WORKER_START_TIMEOUT_MS = 30_000;
+const PAGE_TIMEOUT_MS = 25_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 class TesseractOCR implements DocumentOCRService {
   private worker: Promise<Worker> | null = null;
@@ -40,14 +54,32 @@ class TesseractOCR implements DocumentOCRService {
 
   private getWorker() {
     if (!this.worker) {
-      mkdirSync(env.ocrCacheDir, { recursive: true });
-      // Language data is downloaded once from the tesseract.js CDN and cached under OCR_CACHE_DIR.
-      this.worker = createWorker(LANGS, 1, { cachePath: env.ocrCacheDir }).catch((err) => {
+      // Prefer the language models bundled under assets/tessdata (copied at install/build time);
+      // otherwise download them once from the tesseract.js CDN into OCR_CACHE_DIR.
+      const bundled = join(process.cwd(), "assets", "tessdata");
+      const local = LANGS.every((l) => existsSync(join(bundled, `${l}.traineddata.gz`)));
+      if (!local) mkdirSync(env.ocrCacheDir, { recursive: true });
+      const starting = createWorker(LANGS, 1, {
+        ...(local ? { langPath: bundled, cacheMethod: "none" } : { cachePath: env.ocrCacheDir }),
+        // Without a handler, tesseract.js rethrows worker errors as uncaught exceptions.
+        errorHandler: (err: unknown) => log.warn("ocr.worker_error", { code: errorCode(err) }),
+      });
+      this.worker = withTimeout(starting, WORKER_START_TIMEOUT_MS, "ocr worker start").catch((err) => {
         this.worker = null;
+        // If it finishes starting after we gave up, shut it down rather than leak it.
+        void starting.then((w) => w.terminate()).catch(() => undefined);
         throw err;
       });
     }
     return this.worker;
+  }
+
+  /** Discard a worker that misbehaved so the next request starts a fresh one. */
+  private reset() {
+    const old = this.worker;
+    this.worker = null;
+    this.queue = Promise.resolve();
+    void old?.then((w) => w.terminate()).catch(() => undefined);
   }
 
   async recognize(pages: DecodedImage[]): Promise<OcrPage[]> {
@@ -63,7 +95,13 @@ class TesseractOCR implements DocumentOCRService {
     for (let p = 0; p < pages.length; p++) {
       const img = pages[p];
       const started = Date.now();
-      const { data } = await worker.recognize(img.bytes, {}, { text: true, blocks: true });
+      let data: Awaited<ReturnType<Worker["recognize"]>>["data"];
+      try {
+        ({ data } = await withTimeout(worker.recognize(img.bytes, {}, { text: true, blocks: true }), PAGE_TIMEOUT_MS, "ocr page"));
+      } catch (err) {
+        this.reset();
+        throw err;
+      }
       const lines: OcrLine[] = [];
       let n = 0;
       for (const block of data.blocks ?? []) {
