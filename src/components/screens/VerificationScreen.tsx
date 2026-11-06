@@ -1,17 +1,35 @@
 "use client";
 
-import { CheckCircle2, FileSearch, FlaskConical, ShieldAlert, XCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  CloudOff,
+  FileText,
+  FileUp,
+  Fingerprint,
+  FlaskConical,
+  History,
+  Info,
+  Link2,
+  Link2Off,
+  Lock,
+  Trash2,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Hex } from "viem";
 import { arkivReader, isHash, verifyHashOnArkiv } from "@/lib/arkiv/read";
 import { api } from "@/lib/client/api";
 import { downloadBlob, sha256Hex } from "@/lib/client/media";
 import { formatDate, type StringKey } from "@/lib/i18n";
 import type { VerificationEvent, VerificationResult } from "@/lib/types";
-import { shortHash } from "@/lib/utils";
+import { cn, shortHash } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Notice, Screen, Spinner, TopBar } from "@/components/common/Chrome";
+import { AppBar, AppScreen, Card, Dock, Page, SectionTitle, SpeakButton, Spinner } from "@/components/common/Chrome";
 import { useApp } from "@/components/app/AppContext";
 
 const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
@@ -21,6 +39,23 @@ const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
   share_revoked: "eventShareRevoked",
   erased: "eventErased",
   other: "eventStored",
+};
+
+const EVENT_ICON: Record<VerificationEvent["kind"], LucideIcon> = {
+  approved: BadgeCheck,
+  stored: Lock,
+  shared: Link2,
+  share_revoked: Link2Off,
+  erased: Trash2,
+  other: Lock,
+};
+
+type Outcome = "match" | "no_match" | "unavailable";
+
+const OUTCOME_STYLE: Record<Outcome, { icon: LucideIcon; card: string; circle: string; title: string }> = {
+  match: { icon: CheckCircle2, card: "border-green-200", circle: "bg-green-100 text-green-700", title: "text-green-900" },
+  no_match: { icon: XCircle, card: "border-red-200", circle: "bg-red-100 text-red-700", title: "text-red-900" },
+  unavailable: { icon: CloudOff, card: "border-amber-200", circle: "bg-amber-100 text-amber-800", title: "text-amber-950" },
 };
 
 const ACCESS_KEY = process.env.NEXT_PUBLIC_ARKIV_ACCESS_KEY ?? "";
@@ -96,18 +131,23 @@ export function VerificationScreen() {
     await check(await sha256Hex(copy));
   };
 
-  return (
-    <>
-      <TopBar onBack={() => (window.location.href = "/")} />
-      <Screen>
-        <h1 className="flex items-center gap-3 text-3xl font-bold text-slate-900">
-          <FileSearch className="size-8 text-blue-700" aria-hidden /> {t("verifyTitle")}
-        </h1>
-        <p className="mt-2 text-xl text-slate-700">{t("verifyHint")}</p>
+  const pickFile = () => fileRef.current?.click();
 
-        <Button block className="mt-5" onClick={() => fileRef.current?.click()} disabled={checking}>
-          <FileSearch aria-hidden /> {t("verifyChoose")}
-        </Button>
+  const outcome: Outcome | null = !result
+    ? null
+    : result.status === "match" && result.commitment
+      ? "match"
+      : result.status === "no_match"
+        ? "no_match"
+        : "unavailable";
+  const showResult = Boolean(result && outcome && !checking);
+  const approvedDate = result?.commitment ? formatDate(lang, result.commitment.approvedAt * 1000, true) : "";
+
+  return (
+    <AppScreen>
+      {/* "Check a document" is cut off in the bar at 375px; the one-word label fits. */}
+      <AppBar title={t("verify")} onBack={() => (window.location.href = "/")} />
+      <Page dock={showResult}>
         <input
           ref={fileRef}
           type="file"
@@ -119,97 +159,188 @@ export function VerificationScreen() {
             if (f) void onFile(f);
           }}
         />
-        {file && <p className="mt-2 break-all text-base text-slate-600">{file.name}</p>}
+
+        {/* Empty state: one big drop-zone style button. */}
+        {!result && !checking && (
+          <button
+            type="button"
+            onClick={pickFile}
+            aria-label={t("choosePdf")}
+            aria-describedby="verify-hint"
+            className="mt-4 flex w-full flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-blue-300 bg-white px-5 py-10 text-center shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 active:bg-blue-50"
+          >
+            <span className="flex size-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+              <FileUp className="size-10" aria-hidden />
+            </span>
+            <span className="text-xl font-bold text-blue-800">{t("choosePdf")}</span>
+            <span id="verify-hint" className="flex max-w-md items-start gap-2 text-base text-slate-500">
+              <Lock className="mt-1 size-4 shrink-0" aria-hidden />
+              <span>{t("verifyHint")}</span>
+            </span>
+          </button>
+        )}
 
         {checking && (
-          <div className="mt-6">
+          <Card className="mt-4 flex flex-col items-center gap-3 py-12">
             <Spinner label={t("checking")} />
-          </div>
+            {file && <p className="max-w-full break-all text-center text-base text-slate-500">{file.name}</p>}
+          </Card>
         )}
 
-        {result && !checking && (
-          <section className="mt-6" aria-live="polite">
-            {result.status === "match" && result.commitment ? (
-              <div className="rounded-3xl border-2 border-green-300 bg-green-50 p-5">
-                <p className="flex items-center gap-3 text-2xl font-bold text-green-900">
-                  <CheckCircle2 className="size-10 shrink-0 text-green-700" aria-hidden /> {t("verifyMatch")}
-                </p>
-                <p className="mt-2 text-xl text-green-950">
-                  {t("verifyMatchDetail", { date: formatDate(lang, result.commitment.approvedAt * 1000, true) })}
-                </p>
-                {result.commitment.expiresAtEstimate && (
-                  <p className="mt-1 text-lg text-green-900">{t("recordExpires", { date: formatDate(lang, result.commitment.expiresAtEstimate) })}</p>
-                )}
-                {result.history.length > 0 && (
-                  <div className="mt-4">
-                    <h2 className="text-lg font-semibold text-green-950">{t("verifyHistory")}</h2>
-                    <ol className="mt-2 flex flex-col gap-2 border-l-4 border-green-300 pl-4">
-                      {result.history.map((e) => (
-                        <li key={e.entityKey} className="text-lg text-green-950">
-                          <span className="font-semibold">{t(EVENT_LABEL[e.kind])}</span> — {formatDate(lang, e.at * 1000, true)}
-                        </li>
-                      ))}
+        <section aria-live="polite">
+          {showResult && result && outcome && (
+            <>
+              <StatusCard
+                outcome={outcome}
+                title={outcome === "match" ? t("unchanged") : outcome === "no_match" ? t("mismatch") : t("verifyUnavailable")}
+                line={outcome === "match" ? t("approvedOn", { date: approvedDate }) : outcome === "no_match" ? t("verifyNoMatchDetail") : null}
+                spoken={
+                  outcome === "match"
+                    ? `${t("verifyMatch")}. ${t("verifyMatchDetail", { date: approvedDate })} ${t("verifyDisclaimer")}`
+                    : outcome === "no_match"
+                      ? `${t("verifyNoMatch")}. ${t("verifyNoMatchDetail")}`
+                      : t("verifyUnavailable")
+                }
+                expires={
+                  outcome === "match" && result.commitment?.expiresAtEstimate
+                    ? t("recordExpires", { date: formatDate(lang, result.commitment.expiresAtEstimate) })
+                    : null
+                }
+                fileName={file?.name ?? null}
+              />
+
+              {outcome === "match" && result.history.length > 0 && (
+                <>
+                  <SectionTitle icon={History}>{t("verifyHistory")}</SectionTitle>
+                  <Card className="px-4 py-4">
+                    <ol>
+                      {result.history.map((e, i) => {
+                        const EventIcon = EVENT_ICON[e.kind];
+                        const last = i === result.history.length - 1;
+                        return (
+                          <li key={e.entityKey} className="flex gap-3">
+                            <div className="flex flex-col items-center" aria-hidden>
+                              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                                <EventIcon className="size-5" />
+                              </span>
+                              {!last && <span className="my-1 w-0.5 flex-1 rounded-full bg-slate-200" />}
+                            </div>
+                            <div className={cn("min-w-0 flex-1 pt-1", !last && "pb-4")}>
+                              <p className="text-lg font-semibold leading-snug text-slate-900">{t(EVENT_LABEL[e.kind])}</p>
+                              <p className="text-base text-slate-500">{formatDate(lang, e.at * 1000, true)}</p>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ol>
-                  </div>
-                )}
-              </div>
-            ) : result.status === "no_match" ? (
-              <div className="rounded-3xl border-2 border-red-300 bg-red-50 p-5">
-                <p className="flex items-center gap-3 text-2xl font-bold text-red-900">
-                  <XCircle className="size-10 shrink-0 text-red-700" aria-hidden /> {t("verifyNoMatch")}
-                </p>
-                <p className="mt-2 text-xl text-red-950">{t("verifyNoMatchDetail")}</p>
-              </div>
-            ) : (
-              <Notice tone="warning">
-                <span className="flex items-center gap-2">
-                  <ShieldAlert className="size-6" aria-hidden /> {t("verifyUnavailable")}
-                </span>
-              </Notice>
-            )}
+                  </Card>
+                </>
+              )}
 
-            <p className="mt-4 text-lg text-slate-700">{t("verifyDisclaimer")}</p>
+              <p className="mt-4 flex items-start gap-2 px-1 text-base text-slate-500">
+                <Info className="mt-1 size-4 shrink-0" aria-hidden />
+                <span>{t("verifyDisclaimer")}</span>
+              </p>
 
-            <details className="mt-4 rounded-2xl border-2 border-slate-200 p-4">
-              <summary className="cursor-pointer text-lg font-semibold text-slate-800">{t("technicalDetails")}</summary>
-              <dl className="mt-3 flex flex-col gap-2 text-base text-slate-800">
-                <div>
-                  <dt className="font-semibold">{t("fingerprint")} (SHA-256)</dt>
-                  <dd className="break-all font-mono text-sm">{result.sha256}</dd>
-                </div>
-                <div>
-                  <dt className="font-semibold">Checked against</dt>
-                  <dd>
-                    {result.checkedAgainst === "arkiv" ? `Arkiv Rabdi testnet (chain ${status?.arkiv.chainId}) — ${via === "browser" ? "queried from this browser" : "via server"}` : "—"}
-                  </dd>
-                </div>
-                {result.commitment && (
-                  <>
-                    <div>
-                      <dt className="font-semibold">Entity</dt>
-                      <dd className="break-all font-mono text-sm">{result.commitment.entityKey}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold">Written by</dt>
-                      <dd className="break-all font-mono text-sm">{shortHash(result.commitment.creator, 10)}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold">Read-only</dt>
-                      <dd>{result.commitment.readonly ? "yes — the record can never be changed" : "no"}</dd>
-                    </div>
-                  </>
-                )}
-              </dl>
-            </details>
+              <details className="group mt-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <Fingerprint className="size-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("technicalDetails")}</span>
+                  <ChevronDown className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <dl className="divide-y divide-slate-100 border-t border-slate-100">
+                  <DetailRow label={`${t("fingerprint")} (SHA-256)`} mono>
+                    {result.sha256}
+                  </DetailRow>
+                  <DetailRow label="Checked against">
+                    {result.checkedAgainst === "arkiv"
+                      ? `Arkiv Rabdi testnet (chain ${status?.arkiv.chainId}) — ${via === "browser" ? "queried from this browser" : "via server"}`
+                      : "—"}
+                  </DetailRow>
+                  {result.commitment && (
+                    <>
+                      <DetailRow label="Entity" mono>
+                        {result.commitment.entityKey}
+                      </DetailRow>
+                      <DetailRow label="Written by" mono>
+                        {shortHash(result.commitment.creator, 10)}
+                      </DetailRow>
+                      <DetailRow label="Read-only">{result.commitment.readonly ? "yes — the record can never be changed" : "no"}</DetailRow>
+                    </>
+                  )}
+                </dl>
+              </details>
 
-            {status?.demoTools && file && result.status === "match" && !tampered && (
-              <Button block variant="secondary" className="mt-4" onClick={tamper}>
-                <FlaskConical aria-hidden /> {t("demoTamper")}
-              </Button>
-            )}
-          </section>
-        )}
-      </Screen>
-    </>
+              {status?.demoTools && file && result.status === "match" && !tampered && (
+                <Button block variant="secondary" size="md" className="mt-4" onClick={tamper}>
+                  <FlaskConical aria-hidden /> {t("demoTamper")}
+                </Button>
+              )}
+            </>
+          )}
+        </section>
+      </Page>
+
+      {showResult && (
+        <Dock>
+          <Button block size="lg" onClick={pickFile}>
+            <FileUp aria-hidden /> {t("checkAnother")}
+          </Button>
+        </Dock>
+      )}
+    </AppScreen>
+  );
+}
+
+/** The big result card: icon in a circle, a two-word verdict, one short line. */
+function StatusCard({
+  outcome,
+  title,
+  line,
+  spoken,
+  expires,
+  fileName,
+}: {
+  outcome: Outcome;
+  title: string;
+  line: string | null;
+  spoken: string;
+  expires: string | null;
+  fileName: string | null;
+}) {
+  const s = OUTCOME_STYLE[outcome];
+  const StatusIcon = s.icon;
+  return (
+    <Card className={cn("relative mt-4 flex flex-col items-center gap-2 border-2 px-5 pb-5 pt-8 text-center", s.card)}>
+      <SpeakButton text={spoken} className="absolute right-3 top-3" />
+      <span className={cn("flex size-16 items-center justify-center rounded-full", s.circle)}>
+        <StatusIcon className="size-11" aria-hidden />
+      </span>
+      <h2 className={cn("mt-2 text-xl font-bold", s.title)}>{title}</h2>
+      {line && <p className="max-w-md text-lg text-slate-700">{line}</p>}
+      {expires && (
+        <p className="flex items-center gap-1.5 text-base text-slate-500">
+          <Clock className="size-4 shrink-0" aria-hidden />
+          <span>{expires}</span>
+        </p>
+      )}
+      {fileName && (
+        <p className="mt-2 flex w-full items-center justify-center gap-2 border-t border-slate-100 pt-3 text-base text-slate-500">
+          <FileText className="size-5 shrink-0" aria-hidden />
+          <span className="min-w-0 break-all">{fileName}</span>
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function DetailRow({ label, mono, children }: { label: string; mono?: boolean; children: ReactNode }) {
+  return (
+    <div className="px-4 py-3">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      <dd className={cn("mt-0.5 text-base text-slate-900", mono && "break-all font-mono")}>{children}</dd>
+    </div>
   );
 }

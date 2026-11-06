@@ -60,7 +60,9 @@ export function DocumentPreview({
                 {h.label && (
                   <span
                     className={cn(
-                      "absolute -top-7 left-0 whitespace-nowrap rounded-md px-2 py-0.5 text-sm font-semibold",
+                      // Boxes in the right half anchor their label to the right so it stays on the page.
+                      "absolute -top-7 max-w-[60vw] truncate whitespace-nowrap rounded-md px-2 py-0.5 text-sm font-semibold",
+                      h.box.x + h.box.w / 2 > 0.5 ? "right-0" : "left-0",
                       LABEL_TONES[h.tone],
                     )}
                   >

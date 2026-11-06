@@ -1,10 +1,10 @@
 "use client";
 
-import { Camera, FileUp, Flashlight, FlashlightOff, RotateCcw, ShieldCheck, Sparkles, Check } from "lucide-react";
+import { CameraOff, Check, Flashlight, FlashlightOff, ImageUp, Loader2, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { captureVideoFrame, imageFileToPage, MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
-import { Button } from "@/components/ui/button";
+import { IconAction } from "@/components/common/Chrome";
 import { LanguageSelector } from "@/components/common/LanguageSelector";
 import { useApp, type SourceDocument } from "@/components/app/AppContext";
 
@@ -139,115 +139,132 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
   }, []);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-950">
-      {/* Viewfinder */}
-      <div className="relative flex-1 overflow-hidden">
-        {captured ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={captured.dataUrl} alt={t("scanTitle")} className="absolute inset-0 h-full w-full object-contain" />
-        ) : (
-          <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 h-full w-full object-cover" aria-hidden />
-        )}
+    <div className="relative h-dvh overflow-hidden bg-black text-white">
+      {/* Viewfinder / captured photo */}
+      {captured ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={captured.dataUrl} alt={t("scanTitle")} className="absolute inset-0 h-full w-full object-contain" />
+      ) : (
+        <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+      )}
 
-        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 bg-gradient-to-b from-black/70 to-transparent p-3">
-          <span className="rounded-full bg-black/55 px-4 py-2 text-xl font-bold text-white">{t("appName")}</span>
-          <LanguageSelector tone="dark" />
-        </div>
-
-        {!captured && camera === "live" && (
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6">
-            <div className="aspect-[3/4] w-full max-w-sm rounded-3xl border-4 border-white/85 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
-            <p className="mt-4 rounded-full bg-black/60 px-4 py-2 text-center text-lg font-semibold text-white">{t("scanHint")}</p>
-          </div>
-        )}
-
-        {!captured && camera !== "live" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center text-white">
-            <Camera className="size-14 text-white/70" aria-hidden />
-            <p className="text-xl">{camera === "starting" ? t("cameraStarting") : t("cameraUnavailable")}</p>
-          </div>
-        )}
+      {/* Top bar */}
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-8">
+        <span className="text-lg font-extrabold tracking-tight">{t("appName")}</span>
+        <LanguageSelector tone="dark" />
       </div>
 
-      {/* Controls */}
-      <div className="rounded-t-3xl bg-white px-4 pt-5 pb-safe">
-        <div className="mx-auto flex max-w-md flex-col gap-3">
-          <h1 className="text-center text-2xl font-bold text-slate-900">{t("scanTitle")}</h1>
-          {error && (
-            <p role="alert" className="rounded-xl bg-red-50 p-3 text-center text-lg text-red-800">
-              {error}
-            </p>
-          )}
+      {/* Frame guide */}
+      {!captured && camera === "live" && (
+        <div className="pointer-events-none absolute inset-x-8 top-24 bottom-56" aria-hidden>
+          <span className="absolute left-0 top-0 size-12 rounded-tl-3xl border-l-4 border-t-4 border-white/90" />
+          <span className="absolute right-0 top-0 size-12 rounded-tr-3xl border-r-4 border-t-4 border-white/90" />
+          <span className="absolute bottom-0 left-0 size-12 rounded-bl-3xl border-b-4 border-l-4 border-white/90" />
+          <span className="absolute bottom-0 right-0 size-12 rounded-br-3xl border-b-4 border-r-4 border-white/90" />
+          <span className="absolute inset-x-0 top-4 mx-auto w-fit rounded-full bg-black/55 px-4 py-1.5 text-base font-semibold backdrop-blur">
+            {t("cam_hint")}
+          </span>
+        </div>
+      )}
 
-          {captured ? (
-            <>
-              <Button block onClick={useCaptured}>
-                <Check aria-hidden /> {t("usePhoto")}
-              </Button>
-              <Button block variant="secondary" onClick={() => setCaptured(null)}>
-                <RotateCcw aria-hidden /> {t("retake")}
-              </Button>
-            </>
+      {/* No camera */}
+      {!captured && camera !== "live" && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-10 pb-40 text-center">
+          {camera === "starting" ? (
+            <Loader2 className="size-12 animate-spin text-white/70" aria-hidden />
           ) : (
             <>
-              <div className="flex items-center justify-center gap-6">
-                {torchSupported ? (
-                  <button
-                    onClick={toggleTorch}
-                    aria-pressed={torchOn}
-                    className="flex size-16 flex-col items-center justify-center rounded-full border-2 border-slate-300 text-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                  >
-                    {torchOn ? <FlashlightOff className="size-7" aria-hidden /> : <Flashlight className="size-7" aria-hidden />}
-                    <span className="sr-only">{torchOn ? t("flashOff") : t("flashOn")}</span>
-                  </button>
-                ) : (
-                  <span className="size-16" aria-hidden />
-                )}
+              <span className="flex size-16 items-center justify-center rounded-full bg-white/10">
+                <CameraOff className="size-10 text-white/80" aria-hidden />
+              </span>
+              <p className="text-lg font-semibold">{t("cam_noCamera")}</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Busy overlay (reading a file) */}
+      {busy && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60" role="status" aria-label={t("loading")}>
+          <Loader2 className="size-14 animate-spin" aria-hidden />
+        </div>
+      )}
+
+      {/* Bottom controls */}
+      <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-10 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {error && (
+          <p role="alert" className="mx-auto mb-3 w-fit rounded-full bg-red-600 px-4 py-1.5 text-base font-semibold">
+            {error}
+          </p>
+        )}
+
+        {captured ? (
+          <div className="mx-auto grid max-w-md grid-cols-2 gap-3">
+            <button
+              onClick={() => setCaptured(null)}
+              className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-white/15 text-lg font-bold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+            >
+              <RotateCcw className="size-6" aria-hidden /> {t("cam_retake")}
+            </button>
+            <button
+              onClick={useCaptured}
+              className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-blue-600 text-lg font-bold hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+            >
+              <Check className="size-6" aria-hidden /> {t("cam_use")}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5 flex justify-center gap-2">
+              <button
+                onClick={() => void trySample()}
+                disabled={busy}
+                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              >
+                <Sparkles className="size-4" aria-hidden /> {t("cam_sample")}
+              </button>
+              <Link
+                href="/verify"
+                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              >
+                <ShieldCheck className="size-4" aria-hidden /> {t("cam_check")}
+              </Link>
+            </div>
+            <div className="mx-auto grid max-w-md grid-cols-3 items-center">
+              <div className="flex justify-center">
+                <IconAction tone="dark" icon={ImageUp} label={t("cam_file")} onClick={() => fileRef.current?.click()} disabled={busy} />
+              </div>
+              <div className="flex justify-center">
                 <button
                   onClick={capture}
                   disabled={camera !== "live" || busy}
-                  className="flex size-24 items-center justify-center rounded-full bg-blue-700 text-white shadow-lg ring-4 ring-blue-100 hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-8 focus-visible:ring-blue-300 disabled:bg-slate-300"
                   aria-label={t("takePhoto")}
+                  className="flex size-20 items-center justify-center rounded-full border-4 border-white p-1.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
                 >
-                  <Camera className="size-11" aria-hidden />
+                  <span className="block size-full rounded-full bg-white transition-transform active:scale-90" />
                 </button>
-                <span className="size-16" aria-hidden />
               </div>
-              <p className="text-center text-lg font-semibold text-slate-800">{t("takePhoto")}</p>
-
-              <Button block variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
-                <FileUp aria-hidden /> {busy ? t("loading") : t("chooseFile")}
-              </Button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (f) void handleFile(f);
-                }}
-              />
-              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-                <button
-                  onClick={() => void trySample()}
-                  disabled={busy}
-                  className="inline-flex min-h-12 items-center gap-2 text-lg font-semibold text-blue-800 underline-offset-4 hover:underline"
-                >
-                  <Sparkles className="size-5" aria-hidden /> {t("trySample")}
-                </button>
-                <Link
-                  href="/verify"
-                  className="inline-flex min-h-12 items-center gap-2 text-lg font-semibold text-blue-800 underline-offset-4 hover:underline"
-                >
-                  <ShieldCheck className="size-5" aria-hidden /> {t("checkDocument")}
-                </Link>
+              <div className="flex justify-center">
+                {torchSupported ? (
+                  <IconAction tone="dark" icon={torchOn ? FlashlightOff : Flashlight} label={t("cam_light")} active={torchOn} onClick={toggleTorch} />
+                ) : (
+                  <span className="size-14" aria-hidden />
+                )}
               </div>
-            </>
-          )}
-          <p className="text-center text-base text-slate-600">{t("privacyNote")}</p>
-        </div>
+            </div>
+          </>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void handleFile(f);
+          }}
+        />
       </div>
     </div>
   );

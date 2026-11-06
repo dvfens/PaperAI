@@ -1,11 +1,11 @@
 "use client";
 
-import { CheckCircle2, Download, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Download, FileText, Info, Link2Off, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-import { Notice, Screen, Spinner, TopBar } from "@/components/common/Chrome";
+import { AppBar, AppScreen, Card, Chip, Dock, Page, SpeakButton, Spinner } from "@/components/common/Chrome";
 import { useApp } from "@/components/app/AppContext";
 
 type Meta =
@@ -24,45 +24,81 @@ export function SharedDocument({ token }: { token: string }) {
       .catch(() => setMeta({ valid: false }));
   }, [token]);
 
+  const valid = meta?.valid ? meta : null;
+
   return (
-    <>
-      <TopBar />
-      <Screen>
-        <h1 className="text-3xl font-bold text-slate-900">{t("sharedTitle")}</h1>
+    <AppScreen>
+      {/* The full title wraps on the card below instead of being cut off in the bar. */}
+      <AppBar />
+      <Page dock={Boolean(valid)}>
         {!meta && (
-          <div className="mt-6">
+          <div className="flex justify-center py-16">
             <Spinner label={t("loading")} />
           </div>
         )}
+
         {meta && !meta.valid && (
-          <div className="mt-6 rounded-3xl border-2 border-slate-300 bg-slate-50 p-5">
-            <p className="flex items-center gap-3 text-2xl font-bold text-slate-900">
-              <XCircle className="size-9 text-slate-600" aria-hidden /> {t("sharedExpired")}
+          <Card className="mt-4 flex flex-col items-center gap-3 bg-slate-100/70 px-5 py-10 text-center">
+            <span className="flex size-16 items-center justify-center rounded-full bg-white text-slate-500">
+              <Link2Off className="size-10" aria-hidden />
+            </span>
+            <h1 className="max-w-md text-xl font-bold leading-snug text-slate-700">{t("sharedExpired")}</h1>
+          </Card>
+        )}
+
+        {valid && (
+          <>
+            <Card className="relative mt-4 flex flex-col items-center gap-3 px-5 pb-6 pt-8 text-center">
+              <SpeakButton
+                text={[
+                  t("sharedTitle"),
+                  t("sharedValid", { date: formatDate(lang, valid.expiresAt, true) }),
+                  valid.arkivChecked ? t("verifyMatchDetail", { date: formatDate(lang, valid.approvedAt, true) }) : "",
+                  t("verifyDisclaimer"),
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                className="absolute right-3 top-3"
+              />
+              <span className="flex size-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                <FileText className="size-10" aria-hidden />
+              </span>
+              <h1 className="max-w-md text-xl font-bold leading-snug text-slate-900">{t("sharedTitle")}</h1>
+              <div className="flex flex-wrap justify-center gap-2">
+                {/* Dates with a time wrap at 375px, so these chips use the wrapping (rounded-2xl) shape. */}
+                <Chip tone="blue" icon={Clock} className="max-w-full rounded-2xl px-4 py-1.5 text-base">
+                  {t("linkActiveUntil", { date: formatDate(lang, valid.expiresAt, true) })}
+                </Chip>
+                {valid.arkivChecked && (
+                  <Chip tone="green" icon={CheckCircle2} className="max-w-full rounded-2xl px-4 py-1.5 text-base">
+                    {t("approvedOn", { date: formatDate(lang, valid.approvedAt, true) })}
+                  </Chip>
+                )}
+              </div>
+            </Card>
+
+            <p className="mt-4 flex items-start gap-2 px-1 text-base text-slate-500">
+              <Info className="mt-1 size-4 shrink-0" aria-hidden />
+              <span>{t("verifyDisclaimer")}</span>
             </p>
-          </div>
+          </>
         )}
-        {meta?.valid && (
-          <div className="mt-6 flex flex-col gap-4">
-            <Notice tone="info">{t("sharedValid", { date: formatDate(lang, meta.expiresAt, true) })}</Notice>
-            {meta.arkivChecked && (
-              <p className="flex items-start gap-2 text-lg text-green-900">
-                <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-green-700" aria-hidden /> {t("verifyMatchDetail", { date: formatDate(lang, meta.approvedAt, true) })}
-              </p>
-            )}
-            <Button block asChild>
-              <a href={`/api/share/${encodeURIComponent(token)}/file`}>
-                <Download aria-hidden /> {t("sharedDownload")}
-              </a>
-            </Button>
-            <Button block variant="secondary" asChild>
-              <Link href={`/verify?h=${meta.sha256}`}>
-                <ShieldCheck aria-hidden /> {t("checkDocument")}
-              </Link>
-            </Button>
-            <p className="text-lg text-slate-700">{t("verifyDisclaimer")}</p>
-          </div>
-        )}
-      </Screen>
-    </>
+      </Page>
+
+      {valid && (
+        <Dock>
+          <Button block size="lg" asChild>
+            <a href={`/api/share/${encodeURIComponent(token)}/file`}>
+              <Download aria-hidden /> {t("sharedDownload")}
+            </a>
+          </Button>
+          <Button block size="md" variant="ghost" asChild>
+            <Link href={`/verify?h=${valid.sha256}`}>
+              <ShieldCheck aria-hidden /> {t("verify")}
+            </Link>
+          </Button>
+        </Dock>
+      )}
+    </AppScreen>
   );
 }

@@ -1,16 +1,16 @@
 "use client";
 
-import { Download, Lock, Mic, PenLine, ShieldCheck, ThumbsUp } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, Download, ListChecks, Mic, PenLine, RotateCcw, ShieldCheck, ThumbsUp } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
 import { downloadBlob, pagesWithinBudget, pdfToPages } from "@/lib/client/media";
 import { detectYesNo } from "@/lib/conversation/rules";
 import type { StringKey } from "@/lib/i18n";
-import type { FormField, RetentionChoice } from "@/lib/types";
+import type { RetentionChoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { ActionBar, Notice, ReadAloudButton, Screen, Spinner, TopBar } from "@/components/common/Chrome";
+import { AppBar, AppScreen, Card, Chip, Dock, IconAction, ListRow, Notice, Page, Segmented, SpeakButton, Spinner } from "@/components/common/Chrome";
 import { useListen } from "@/components/common/useListen";
 import { DocumentPreview, type Highlight } from "@/components/DocumentPreview";
 import { useApp } from "@/components/app/AppContext";
@@ -92,114 +92,122 @@ export function FinalVerification() {
     } else if (yn === "no") go("review");
   };
 
-  return (
-    <>
-      <TopBar onBack={() => go("review")} />
-      <Screen>
-        <h1 className="text-3xl font-bold text-slate-900">{t("finalTitle")}</h1>
+  const listening = listen.state === "listening";
 
+  return (
+    <AppScreen>
+      {/* "Check & approve" is cut off in the bar at 375px (both languages); "Final check" fits. */}
+      <AppBar onBack={() => go("review")} title={t("finalTitle")} />
+      <Page className={generated ? "pb-64" : undefined}>
         {!generated && !error && (
-          <div className="mt-6">
+          <div className="flex min-h-[50dvh] items-center justify-center">
             <Spinner label={t("generating")} />
           </div>
         )}
         {error && (
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-6">
             <Notice tone="error">{t(error)}</Notice>
-            <Button
-              block
-              onClick={() => {
-                started.current = false;
-                setError(null);
-                update({ generated: null });
-              }}
-            >
-              {t("tryAgain")}
-            </Button>
           </div>
         )}
 
         {generated && (
           <>
-            <div role="tablist" className="mt-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
-              {(["completed", "original"] as const).map((k) => (
-                <button
-                  key={k}
-                  role="tab"
-                  aria-selected={tab === k}
-                  onClick={() => setTab(k)}
-                  className={cn(
-                    "min-h-12 rounded-xl text-lg font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
-                    tab === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-700",
-                  )}
-                >
-                  {t(k)}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
+            {missing.length > 0 && (
+              <section aria-label={t("missingInfo")} className="mb-4 rounded-3xl bg-amber-50 p-3">
+                <p className="flex items-center gap-2 px-1 text-base font-bold text-amber-900">
+                  <AlertTriangle className="size-5 shrink-0" aria-hidden /> {t("missingInfo")}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {missing.map((f) => (
+                    <Chip key={f.id} tone="amber" className="max-w-full rounded-2xl bg-white text-base">
+                      <span className="min-w-0 break-words">{f.labelLocalized}</span>
+                    </Chip>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <Segmented
+              label={`${t("completed")} / ${t("original")}`}
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: "completed", label: t("completed") },
+                { value: "original", label: t("original") },
+              ]}
+            />
+
+            <Card className="mt-4 p-2">
               {tab === "completed" ? (
                 <DocumentPreview pages={generated.pages} highlights={highlights} alt={t("completed")} />
               ) : (
                 <DocumentPreview pages={source.pages} alt={t("original")} />
               )}
+            </Card>
+
+            {/* Answers: collapsed by default; the speaker reads the important ones aloud. */}
+            <div className="relative mt-6">
+              <details className="group rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-3xl py-3 pr-[4.25rem] pl-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <ListChecks className="size-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("approvedFields")}</span>
+                  <Chip className="text-base">{filled.length}</Chip>
+                  <ChevronDown className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="divide-y divide-slate-100 border-t border-slate-100">
+                  {filled.map((f) => {
+                    const spoken = spokenValue(f, conv.answers[f.id]);
+                    return (
+                      <ListRow
+                        key={f.id}
+                        label={<span className="whitespace-normal text-base">{f.labelLocalized}</span>}
+                        value={displayValue(f, conv.answers[f.id], t)}
+                        sub={spoken ? <span className="text-base text-slate-600">{spoken}</span> : undefined}
+                      />
+                    );
+                  })}
+                </div>
+              </details>
+              <div className="absolute top-2 right-2">
+                <SpeakButton text={readback} />
+              </div>
             </div>
-
-            {missing.length > 0 && (
-              <section className="mt-6">
-                <Notice tone="warning">
-                  <p className="font-semibold">{t("missingInfo")}</p>
-                  <ul className="mt-1 list-disc pl-5">
-                    {missing.map((f) => (
-                      <li key={f.id}>{f.labelLocalized}</li>
-                    ))}
-                  </ul>
-                </Notice>
-              </section>
-            )}
-
-            <section className="mt-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold text-slate-900">{t("approvedFields")}</h2>
-                <ReadAloudButton text={readback} />
-              </div>
-              <dl className="mt-3 divide-y divide-slate-100 rounded-2xl border-2 border-slate-200">
-                {filled.map((f: FormField) => (
-                  <div key={f.id} className="flex flex-col gap-0.5 p-3 sm:flex-row sm:justify-between sm:gap-4">
-                    <dt className="text-lg text-slate-700">{f.labelLocalized}</dt>
-                    <dd className="break-words text-right text-xl font-semibold text-slate-900">
-                      {displayValue(f, conv.answers[f.id], t)}
-                      {spokenValue(f, conv.answers[f.id]) && (
-                        <span className="block text-lg font-normal text-slate-600">{spokenValue(f, conv.answers[f.id])}</span>
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-
-            <ActionBar>
-              <p className="text-center text-xl font-semibold text-slate-900">{t("readbackAsk")}</p>
-              <Button block variant="success" onClick={() => setConsentOpen(true)}>
-                <ThumbsUp aria-hidden /> {t("yesCorrect")}
-              </Button>
-              <Button block variant="secondary" onClick={() => go("review")}>
-                <PenLine aria-hidden /> {t("noChange")}
-              </Button>
-              <div className="grid grid-cols-2 gap-2">
-                {listen.supported && (
-                  <Button variant="ghost" size="sm" onClick={sayYesNo}>
-                    <Mic aria-hidden /> {listen.state === "listening" ? t("listening") : `${t("yes")} / ${t("no")}`}
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => downloadBlob(generated.blob, "completed-form.pdf")}>
-                  <Download aria-hidden /> {t("downloadPdf")}
-                </Button>
-              </div>
-            </ActionBar>
           </>
         )}
-      </Screen>
+      </Page>
+
+      {error && (
+        <Dock>
+          <Button
+            block
+            onClick={() => {
+              started.current = false;
+              setError(null);
+              update({ generated: null });
+            }}
+          >
+            <RotateCcw aria-hidden /> {t("tryAgain")}
+          </Button>
+        </Dock>
+      )}
+
+      {generated && (
+        <Dock>
+          <p aria-live="polite" className={cn("text-center text-lg font-semibold", listening ? "text-red-700" : "text-slate-900")}>
+            {listening ? t("listening") : t("readbackAsk")}
+          </p>
+          <Button block variant="success" onClick={() => setConsentOpen(true)}>
+            <ThumbsUp aria-hidden /> {t("allCorrect")}
+          </Button>
+          <div className="flex items-start justify-around gap-2">
+            <IconAction icon={PenLine} label={t("edit")} onClick={() => go("review")} />
+            {listen.supported && <IconAction icon={Mic} label={`${t("yes")} / ${t("no")}`} active={listening} onClick={sayYesNo} />}
+            <IconAction icon={Download} label={t("download")} onClick={() => downloadBlob(generated.blob, "completed-form.pdf")} />
+          </div>
+        </Dock>
+      )}
 
       {generated && (
         <ConsentDialog
@@ -213,7 +221,7 @@ export function FinalVerification() {
           lang={lang}
         />
       )}
-    </>
+    </AppScreen>
   );
 }
 
@@ -235,6 +243,7 @@ function ConsentDialog({
   const [agree, setAgree] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<StringKey | null>(null);
+  const lineId = useId();
   const generated = state.generated!;
   const analysis = state.analysis!;
 
@@ -269,51 +278,55 @@ function ConsentDialog({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title={t("consentTitle")} closeLabel={t("close")}>
-      <div className="flex flex-col gap-4">
-        <p className="text-xl text-slate-800">{t("consentBody")}</p>
-        <p className="flex gap-2 rounded-2xl bg-blue-50 p-3 text-lg text-blue-950">
-          <Lock className="mt-1 size-5 shrink-0" aria-hidden /> {t("consentPublic")}
-        </p>
-        <fieldset>
-          <legend className="text-lg font-semibold text-slate-900">{t("keepFor")}</legend>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {options.map((o) => (
-              <button
-                key={o.days}
-                type="button"
-                role="radio"
-                aria-checked={retention === o.days}
-                onClick={() => setRetention(o.days)}
-                className={cn(
-                  "min-h-14 rounded-2xl border-2 text-lg font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
-                  retention === o.days ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-900",
-                )}
-              >
-                {t(o.label)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border-2 border-slate-200 p-4">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-1 size-7 shrink-0 accent-blue-700" />
-          <span className="text-lg text-slate-900">{t("consentAgree")}</span>
+    <Dialog open={open} onOpenChange={onOpenChange} title={t("consentShort")} closeLabel={t("close")}>
+      <div className="flex flex-col gap-5">
+        <div className="flex items-start gap-3">
+          <p id={lineId} className="min-w-0 flex-1 pt-1 text-lg text-slate-700">
+            {t("consentLine")}
+          </p>
+          <SpeakButton text={`${t("consentBody")} ${t("consentPublic")} ${t("consentAgree")}`} />
+        </div>
+
+        <div>
+          <p className="mb-2 px-1 text-base font-semibold text-slate-600">{t("keepFor")}</p>
+          <Segmented
+            label={t("keepFor")}
+            value={retention}
+            onChange={setRetention}
+            options={options.map((o) => ({ value: o.days, label: t(o.label) }))}
+          />
+        </div>
+
+        <label className="flex min-h-14 cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 px-4 py-3 transition-colors has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-blue-300">
+          <input
+            type="checkbox"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+            aria-describedby={lineId}
+            className="size-7 shrink-0 accent-blue-700 focus-visible:outline-none"
+          />
+          <span className="text-lg font-semibold text-slate-900">{t("agree")}</span>
         </label>
+
         {error && <Notice tone="error">{t(error)}</Notice>}
-        <Button block disabled={!agree || saving} onClick={save}>
-          <ShieldCheck aria-hidden /> {saving ? t("saving") : t("saveProtect")}
-        </Button>
-        <Button
-          block
-          variant="secondary"
-          disabled={saving}
-          onClick={() => {
-            downloadBlob(generated.blob, "completed-form.pdf");
-            onDone(null);
-          }}
-        >
-          <Download aria-hidden /> {t("downloadOnly")}
-        </Button>
+
+        <div className="flex flex-col gap-2">
+          <Button block disabled={!agree || saving} onClick={save}>
+            <ShieldCheck aria-hidden /> {saving ? t("saving") : t("saveShort")}
+          </Button>
+          <Button
+            block
+            size="md"
+            variant="ghost"
+            disabled={saving}
+            onClick={() => {
+              downloadBlob(generated.blob, "completed-form.pdf");
+              onDone(null);
+            }}
+          >
+            <Download aria-hidden /> {t("downloadOnlyShort")}
+          </Button>
+        </div>
       </div>
     </Dialog>
   );

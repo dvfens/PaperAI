@@ -1,13 +1,13 @@
 "use client";
 
-import { CheckCircle2, Keyboard, ListChecks, Pause, Play, Repeat2, Send, SkipForward } from "lucide-react";
+import { CheckCircle2, Ear, EarOff, Keyboard, ListChecks, Loader2, Pause, Play, Repeat2, Send, SkipForward } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { applyTurn, introFor, progress, questionFor } from "@/lib/conversation/engine";
 import { interpretWithRules } from "@/lib/conversation/rules";
 import type { AnswerSource, ConversationState, Interpretation } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import { Notice, Screen, TopBar } from "@/components/common/Chrome";
+import { cn } from "@/lib/utils";
+import { AppBar, AppScreen, Chip, Dock, IconAction, IconButton, Notice, Page } from "@/components/common/Chrome";
 import { MicButton, type MicState } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
@@ -197,122 +197,133 @@ export function VoiceConversation() {
     .sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const lastAnswerField = lastAnswer ? fields.find((f) => f.id === lastAnswer.fieldId) : undefined;
 
-  return (
-    <>
-      <TopBar onBack={() => go("understood")} />
-      <Screen className="flex min-h-[calc(100dvh-4rem)] flex-col">
-        <div className="flex items-center justify-between gap-3 text-lg font-semibold text-slate-700">
-          <span>{t("questionOf", { n: p.currentNumber, total: p.total })}</span>
-          <button onClick={() => go("review")} className="inline-flex min-h-12 items-center gap-2 text-blue-800 hover:underline">
-            <ListChecks className="size-6" aria-hidden /> {t("seeAnswers")}
-          </button>
-        </div>
-        <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100" aria-hidden>
-          <div className="h-full rounded-full bg-blue-700" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
-        </div>
+  const canSpeak = listen.supported;
+  const showKeyboard = typing || !canSpeak;
+  const heard = listen.state === "listening" && listen.partial ? listen.partial : lastHeard;
 
-        <section className="mt-6 flex-1" aria-live="polite">
+  return (
+    <AppScreen>
+      <AppBar
+        onBack={() => go("understood")}
+        right={
+          <>
+            {canSpeak && (
+              <IconButton icon={handsFree ? Ear : EarOff} label={t("auto")} pressed={handsFree} onClick={() => setHandsFree((v) => !v)} />
+            )}
+            <IconButton icon={ListChecks} label={t("seeAnswers")} onClick={() => go("review")} />
+          </>
+        }
+      />
+      {/* Progress: the count sits beside the bar (the app bar is too narrow for it next to two buttons). */}
+      <div className="mx-auto flex max-w-2xl items-center gap-3 px-4">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden>
+          <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
+        </div>
+        <p className="shrink-0 text-base font-bold tabular-nums text-slate-600">
+          <span aria-hidden>
+            {p.currentNumber} / {p.total}
+          </span>
+          <span className="sr-only">{t("questionOf", { n: p.currentNumber, total: p.total })}</span>
+        </p>
+      </div>
+
+      <Page className={cn("flex flex-col gap-5 pt-6", showKeyboard && "pb-64")}>
+        <section aria-live="polite" className="flex flex-col items-start gap-3">
           {currentField && conv.phase !== "paused" && (
-            <p className="text-lg font-semibold uppercase tracking-wide text-blue-800">{currentField.labelLocalized}</p>
+            <Chip tone="blue" className="max-w-full rounded-2xl text-base">
+              <span className="min-w-0 break-words">{currentField.labelLocalized}</span>
+            </Chip>
           )}
-          <p className="mt-2 text-3xl font-semibold leading-snug text-slate-900">
+          <p className="text-2xl font-bold leading-snug text-slate-900">
             {conv.phase === "paused" ? t("pausedTitle") : prompt || currentPrompt(conv)}
           </p>
-          {currentField?.hint && conv.phase === "asking" && <p className="mt-3 text-xl text-slate-700">{currentField.hint}</p>}
-
-          {(listen.partial || lastHeard) && (
-            <div className="mt-6 rounded-2xl bg-slate-100 px-4 py-3">
-              <p className="text-base font-semibold text-slate-600">{t("youSaid")}</p>
-              <p className="text-xl text-slate-900">“{listen.state === "listening" && listen.partial ? listen.partial : lastHeard}”</p>
-            </div>
-          )}
-          {lastAnswer && lastAnswerField && conv.phase === "asking" && (
-            <p className="mt-4 flex items-center gap-2 text-lg text-green-800">
-              <CheckCircle2 className="size-6 shrink-0" aria-hidden />
-              <span>
-                {lastAnswerField.labelLocalized}: <strong>{lastAnswerField.sensitive ? "••••" : lastAnswer.display}</strong>
-              </span>
-            </p>
-          )}
-          {notice && (
-            <div className="mt-4">
-              <Notice tone="warning">{notice}</Notice>
-            </div>
-          )}
+          {currentField?.hint && conv.phase === "asking" && <p className="text-lg text-slate-500">{currentField.hint}</p>}
         </section>
 
-        <div className="mt-6 flex flex-col items-center gap-5">
-          {listen.supported && !typing && <MicButton state={micState} label={micLabel} level={listen.level} onPress={onMic} />}
+        {heard && (
+          <div className="ml-auto max-w-[85%] rounded-3xl rounded-br-lg bg-blue-600 px-4 py-3 text-lg text-white shadow-sm" aria-label={t("youSaid")}>
+            {heard}
+          </div>
+        )}
 
-          {(typing || !listen.supported) && (
-            <form
-              className="flex w-full gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const v = typed.trim();
-                if (!v || busy) return;
-                setTyped("");
-                void processUtterance(v, "typed");
+        {lastAnswer && lastAnswerField && conv.phase === "asking" && (
+          <Chip tone="green" icon={CheckCircle2} className="max-w-full rounded-2xl text-base">
+            <span className="min-w-0 break-words">
+              {lastAnswerField.labelLocalized}: {lastAnswerField.sensitive ? "••••" : lastAnswer.display}
+            </span>
+          </Chip>
+        )}
+        {notice && <Notice tone="warning">{notice}</Notice>}
+      </Page>
+
+      <Dock className="gap-3 pt-2">
+        {/* Status line with the two less-used toggles either side, so the main row fits a 375px phone. */}
+        <div className="flex items-center gap-2">
+          {canSpeak ? (
+            <IconButton
+              icon={Keyboard}
+              label={t("type")}
+              pressed={typing}
+              className={typing ? undefined : "bg-slate-100"}
+              onClick={() => {
+                listen.cancel();
+                setTyping((v) => !v);
               }}
-            >
-              <input
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                placeholder={t("typePlaceholder")}
-                aria-label={t("typePlaceholder")}
-                autoFocus
-                className="min-h-16 flex-1 rounded-2xl border-2 border-slate-300 px-4 text-xl focus:border-blue-600 focus:outline-none"
-              />
-              <Button type="submit" disabled={busy} aria-label={t("send")}>
-                <Send aria-hidden />
-              </Button>
-            </form>
+            />
+          ) : (
+            <span className="size-12 shrink-0" aria-hidden />
           )}
-
-          <div className="grid w-full grid-cols-3 gap-2">
-            <Button variant="secondary" size="sm" onClick={() => void sayThenListen(prompt || currentPrompt(conv), convRef.current)}>
-              <Repeat2 aria-hidden /> {t("repeat")}
-            </Button>
-            {conv.phase === "paused" ? (
-              <Button variant="secondary" size="sm" onClick={() => void applyControl("resume")}>
-                <Play aria-hidden /> {t("resume")}
-              </Button>
-            ) : (
-              <Button variant="secondary" size="sm" onClick={() => void applyControl("pause")}>
-                <Pause aria-hidden /> {t("pause")}
-              </Button>
-            )}
-            <Button variant="secondary" size="sm" onClick={() => void applyControl("skip")} disabled={conv.phase === "paused"}>
-              <SkipForward aria-hidden /> {t("skip")}
-            </Button>
-          </div>
-
-          <div className="flex w-full flex-wrap items-center justify-between gap-3 pb-safe">
-            {listen.supported && (
-              <button
-                onClick={() => {
-                  listen.cancel();
-                  setTyping((v) => !v);
-                }}
-                className="inline-flex min-h-12 items-center gap-2 text-lg font-semibold text-blue-800"
-              >
-                <Keyboard className="size-5" aria-hidden /> {typing ? t("tapToSpeak") : t("typeInstead")}
-              </button>
-            )}
-            {listen.supported && (
-              <label className="inline-flex min-h-12 cursor-pointer items-center gap-3 text-base text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={handsFree}
-                  onChange={(e) => setHandsFree(e.target.checked)}
-                  className="size-6 accent-blue-700"
-                />
-                {t("handsFree")}
-              </label>
-            )}
-          </div>
+          <p
+            className={cn("min-w-0 flex-1 text-center text-base font-semibold", micState === "listening" ? "text-red-700" : "text-slate-500")}
+            aria-live="polite"
+          >
+            {canSpeak ? micLabel : null}
+          </p>
+          {conv.phase === "paused" ? (
+            <IconButton icon={Play} label={t("resume")} pressed onClick={() => void applyControl("resume")} />
+          ) : (
+            <IconButton icon={Pause} label={t("pause")} className="bg-slate-100" onClick={() => void applyControl("pause")} />
+          )}
         </div>
-      </Screen>
-    </>
+        {showKeyboard && (
+          <form
+            className="flex w-full gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const v = typed.trim();
+              if (!v || busy) return;
+              setTyped("");
+              void processUtterance(v, "typed");
+            }}
+          >
+            <input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={t("typePlaceholder")}
+              aria-label={t("typePlaceholder")}
+              autoFocus
+              className="min-h-14 min-w-0 flex-1 rounded-full border-2 border-slate-200 bg-slate-50 px-5 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={busy || !typed.trim()}
+              aria-label={t("send")}
+              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+            >
+              {busy ? <Loader2 className="size-6 animate-spin" aria-hidden /> : <Send className="size-6" aria-hidden />}
+            </button>
+          </form>
+        )}
+        <div className="grid grid-cols-3 items-center justify-items-center">
+          <IconAction icon={Repeat2} label={t("repeat")} onClick={() => void sayThenListen(prompt || currentPrompt(conv), convRef.current)} />
+          {canSpeak && !typing ? (
+            <MicButton size="md" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
+          ) : (
+            <span className="size-16" aria-hidden />
+          )}
+          <IconAction icon={SkipForward} label={t("skip")} onClick={() => void applyControl("skip")} disabled={conv.phase === "paused"} />
+        </div>
+      </Dock>
+    </AppScreen>
   );
 }

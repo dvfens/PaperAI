@@ -1,14 +1,27 @@
 "use client";
 
-import { AlertTriangle, Camera, CheckCircle2, CircleDashed, FileCheck2, MessageSquareMore, Mic, PenLine, Signature } from "lucide-react";
-import { useState } from "react";
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  CheckCircle2,
+  Circle,
+  CircleAlert,
+  CircleDashed,
+  FileCheck2,
+  Loader2,
+  MessageSquareMore,
+  Mic,
+  Signature,
+} from "lucide-react";
+import { useState, type ComponentType } from "react";
 import { nextOpenField, setAnswerManually } from "@/lib/conversation/engine";
 import { normaliseAnswer } from "@/lib/conversation/rules";
 import type { FieldAnswer, FormField } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { ActionBar, Notice, Screen, TopBar } from "@/components/common/Chrome";
+import { AppBar, AppScreen, Chip, Dock, ListGroup, ListRow, Notice, Page, SectionTitle } from "@/components/common/Chrome";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
 
@@ -30,6 +43,18 @@ export function isFilled(answer: FieldAnswer | undefined) {
   return Boolean(answer && (answer.status === "answered" || answer.status === "confirmed") && answer.value);
 }
 
+type Status = { label: string; cls: string; Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }> };
+
+/** Round status mark on the right of each row: shape + colour + hidden text, never colour alone. */
+function StatusMark({ status }: { status: Status }) {
+  return (
+    <span title={status.label} className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", status.cls)}>
+      <status.Icon className="size-6" aria-hidden />
+      <span className="sr-only">{status.label}</span>
+    </span>
+  );
+}
+
 /** Screen 4 — every answer, its status, and manual correction. */
 export function FormReview() {
   const { state, update, go, t, lang } = useApp();
@@ -39,6 +64,7 @@ export function FormReview() {
 
   const missingRequired = analysis.fields.filter((f) => f.aiFillable && f.required && !isFilled(conv.answers[f.id]));
   const unanswered = analysis.fields.filter((f) => f.aiFillable && !isFilled(conv.answers[f.id]));
+  const fillable = analysis.fields.filter((f) => f.aiFillable);
 
   const answerMissing = () => {
     // Forget skipped / "don't know" answers so those questions are asked again.
@@ -54,84 +80,97 @@ export function FormReview() {
     setEditing(null);
   };
 
+  const statusOf = (f: FormField, a: FieldAnswer | undefined, value: string | null): Status => {
+    if (!f.aiFillable)
+      return f.type === "photo"
+        ? { label: t("statusPhoto"), cls: "bg-blue-50 text-blue-800", Icon: Camera }
+        : { label: t("statusByHand"), cls: "bg-blue-50 text-blue-800", Icon: Signature };
+    if (!value) {
+      if (a?.status === "skipped") return { label: t("statusSkipped"), cls: "bg-slate-100 text-slate-600", Icon: CircleDashed };
+      return f.required
+        ? { label: t("statusMissing"), cls: "bg-amber-100 text-amber-800", Icon: CircleAlert }
+        : { label: t("statusMissing"), cls: "bg-slate-100 text-slate-600", Icon: CircleDashed };
+    }
+    if (f.mappingConfidence === "low") return { label: t("statusCheck"), cls: "bg-amber-100 text-amber-800", Icon: AlertTriangle };
+    if (a?.status === "confirmed") return { label: t("statusConfirmed"), cls: "bg-green-100 text-green-800", Icon: CheckCircle2 };
+    return { label: t("statusAnswered"), cls: "bg-green-100 text-green-800", Icon: CheckCircle2 };
+  };
+
+  // Keep the form's own order, but gather fields that share a group (e.g. "Family member 1").
+  const sections: { group?: string; fields: FormField[] }[] = [];
+  for (const f of analysis.fields) {
+    const group = f.group || undefined;
+    const section = sections.find((s) => s.group === group);
+    if (section) section.fields.push(f);
+    else sections.push({ group, fields: [f] });
+  }
+
   return (
-    <>
-      <TopBar onBack={() => go("conversation")} />
-      <Screen>
-        <h1 className="text-3xl font-bold text-slate-900">{t("reviewTitle")}</h1>
-        <p className="mt-1 text-lg text-slate-700">{t("reviewHint")}</p>
+    <AppScreen>
+      <AppBar onBack={() => go("conversation")} title={t("answersTitle")} />
+      <Page>
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip tone="green" icon={CheckCircle2} className="text-base">
+            {fillable.length - unanswered.length} / {fillable.length}
+          </Chip>
+          {unanswered.length > 0 && (
+            <Chip
+              tone={missingRequired.length > 0 ? "amber" : "neutral"}
+              icon={missingRequired.length > 0 ? CircleAlert : CircleDashed}
+              className="text-base"
+            >
+              {t("emptyCount", { n: unanswered.length })}
+            </Chip>
+          )}
+        </div>
+        <p className="mt-3 px-1 text-base text-slate-500">{t("reviewHint")}</p>
 
-        {missingRequired.length > 0 && (
-          <div className="mt-4">
-            <Notice tone="warning">{t("requiredMissing", { n: missingRequired.length })}</Notice>
-          </div>
-        )}
-
-        <ul className="mt-5 flex flex-col gap-3">
-          {analysis.fields.map((f) => {
-            const a = conv.answers[f.id];
-            const value = displayValue(f, a, t);
-            const byHand = !f.aiFillable;
-            const status = byHand
-              ? { label: t(f.type === "photo" ? "statusPhoto" : "statusByHand"), cls: "bg-blue-50 text-blue-900", Icon: f.type === "photo" ? Camera : Signature }
-              : !value
-                ? a?.status === "skipped"
-                  ? { label: t("statusSkipped"), cls: "bg-slate-100 text-slate-800", Icon: CircleDashed }
-                  : { label: t("statusMissing"), cls: f.required ? "bg-red-50 text-red-800" : "bg-slate-100 text-slate-800", Icon: CircleDashed }
-                : f.mappingConfidence === "low"
-                  ? { label: t("statusCheck"), cls: "bg-amber-50 text-amber-900", Icon: AlertTriangle }
-                  : a?.status === "confirmed"
-                    ? { label: t("statusConfirmed"), cls: "bg-green-50 text-green-900", Icon: CheckCircle2 }
-                    : { label: t("statusAnswered"), cls: "bg-green-50 text-green-900", Icon: CheckCircle2 };
-            return (
-              <li key={f.id}>
-                <button
-                  disabled={byHand}
-                  onClick={() => setEditing(f)}
-                  className="flex w-full flex-col gap-2 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left hover:border-blue-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-default disabled:hover:border-slate-200"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 basis-48">
-                      <p className="text-lg font-semibold text-slate-900">
+        {sections.map((section, i) => (
+          <section key={section.group ?? `_${i}`}>
+            {section.group ? <SectionTitle>{section.group}</SectionTitle> : <div className={i === 0 ? "mt-4" : "mt-6"} />}
+            <ListGroup>
+              {section.fields.map((f) => {
+                const a = conv.answers[f.id];
+                const value = displayValue(f, a, t);
+                const byHand = !f.aiFillable;
+                const spoken = byHand ? null : spokenValue(f, a);
+                return (
+                  <ListRow
+                    key={f.id}
+                    label={
+                      <span className="whitespace-normal text-base">
                         {f.labelLocalized}
                         {f.required && <span className="text-red-700"> *</span>}
-                      </p>
-                      {f.labelLocalized !== f.label && <p className="text-base text-slate-500">{f.label}</p>}
-                      {f.group && <p className="text-base text-slate-500">{f.group}</p>}
-                    </div>
-                    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold", status.cls)}>
-                      <status.Icon className="size-4" aria-hidden /> {status.label}
-                    </span>
-                  </div>
-                  {!byHand && (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className={cn("break-words text-xl", value ? "font-semibold text-slate-900" : "italic text-slate-500")}>{value ?? t("emptyValue")}</p>
-                        {spokenValue(f, a) && <p className="break-words text-lg text-slate-600">{spokenValue(f, a)}</p>}
-                      </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 text-lg font-semibold text-blue-800">
-                        <PenLine className="size-5" aria-hidden /> {t("change")}
                       </span>
-                    </div>
-                  )}
-                  {!byHand && value && f.mappingConfidence === "low" && <p className="text-base text-amber-900">{t("uncertainPlacement")}</p>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    }
+                    value={
+                      byHand ? (
+                        <span className="font-medium text-slate-700">{t(f.type === "photo" ? "statusPhoto" : "statusByHand")}</span>
+                      ) : (
+                        value ?? <span className="font-normal italic text-slate-500">{t("emptyValue")}</span>
+                      )
+                    }
+                    sub={spoken ? <span className="text-base text-slate-600">{spoken}</span> : undefined}
+                    right={<StatusMark status={statusOf(f, a, value)} />}
+                    onClick={byHand ? undefined : () => setEditing(f)}
+                  />
+                );
+              })}
+            </ListGroup>
+          </section>
+        ))}
+      </Page>
 
-        <ActionBar>
-          {unanswered.length > 0 && (
-            <Button block variant="secondary" onClick={answerMissing}>
-              <MessageSquareMore aria-hidden /> {t("answerMissing")}
-            </Button>
-          )}
-          <Button block onClick={() => go("final")}>
-            <FileCheck2 aria-hidden /> {t("makeDocument")}
+      <Dock>
+        <Button block onClick={() => go("final")}>
+          <FileCheck2 aria-hidden /> {t("makePdf")}
+        </Button>
+        {unanswered.length > 0 && (
+          <Button block size="md" variant="ghost" onClick={answerMissing}>
+            <MessageSquareMore aria-hidden /> {t("fillEmpty")}
           </Button>
-        </ActionBar>
-      </Screen>
+        )}
+      </Dock>
 
       {editing && (
         <EditAnswerDialog
@@ -143,7 +182,7 @@ export function FormReview() {
           lang={lang}
         />
       )}
-    </>
+    </AppScreen>
   );
 }
 
@@ -181,64 +220,110 @@ function EditAnswerDialog({
     if (text) setValue(text);
   };
 
+  // Which option is the current answer (only used to mark it on screen).
+  const current = isFilled(answer) ? answer!.value : null;
   const choiceButtons =
     field.type === "checkbox"
       ? [
-          { label: t("yes"), raw: t("yes") },
-          { label: t("no"), raw: t("no") },
+          { label: t("yes"), raw: t("yes"), selected: current === "true" },
+          { label: t("no"), raw: t("no"), selected: current === "false" },
         ]
       : field.type === "choice"
-        ? (field.options ?? []).map((o) => ({ label: o, raw: o }))
+        ? (field.options ?? []).map((o) => ({ label: o, raw: o, selected: current === o }))
         : null;
+
+  const listening = listen.state === "listening";
+  const showPrinted = field.label !== field.labelLocalized;
+  const uncertain = isFilled(answer) && field.mappingConfidence === "low";
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={t("changeTitle")} description={field.labelLocalized} closeLabel={t("close")}>
-      {choiceButtons ? (
-        <div className="flex flex-col gap-3">
-          {choiceButtons.map((c) => (
-            <Button key={c.label} block variant="secondary" onClick={() => commit(c.raw)}>
-              {c.label}
+      <div className="flex flex-col gap-4">
+        {showPrinted && (
+          <div className="-mt-2">
+            <Chip className="max-w-full rounded-2xl text-base">
+              <span className="min-w-0 break-words">{field.label}</span>
+            </Chip>
+          </div>
+        )}
+        {uncertain && <Notice tone="warning">{t("uncertainPlacement")}</Notice>}
+
+        {choiceButtons ? (
+          <div role="group" aria-label={field.labelLocalized} className="flex flex-col gap-3">
+            {choiceButtons.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                aria-pressed={c.selected}
+                onClick={() => commit(c.raw)}
+                className={cn(
+                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-5 py-3 text-left text-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+                  c.selected ? "border-blue-600 bg-blue-50 text-blue-900" : "border-slate-200 bg-white text-slate-900 hover:border-blue-300 active:bg-slate-50",
+                )}
+              >
+                <span className="min-w-0 break-words">{c.label}</span>
+                {c.selected ? (
+                  <CheckCircle2 className="size-7 shrink-0 text-blue-700" aria-hidden />
+                ) : (
+                  <Circle className="size-7 shrink-0 text-slate-300" aria-hidden />
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              commit(value);
+            }}
+          >
+            <div className="flex items-end gap-2">
+              {field.type === "multiline" ? (
+                <textarea
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  rows={4}
+                  className="min-w-0 flex-1 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                  aria-label={field.labelLocalized}
+                />
+              ) : (
+                <input
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  inputMode={field.type === "phone" || field.type === "number" ? "numeric" : field.type === "email" ? "email" : "text"}
+                  className="min-h-14 min-w-0 flex-1 rounded-2xl border-2 border-slate-300 bg-slate-50 px-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                  aria-label={field.labelLocalized}
+                  autoFocus
+                />
+              )}
+              {listen.supported && (
+                <button
+                  type="button"
+                  onClick={speakAnswer}
+                  aria-label={listening ? t("listening") : t("speakAnswer")}
+                  aria-pressed={listening}
+                  title={listening ? t("listening") : t("speakAnswer")}
+                  className={cn(
+                    "flex size-14 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+                    listening ? "bg-red-600 text-white hover:bg-red-700" : "bg-blue-50 text-blue-700 hover:bg-blue-100",
+                  )}
+                >
+                  {listen.state === "processing" ? <Loader2 className="size-7 animate-spin" aria-hidden /> : <Mic className="size-7" aria-hidden />}
+                </button>
+              )}
+            </div>
+            <p aria-live="polite" className={cn("px-1 text-base", listening ? "font-semibold text-red-700" : "text-slate-500", !listening && !field.hint && "sr-only")}>
+              {listening ? t("listening") : field.hint}
+            </p>
+            {problem && <Notice tone="warning">{problem}</Notice>}
+            <Button type="submit" block>
+              <Check aria-hidden /> {t("save")}
             </Button>
-          ))}
-        </div>
-      ) : (
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            commit(value);
-          }}
-        >
-          {field.type === "multiline" ? (
-            <textarea
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              rows={4}
-              className="rounded-2xl border-2 border-slate-300 p-4 text-xl focus:border-blue-600 focus:outline-none"
-              aria-label={field.labelLocalized}
-            />
-          ) : (
-            <input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              inputMode={field.type === "phone" || field.type === "number" ? "numeric" : field.type === "email" ? "email" : "text"}
-              className="min-h-16 rounded-2xl border-2 border-slate-300 px-4 text-xl focus:border-blue-600 focus:outline-none"
-              aria-label={field.labelLocalized}
-              autoFocus
-            />
-          )}
-          {field.hint && <p className="text-lg text-slate-700">{field.hint}</p>}
-          {problem && <Notice tone="warning">{problem}</Notice>}
-          {listen.supported && (
-            <Button type="button" block variant="secondary" onClick={speakAnswer}>
-              <Mic aria-hidden /> {listen.state === "listening" ? t("listening") : t("speakAnswer")}
-            </Button>
-          )}
-          <Button type="submit" block>
-            {t("save")}
-          </Button>
-        </form>
-      )}
+          </form>
+        )}
+        {choiceButtons && problem && <Notice tone="warning">{problem}</Notice>}
+      </div>
     </Dialog>
   );
 }
