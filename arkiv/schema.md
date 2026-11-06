@@ -51,13 +51,31 @@ Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defi
 - **Expiry = the link's lifetime** (1 hour, 1 day or 7 days, capped at the document's retention). When it expires on Arkiv, `/s/<token>` stops serving the file.
 - **Deleted** when the person taps "Stop this link" (a `revoke_share` consent event is written in the same batch).
 
+## 4. `saathi.signature.v1` — a finger signature on an approved document
+
+| Attribute | Type | Indexed | Meaning |
+|---|---|---|---|
+| `commitment` | `key` | ✅ | the signed document's commitment (predicted key, same batch) |
+| `docHash` | `str` | ✅ | fingerprint of the signed PDF (its last page is the "Signature record") |
+| `signer` | `addr` | ✅ | public address of the key on the signer's phone — a random per-phone key, not tied to a name |
+| `signature` | `bytes` | — | 65-byte secp256k1 signature over EIP-712 typed data `DocumentSignature{document: bytes32 docHash, signedAt: uint64, method: string, role: string}`, domain `{name: "Saathi", version: "1", chainId: 7794095}` |
+| `signedAt` | `u64` | ✅ | unix seconds; part of the signed message and printed on the PDF's signature page |
+| `method` | `str` | — | `finger` or `finger+voice`; part of the signed message |
+| `role` | `str` | ✅ | `signer`; part of the signed message (room for co-signers later) |
+
+- **Created** in the same atomic `executeBatch` as the commitment and its consent event, only when the person signed with a finger and then chose "Save & protect". The server first checks that the signature recovers to `signer` over exactly these bytes, and that `signer` is the key printed in the PDF (the generation token is bound to it).
+- **Saathi cannot forge it:** the key lives only on the phone; the writer wallet merely carries the signature onto Arkiv. Anyone re-checks it: `/verify` recovers the signer from `signature` in the browser.
+- **Never stored:** the drawn signature image (it exists only inside the encrypted PDF), names, or anything else about the person.
+- **Owner / creator:** writer wallet. **Flags:** `readonly: true`. **Expiry:** the document's retention. **Deleted** with everything else by "Delete my document".
+
 ## Fields we query
 
 | Query | Where | Filter |
 |---|---|---|
 | Verify a PDF | `/verify` (browser, direct to Arkiv) and `POST /api/verify` | `Commitment`: `docHash = <sha256>`, `createdBy(writer)` |
 | Consent history | `/verify` result | `Consent`: `docHash = <sha256>`, `createdBy(writer)`, `orderBy asc(occurredAt)` |
+| Who signed, and is it genuine? | `/verify` result ("Signatures") | `Signature`: `docHash = <sha256>`, `createdBy(writer)`, `orderBy asc(signedAt)`; each signature re-checked with EIP-712 recovery |
 | Is this share link alive? | `GET /api/share/<token>`, `/file` | `ShareGrant`: `grantId = sha256(token)`, `createdBy(writer)` |
 | "Kept safely until …" | Done screen | `getEntity(commitmentKey)` → `$expiresAt` → wall-clock via `getBlockTiming()` |
-| Erase everything for a document | `DELETE /api/documents/<id>` | all three schemas: `docHash = <sha256>`, `createdBy(writer)` |
+| Erase everything for a document | `DELETE /api/documents/<id>` | all four schemas: `docHash = <sha256>`, `createdBy(writer)` |
 | Recent commitments | `npm run arkiv:query` | `Commitment`, `createdBy(writer)`, `orderBy desc(approvedAt)` |

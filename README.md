@@ -28,10 +28,11 @@
 4. **Fill by voice** — one question at a time; big microphone; listens again automatically after each question; "repeat", "pause", "skip", "change my name…" all work; important answers are read back ("Let me confirm. Date of birth: 12 March 1960. Is that correct?"). Nothing is ever written that the person did not say.
 5. **Check answers** — every answer with its status (confirmed / missing / please check / you sign this); tap to correct by voice or typing.
 6. **Final check** — completed PDF next to the original, missing items, the important details read aloud, explicit "Yes, everything is correct".
-7. **Consent** — "Keep a protected copy?" with a retention choice (1 week / 1 month / 6 months) — or just download.
-8. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Saathi always says it has **not** submitted the form anywhere.
-9. **Share & verify** — a short-lived link + QR for the bank; anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser).
-10. **My forms** — saved forms come back any time from the **My forms** button: open, send or delete. The PDF is stored encrypted and opens only on the phone that saved it; Arkiv holds only its fingerprint.
+7. **Sign** — sign with a finger, like an e-signature app: the signature goes into the form's signature boxes and a "Signature record" page is added (time, signer key, QR to check it). A key kept on the phone signs the finished PDF (EIP-712) — no wallet, no account. Skippable ("sign on paper later").
+8. **Consent** — "Keep a protected copy?" with a retention choice (1 week / 1 month / 6 months) — or just download. On saving, the fingerprint, the consent event and the signature are recorded on Arkiv in one transaction.
+9. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Saathi always says it has **not** submitted the form anywhere.
+10. **Share & verify** — a short-lived link + QR for the bank; anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser, signatures re-checked there too).
+11. **My forms** — saved forms come back any time from the **My forms** button: open, send or delete. The PDF is stored encrypted and opens only on the phone that saved it; Arkiv holds only its fingerprint.
 
 ---
 
@@ -96,7 +97,7 @@ Unit tests for the conversation engine and the offline interpreter (dates, India
 npm run test:e2e
 ```
 
-Runs the whole demo scenario against a running dev server through the real API: analyse → conversation with a correction → generate → approve (consent required, forged PDFs refused) → verify → **tampered copy fails** → share link → revoke → secure deletion. When Arkiv is recorded it also asserts the on-chain match and consent history.
+Runs the whole demo scenario against a running dev server through the real API: analyse → conversation with a correction → generate → approve (consent required, forged PDFs refused) → verify → **tampered copy fails** → share link → revoke → secure deletion → **finger signature** (signature boxes + record page, forged / wrong-key / wrong-bytes signatures refused, signature on Arkiv re-checked, erased with the document). When Arkiv is recorded it also asserts the on-chain match, consent history and signature.
 
 ---
 

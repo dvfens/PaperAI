@@ -67,14 +67,15 @@ Optional `via` names the client path (e.g. `stream-backup:socket-closed`, `recor
 ## Documents
 
 ### `POST /api/documents/generate` — multipart
-`fields` (JSON), `answers` (JSON), and the original: `pdf` or `page0..page3`. Returns `application/pdf` with headers
-`X-Document-Sha256`, `X-Generation-Token` (HMAC proving Saathi produced these bytes), `X-Fields-Written`, `X-Fields-Skipped`. Nothing stored.
+`fields` (JSON), `answers` (JSON), and the original: `pdf` or `page0..page3`. Optional finger signature: `signature` (PNG, ≤ 400 KB), `signer` (the phone key's address), `signedAt` (unix seconds, within 15 min), `signMethod` (`finger`|`finger+voice`) — drawn into every signature box, plus a "Signature record" page. Returns `application/pdf` with headers
+`X-Document-Sha256`, `X-Generation-Token` (HMAC proving Saathi produced these bytes; for a signed PDF also bound to `signer`), `X-Fields-Written`, `X-Fields-Skipped`, `X-Signed-Boxes`. Nothing stored.
 
 ### `POST /api/documents/guide`
 `{ lang, analysis, fields, answers }` → `NextStepsGuide { source, intro, steps[{kind: sign|attach|submit|check|info, title, detail, box?}], notSubmittedNotice }`.
 
 ### `POST /api/documents` — multipart (save & protect)
 `pdf`, `token` (generation token), `meta` (`{category, language, pageCount, fieldCount}`), `retentionDays` (7|30|180), `method` (`tap`|`voice+tap`), **`consent=yes`**.
+For a signed PDF also `signer`, `signedAt`, `signMethod` and `signature` (EIP-712 signature over the PDF's SHA-256, see `src/lib/signing.ts`); it must recover to `signer`, or the save is refused (`400 bad_signature`). The signature is then recorded on Arkiv in the same transaction, and the receipt gains `signature: {signer, signedAt, arkivKey}`.
 Encrypts and stores the PDF, records the commitment + consent on Arkiv, sets the device cookie. → `201 CommitmentReceipt`:
 ```json
 { "documentId": "…", "sha256": "…", "approvedAt": "…", "retentionUntil": "…", "stored": true,
