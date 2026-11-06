@@ -84,12 +84,14 @@ export class OpenAIRealtimeSpeechInput implements SpeechInput {
       if (done) return;
       done = true;
       cleanup();
+      if (!cancelled && opts.onAudio && frames.length) opts.onAudio(encodeWav(frames, RATE));
       resolve(cancelled ? "" : value);
     };
     const fail = (err: unknown) => {
       if (done) return;
       done = true;
       cleanup();
+      if (!cancelled && opts.onAudio && frames.length) opts.onAudio(encodeWav(frames, RATE));
       reject(err);
     };
     const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));

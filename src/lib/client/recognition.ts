@@ -34,6 +34,8 @@ export interface ListenOptions {
   hint?: SpeechHint;
   /** Why this input is being used, for server logs (e.g. "recorder:no-audio"). */
   via?: string;
+  /** Receives the recording when the session ends (only the microphone check uses it; never stored). */
+  onAudio?: (audio: Blob) => void;
   onPartial?: (text: string) => void;
   onLevel?: (level: number) => void;
   /** Called when recording ends and transcription starts. */
@@ -147,6 +149,7 @@ class RecorderSpeechInput implements SpeechInput {
       if (cancelled || duration < 400) return "";
       opts.onProcessing?.();
       const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      opts.onAudio?.(blob);
       const { text } = await api.stt(blob, opts.lang, opts.hint, opts.via ?? "recorder", this.kind);
       return text;
     })();

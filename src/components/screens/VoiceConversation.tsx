@@ -75,6 +75,9 @@ export function VoiceConversation() {
   const sayThenListen = useCallback(
     async (text: string, c: ConversationState) => {
       setPrompt(text);
+      // The voice-engine sheet is open: show the reply but do not speak or listen; closing the
+      // sheet asks the current question again.
+      if (sheetOpen.current) return;
       await speak(text);
       if (!alive.current) return;
       // Not if the person already tapped the mic while this was being spoken: that tap started

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { AudioLines, Volume2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AudioLines, Mic, Volume2 } from "lucide-react";
 import { useApp } from "@/components/app/AppContext";
-import { IconButton, Notice, Segmented } from "@/components/common/Chrome";
+import { IconButton, Notice, Segmented, Spinner } from "@/components/common/Chrome";
+import { api } from "@/lib/client/api";
+import { MicError, type ListenSession } from "@/lib/client/recognition";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { SpeechProvider } from "@/lib/types";
@@ -12,6 +14,94 @@ const ENGINES: { value: SpeechProvider; label: string }[] = [
   { value: "elevenlabs", label: "ElevenLabs" },
   { value: "openai", label: "OpenAI" },
 ];
+const NAME: Record<string, string> = { elevenlabs: "ElevenLabs", openai: "OpenAI", browser: "Browser" };
+
+/**
+ * Say one sentence; see exactly what the live engine heard, and what both engines make of the same
+ * recording. Shows whether a problem is the engine or the microphone/room. Nothing is stored.
+ */
+function MicCheck() {
+  const { t, input, lang, voice, stopSpeaking } = useApp();
+  const [phase, setPhase] = useState<"idle" | "listening" | "checking" | "done">("idle");
+  const [level, setLevel] = useState(0);
+  const [live, setLive] = useState("");
+  const [heard, setHeard] = useState<{ label: string; text: string }[]>([]);
+  const session = useRef<ListenSession | null>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    closed.current = false; // (re)mounted — React may mount twice in development
+    return () => {
+      closed.current = true; // the sheet was closed: no more uploads or updates
+      session.current?.cancel();
+    };
+  }, []);
+
+  const start = async () => {
+    if (!input) return;
+    stopSpeaking(); // never record the app's own voice
+    setPhase("listening");
+    setLive("");
+    setHeard([]);
+    const rec: { audio: Blob | null } = { audio: null };
+    const s = input.listen({ lang, onPartial: setLive, onLevel: setLevel, onAudio: (a) => (rec.audio = a), via: "mic-check" });
+    session.current = s;
+    let text = "";
+    try {
+      text = await s.result;
+    } catch (err) {
+      // Say what went wrong instead of "nothing heard": a blocked microphone is not a quiet room.
+      text = err instanceof MicError ? t("micUnavailable") : t("micCheckFailed");
+    }
+    session.current = null;
+    if (closed.current) return;
+    setLevel(0);
+    const rows = [{ label: t("micCheckLive", { engine: NAME[input.kind] ?? input.kind }), text }];
+    setHeard(rows);
+    if (!rec.audio) return setPhase("done");
+    setPhase("checking");
+    const engines = (["elevenlabs", "openai"] as const).filter((p) => voice.available[p]);
+    const texts = await Promise.all(
+      engines.map((p) => api.stt(rec.audio!, lang, undefined, "mic-check", p).then((r) => r.text, () => t("micCheckFailed"))),
+    );
+    if (closed.current) return;
+    setHeard([...rows, ...engines.map((p, i) => ({ label: t("micCheckFile", { engine: NAME[p] }), text: texts[i] }))]);
+    setPhase("done");
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4">
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("micCheck")}</p>
+      <p className="text-sm text-slate-600">{t("micCheckHint")}</p>
+      {phase === "listening" ? (
+        <>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-200" aria-hidden>
+            <div className="h-2 rounded-full bg-green-600 transition-[width]" style={{ width: `${Math.round(level * 100)}%` }} />
+          </div>
+          <p className="min-h-6 text-base italic text-blue-900" aria-live="polite">{live || t("micCheckListening")}</p>
+          <Button size="md" block onClick={() => session.current?.stop()}>
+            {t("micCheckDone")}
+          </Button>
+        </>
+      ) : (
+        <Button size="md" variant="secondary" block disabled={phase === "checking" || !input} onClick={() => void start()}>
+          <Mic aria-hidden />
+          {t("micCheckStart")}
+        </Button>
+      )}
+      {heard.length > 0 && (
+        <ul className="flex flex-col gap-2" aria-live="polite">
+          {heard.map((h) => (
+            <li key={h.label} className="rounded-xl bg-white px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{h.label}</p>
+              <p className="text-base text-slate-900">{h.text || t("micCheckNothing")}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {phase === "checking" && <Spinner label={t("micCheckChecking")} />}
+    </div>
+  );
+}
 
 /**
  * Switch between the ElevenLabs and OpenAI speech engines, separately for listening and for the
@@ -20,7 +110,8 @@ const ENGINES: { value: SpeechProvider; label: string }[] = [
 export function VoiceEngineButton({ tone = "plain", onOpenChange }: { tone?: "plain" | "dark"; onOpenChange?: (open: boolean) => void }) {
   const { t, voice, speak, stopSpeaking } = useApp();
   const [open, setOpen] = useState(false);
-  if (!voice.available.elevenlabs || !voice.available.openai) return null;
+  if (!voice.available.elevenlabs && !voice.available.openai) return null;
+  const both = voice.available.elevenlabs && voice.available.openai;
 
   return (
     <>
@@ -45,19 +136,24 @@ export function VoiceEngineButton({ tone = "plain", onOpenChange }: { tone?: "pl
         closeLabel={t("close")}
       >
         <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineListen")}</p>
-            <Segmented options={ENGINES} value={voice.stt} onChange={voice.setStt} label={t("engineListen")} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineVoice")}</p>
-            <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
-            {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
-          </div>
-          <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
-            <Volume2 aria-hidden />
-            {t("hearSample")}
-          </Button>
+          {both && (
+            <>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineListen")}</p>
+                <Segmented options={ENGINES} value={voice.stt} onChange={voice.setStt} label={t("engineListen")} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineVoice")}</p>
+                <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
+                {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
+              </div>
+              <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
+                <Volume2 aria-hidden />
+                {t("hearSample")}
+              </Button>
+            </>
+          )}
+          <MicCheck />
         </div>
       </Dialog>
     </>

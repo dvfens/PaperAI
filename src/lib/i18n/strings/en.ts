@@ -264,6 +264,16 @@ export const en = {
   engineSlowNote: "The OpenAI voice takes about 2 seconds longer to start speaking.",
   hearSample: "Hear this voice",
   voiceSample: "Hello! I will help you fill your form, one question at a time.",
+  micCheck: "Microphone check",
+  micCheckHint: "Say any sentence, like your name and phone number, then wait. You will see what each engine heard. Nothing is saved.",
+  micCheckStart: "Test the microphone",
+  micCheckListening: "Listening… speak now",
+  micCheckDone: "Done",
+  micCheckLive: "Live ({engine})",
+  micCheckFile: "{engine}, whole recording",
+  micCheckNothing: "(nothing heard)",
+  micCheckChecking: "Checking…",
+  micCheckFailed: "This engine could not be reached.",
 } as const;
 
 export type StringKey = keyof typeof en;
