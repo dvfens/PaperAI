@@ -16,9 +16,9 @@ const buttonVariants = cva(
         success: "bg-green-700 text-white shadow-sm hover:bg-green-800",
       },
       size: {
-        lg: "min-h-16 px-6 py-3 text-xl [&_svg]:size-7",
-        md: "min-h-14 px-5 py-2.5 text-lg [&_svg]:size-6",
-        sm: "min-h-12 px-4 py-2 text-base [&_svg]:size-5",
+        lg: "min-h-14 px-5 py-2.5 text-lg [&_svg]:size-6",
+        md: "min-h-12 px-4 py-2 text-base [&_svg]:size-5",
+        sm: "min-h-11 px-3 py-1.5 text-base [&_svg]:size-5",
       },
       block: { true: "w-full", false: "" },
     },

@@ -9,8 +9,7 @@
 }
 
 html {
-  /* Larger base size: every rem-based size in the UI scales up for older eyes. */
-  font-size: 112.5%;
+  font-size: 100%;
   -webkit-text-size-adjust: 100%;
   background: #ffffff;
 }

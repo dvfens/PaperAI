@@ -1,28 +1,45 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Info, Loader2, Volume2, VolumeX } from "lucide-react";
-import type { ReactNode } from "react";
+/**
+ * Mobile app design system for Saathi.
+ *
+ * Principles: one idea per screen, few words, icons with one-word labels, large touch targets
+ * (≥48px), a compact app bar at the top and a thumb-reachable dock at the bottom.
+ */
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Info, Loader2, Volume2, VolumeX, X } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app/AppContext";
 import { LanguageSelector } from "./LanguageSelector";
 
-export function TopBar({ onBack, right }: { onBack?: () => void; right?: ReactNode }) {
+type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+
+// --- Layout ------------------------------------------------------------------------------------
+
+/** Compact top app bar: back/close on the left, short title in the middle, language on the right. */
+export function AppBar({
+  title,
+  onBack,
+  back = "back",
+  right,
+}: {
+  title?: string;
+  onBack?: () => void;
+  back?: "back" | "close";
+  right?: ReactNode;
+}) {
   const { t } = useApp();
+  const BackIcon = back === "close" ? X : ChevronLeft;
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-2">
+    <header className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur">
+      <div className="mx-auto grid h-14 max-w-2xl grid-cols-[3rem_1fr_auto] items-center gap-2 px-3">
         {onBack ? (
-          <button
-            onClick={onBack}
-            className="-ml-2 flex min-h-12 items-center gap-1 rounded-xl px-2 text-lg font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-          >
-            <ArrowLeft className="size-6" aria-hidden />
-            {t("back")}
-          </button>
+          <IconButton icon={BackIcon} label={t(back === "close" ? "close" : "back")} onClick={onBack} />
         ) : (
-          <span className="text-xl font-bold text-blue-800">{t("appName")}</span>
+          <span className="pl-2 text-lg font-extrabold tracking-tight text-blue-700">{t("appName")}</span>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <h1 className="truncate text-center text-lg font-bold text-slate-900">{title}</h1>
+        <div className="flex items-center justify-end gap-1">
           {right}
           <LanguageSelector />
         </div>
@@ -31,30 +48,257 @@ export function TopBar({ onBack, right }: { onBack?: () => void; right?: ReactNo
   );
 }
 
-export function Screen({ children, className }: { children: ReactNode; className?: string }) {
-  return <main className={cn("mx-auto w-full max-w-2xl px-4 pb-10 pt-5", className)}>{children}</main>;
+/** Scrolling page body. `dock` leaves room for a fixed bottom dock. */
+export function Page({ children, className, dock = true }: { children: ReactNode; className?: string; dock?: boolean }) {
+  return (
+    <main className={cn("mx-auto w-full max-w-2xl px-4 pt-2", dock ? "pb-48" : "pb-10", className)}>{children}</main>
+  );
 }
 
-/** Bottom action area that stays reachable with one thumb on a phone. */
-export function ActionBar({ children }: { children: ReactNode }) {
+/** Fixed bottom dock for the screen's primary actions (max two big buttons). */
+export function Dock({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-slate-100 bg-white/95 px-4 pt-4 pb-safe backdrop-blur">
-      <div className="flex flex-col gap-3">{children}</div>
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/70 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur">
+      <div className={cn("mx-auto flex max-w-2xl flex-col gap-2 px-4 pt-3 pb-safe", className)}>{children}</div>
     </div>
   );
 }
 
+/** Full-height app background used by every screen except the camera. */
+export function AppScreen({ children }: { children: ReactNode }) {
+  return <div className="min-h-dvh bg-slate-50">{children}</div>;
+}
+
+// --- Building blocks ---------------------------------------------------------------------------
+
+export function Card({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+  const cls = cn("block w-full rounded-3xl border border-slate-200/80 bg-white p-4 text-left shadow-sm", className);
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cn(cls, "transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 active:bg-slate-50")}>
+      {children}
+    </button>
+  ) : (
+    <div className={cls}>{children}</div>
+  );
+}
+
+export function SectionTitle({ icon: I, children, right }: { icon?: Icon; children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="mb-2 mt-6 flex items-center justify-between gap-2 px-1">
+      <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+        {I && <I className="size-5" aria-hidden />}
+        {children}
+      </h2>
+      {right}
+    </div>
+  );
+}
+
+/** Round icon-only button (with an accessible label). */
+export function IconButton({
+  icon: I,
+  label,
+  onClick,
+  tone = "plain",
+  className,
+  disabled,
+  pressed,
+}: {
+  icon: Icon;
+  label: string;
+  onClick?: () => void;
+  tone?: "plain" | "soft" | "dark";
+  className?: string;
+  disabled?: boolean;
+  pressed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className={cn(
+        "inline-flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40",
+        tone === "plain" && "text-slate-800 hover:bg-slate-200/60 active:bg-slate-200",
+        tone === "soft" && "bg-blue-50 text-blue-700 hover:bg-blue-100",
+        tone === "dark" && "bg-black/45 text-white backdrop-blur hover:bg-black/60",
+        pressed && "bg-blue-600 text-white hover:bg-blue-700",
+        className,
+      )}
+    >
+      <I className="size-5" aria-hidden />
+    </button>
+  );
+}
+
+/** Icon in a circle with a one-word label underneath — the app's secondary action style. */
+export function IconAction({
+  icon: I,
+  label,
+  onClick,
+  disabled,
+  active,
+  tone = "light",
+}: {
+  icon: Icon;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  tone?: "light" | "dark";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={label}
+      className="group flex min-w-16 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+    >
+      <span
+        className={cn(
+          "flex size-12 items-center justify-center rounded-full transition-colors",
+          tone === "light" && (active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-800 group-hover:bg-slate-200"),
+          tone === "dark" && (active ? "bg-white text-slate-900" : "bg-white/15 text-white group-hover:bg-white/25"),
+        )}
+      >
+        <I className="size-6" aria-hidden />
+      </span>
+      <span className={cn("text-xs font-semibold", tone === "dark" ? "text-white" : "text-slate-700")}>{label}</span>
+    </button>
+  );
+}
+
+const CHIP_TONES = {
+  neutral: "bg-slate-100 text-slate-700",
+  blue: "bg-blue-50 text-blue-800",
+  green: "bg-green-50 text-green-800",
+  amber: "bg-amber-50 text-amber-900",
+  red: "bg-red-50 text-red-800",
+};
+
+export function Chip({ tone = "neutral", icon: I, children, className }: { tone?: keyof typeof CHIP_TONES; icon?: Icon; children: ReactNode; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold", CHIP_TONES[tone], className)}>
+      {I && <I className="size-4" aria-hidden />}
+      {children}
+    </span>
+  );
+}
+
+/** Grouped list container (iOS-style inset group). */
+export function ListGroup({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("divide-y divide-slate-100 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm", className)}>{children}</div>;
+}
+
+/** One row: small label above a bold value; optional status/right slot; tappable when onClick is set. */
+export function ListRow({
+  label,
+  value,
+  sub,
+  icon: I,
+  right,
+  onClick,
+  muted,
+}: {
+  label?: ReactNode;
+  value: ReactNode;
+  sub?: ReactNode;
+  icon?: Icon;
+  right?: ReactNode;
+  onClick?: () => void;
+  muted?: boolean;
+}) {
+  const body = (
+    <>
+      {I && (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+          <I className="size-5" aria-hidden />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        {label && <span className="block truncate text-sm font-medium text-slate-500">{label}</span>}
+        <span className={cn("block break-words text-base font-semibold", muted ? "font-normal italic text-slate-400" : "text-slate-900")}>{value}</span>
+        {sub && <span className="block text-sm text-slate-500">{sub}</span>}
+      </span>
+      {right}
+      {onClick && <ChevronRight className="size-5 shrink-0 text-slate-400" aria-hidden />}
+    </>
+  );
+  const cls = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cn(cls, "hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100")}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/** Segmented control (two or three options). */
+export function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl bg-slate-200/60 p-1">
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "min-h-11 rounded-xl px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+            value === o.value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Round speaker button: reads `text` aloud, tap again to stop. */
+export function SpeakButton({ text, className, tone = "soft" }: { text: string; className?: string; tone?: "soft" | "dark" }) {
+  const { speak, stopSpeaking, speaking, t } = useApp();
+  return (
+    <IconButton
+      icon={speaking ? VolumeX : Volume2}
+      label={speaking ? t("stopReading") : t("readAloud")}
+      onClick={() => (speaking ? stopSpeaking() : void speak(text))}
+      tone={tone}
+      className={className}
+    />
+  );
+}
+
+// --- Feedback ----------------------------------------------------------------------------------
+
 export function Notice({ tone = "info", children }: { tone?: "info" | "warning" | "error" | "success"; children: ReactNode }) {
   const styles = {
-    info: "border-blue-200 bg-blue-50 text-blue-950",
-    warning: "border-amber-300 bg-amber-50 text-amber-950",
-    error: "border-red-300 bg-red-50 text-red-900",
-    success: "border-green-300 bg-green-50 text-green-950",
+    info: "bg-blue-50 text-blue-950",
+    warning: "bg-amber-50 text-amber-950",
+    error: "bg-red-50 text-red-900",
+    success: "bg-green-50 text-green-950",
   }[tone];
-  const Icon = tone === "info" ? Info : AlertTriangle;
+  const I = tone === "info" ? Info : tone === "success" ? CheckCircle2 : AlertTriangle;
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={cn("flex gap-3 rounded-2xl border-2 p-4 text-lg", styles)}>
-      {tone !== "success" && <Icon className="mt-0.5 size-6 shrink-0" aria-hidden />}
+    <div role={tone === "error" ? "alert" : "status"} className={cn("flex gap-3 rounded-2xl p-3 text-base", styles)}>
+      <I className="mt-0.5 size-5 shrink-0" aria-hidden />
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -63,24 +307,38 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "warning" 
 export function Spinner({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 text-lg text-slate-700" role="status">
-      <Loader2 className="size-7 animate-spin text-blue-700" aria-hidden />
+      <Loader2 className="size-6 animate-spin text-blue-600" aria-hidden />
       {label}
     </div>
   );
 }
 
-/** Read a block of text aloud / stop. */
+// --- Backwards-compatible names (older screens) -------------------------------------------------
+
+export function TopBar({ onBack, right, title }: { onBack?: () => void; right?: ReactNode; title?: string }) {
+  return <AppBar onBack={onBack} right={right} title={title} />;
+}
+
+export function Screen({ children, className }: { children: ReactNode; className?: string }) {
+  return <Page className={className}>{children}</Page>;
+}
+
+export function ActionBar({ children }: { children: ReactNode }) {
+  return <Dock>{children}</Dock>;
+}
+
+/** Read a block of text aloud / stop (icon + short label). */
 export function ReadAloudButton({ text, className }: { text: string; className?: string }) {
   const { speak, stopSpeaking, speaking, t } = useApp();
   return (
     <button
       onClick={() => (speaking ? stopSpeaking() : void speak(text))}
       className={cn(
-        "inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-blue-200 bg-white px-4 text-lg font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+        "inline-flex min-h-12 items-center gap-2 rounded-full bg-blue-50 px-4 text-base font-semibold text-blue-800 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
         className,
       )}
     >
-      {speaking ? <VolumeX className="size-6" aria-hidden /> : <Volume2 className="size-6" aria-hidden />}
+      {speaking ? <VolumeX className="size-5" aria-hidden /> : <Volume2 className="size-5" aria-hidden />}
       {speaking ? t("stopReading") : t("readAloud")}
     </button>
   );
