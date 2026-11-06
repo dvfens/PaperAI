@@ -61,7 +61,7 @@ export function DocumentPreview({
                   <span
                     className={cn(
                       // Boxes in the right half anchor their label to the right so it stays on the page.
-                      "absolute -top-[15px] max-w-[45vw] truncate whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-[14px]",
+                      "absolute -top-[15px] max-w-[45vw] truncate whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-[14px] preview-tag",
                       h.box.x + h.box.w / 2 > 0.5 ? "right-0" : "left-0",
                       LABEL_TONES[h.tone],
                     )}
