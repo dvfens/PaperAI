@@ -15,6 +15,8 @@
                                                                                      interpret ─────────────► Claude
                                                                                      applyTurn (deterministic engine)
  speech in/out ───────────────────────────────────────► /api/speech/tts, /stt   ── SpeechService ───────────► ElevenLabs
+ live speech ── single-use token ─────────────────────► /api/speech/token        ── SpeechService ───────────► ElevenLabs
+       └─ 16 kHz PCM over WebSocket (token, no key) ──────────────────────────────────────────────► Scribe realtime
  FinalVerification ── fields + answers + original ────► /api/documents/generate ── PDFGenerationService (pdf-lib)
        ◄── completed PDF + sha256 + generation token ──
  ConsentDialog ── PDF + token + explicit consent ─────► /api/documents          ── SecureStorageService (AES-256-GCM)
@@ -56,7 +58,8 @@
 | DocumentOCRService | `ocr.ts` | Tesseract.js worker (eng+hin), lines + word boxes normalised to the page |
 | ClaudeDocumentService | `claude.ts`, `claudeDocument.ts` | Structured outputs (Zod) on `claude-opus-5-5`, `fallbacks: "default"`, refusal/truncation handling; prompts treat document text as data (prompt-injection hardening) |
 | ConversationService | `conversation.ts` | Claude interpretation → deterministic `applyTurn`; falls back to `interpretWithRules` |
-| SpeechService | `speech.ts` | ElevenLabs `POST /v1/text-to-speech/{voice}` and `POST /v1/speech-to-text` (Scribe); keys never reach the browser |
+| SpeechService | `speech.ts` | ElevenLabs `POST /v1/text-to-speech/{voice}`, `POST /v1/speech-to-text` (Scribe batch) and single-use tokens for Scribe realtime; keys never reach the browser |
+| Speech input | `src/lib/client/realtimeRecognition.ts`, `audioCapture.ts`, `recognition.ts` | Streams the microphone as 16 kHz PCM to Scribe realtime (live words, server-side end-of-speech detection). The answer is kept in memory only until it is transcribed; if the socket fails the same audio goes to batch Scribe, and if the browser gives no audio the MediaRecorder recorder takes over |
 | FormMappingService | `formMapping.ts` | Placement: AcroForm rects → OCR label anchors (right of / below label) → model estimate; per-option tick boxes; `mappingConfidence` for UI highlighting; basic-mode field detection |
 | PDFGenerationService | `pdfGeneration.ts` | Fills real AcroForm fields (sized to the widget) or draws ink-coloured text on the original page/scan; Devanagari runs via Noto Sans Devanagari + fontkit shaping; signatures/photos left blank; generic metadata only |
 | SecureStorageService | `storage.ts` | Envelope encryption (per-document AES-256-GCM data key wrapped by the master key); local-disk or Postgres (`vault_objects`) backend; destroy = key deleted first, then ciphertext removed |
@@ -93,7 +96,7 @@ No names, answers, transcripts or document text are stored in the database.
 
 ### Privacy caveats (stated honestly)
 
-- Page images go to Anthropic for analysis; spoken audio and read-back text go to ElevenLabs. Both are disclosed; production use needs appropriate data-processing agreements (and zero-retention options where available).
+- Page images go to Anthropic for analysis; spoken audio and read-back text go to ElevenLabs (live recognition streams the microphone from the browser straight to ElevenLabs while the person is answering). Both are disclosed; production use needs appropriate data-processing agreements (and zero-retention options where available).
 - Browser speech recognition (fallback) is processed by the browser vendor's service on most platforms.
 - On-chain transactions are permanent: deleting Arkiv entities removes them from queries, but the transaction history still contains the hash. That is why only a hash — never personal data — is written.
 

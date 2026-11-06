@@ -47,8 +47,15 @@ Stateless: the browser sends the whole conversation state.
 ### `POST /api/speech/tts`
 `{ text, lang }` → `audio/mpeg` (ElevenLabs). `503 speech_not_configured` without a key.
 
+### `POST /api/speech/token`
+→ `{ token, model }`. Mints an ElevenLabs single-use token (`POST /v1/single-use-token/realtime_scribe`) for ONE realtime
+transcription socket; it expires after 15 minutes. The browser then streams 16 kHz PCM straight to
+`wss://api.elevenlabs.io/v1/speech-to-text/realtime` (`commit_strategy=vad`, `filter_background_audio=true`), so the
+API key never leaves the server. Same-origin only, rate-limited.
+
 ### `POST /api/speech/stt` — multipart
-`audio` (webm/mp4), `lang` → `{ text, languageCode }` (ElevenLabs Scribe).
+`audio` (webm/mp4/wav), `lang` → `{ text, languageCode }` (ElevenLabs Scribe batch). Used when realtime streaming is
+unavailable or fails mid-answer; the client then sends the same recording here, so nothing said is lost.
 
 ## Documents
 
