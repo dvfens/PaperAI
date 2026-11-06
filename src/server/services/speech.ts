@@ -5,7 +5,7 @@ import { HttpError } from "@/server/http";
 import { log } from "@/server/log";
 
 /**
- * SpeechService — ElevenLabs text-to-speech and speech-to-text (Scribe).
+ * SpeechService — ElevenLabs text-to-speech and speech-to-text (Scribe, batch and realtime).
  * The browser falls back to the Web Speech API when this service is not configured; that decision
  * is made client-side from /api/health so speech keeps working without an API key.
  */
@@ -14,6 +14,8 @@ const API = "https://api.elevenlabs.io/v1";
 export interface SpeechService {
   synthesize(text: string, lang: LanguageCode): Promise<ArrayBuffer>;
   transcribe(audio: Blob, lang: LanguageCode): Promise<{ text: string; languageCode: string | null }>;
+  /** A single-use, 15-minute token that lets the browser open ONE realtime transcription socket. */
+  realtimeToken(): Promise<string>;
 }
 
 class ElevenLabsSpeech implements SpeechService {
@@ -61,6 +63,21 @@ class ElevenLabsSpeech implements SpeechService {
     }
     const json = (await res.json()) as { text?: string; language_code?: string };
     return { text: (json.text ?? "").trim(), languageCode: json.language_code ?? null };
+  }
+
+  async realtimeToken() {
+    const res = await fetch(`${API}/single-use-token/realtime_scribe`, {
+      method: "POST",
+      headers: { "xi-api-key": env.elevenLabsApiKey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      log.warn("stt.token_failed", { provider: "elevenlabs", status: res.status });
+      throw new HttpError(502, "stt_token_failed", "Speech recognition is unavailable.");
+    }
+    const json = (await res.json()) as { token?: string };
+    if (!json.token) throw new HttpError(502, "stt_token_failed", "Speech recognition is unavailable.");
+    return json.token;
   }
 }
 
