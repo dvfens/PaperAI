@@ -1,4 +1,5 @@
 import "server-only";
+import { SIGNATURE_MAX_AGE_S, signatureValid, signedAtOk, type SignatureProof } from "@/lib/signing";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { Hex } from "viem";
@@ -39,6 +40,9 @@ function receiptFrom(row: DocumentRow): CommitmentReceipt {
     approvedAt: row.approvedAt.toISOString(),
     retentionUntil: row.retentionUntil.toISOString(),
     stored: row.status === "stored",
+    ...(row.signer && row.signedAt
+      ? { signature: { signer: row.signer, signedAt: row.signedAt.toISOString(), arkivKey: row.arkivSignatureKey } }
+      : {}),
     arkiv,
   };
 }
@@ -58,11 +62,19 @@ export async function approveAndStore(input: {
   fieldCount: number;
   retentionDays: RetentionChoice;
   consentMethod: string;
+  /** The person's signature over this PDF, made with their phone's key. */
+  signature?: SignatureProof;
 }): Promise<CommitmentReceipt> {
   if (!isPdf(input.pdf)) throw new HttpError(400, "not_pdf", "Expected a PDF.");
   const sha = sha256Hex(input.pdf);
-  if (!safeEqualHex(generationToken(sha), input.token)) {
+  if (!safeEqualHex(generationToken(sha, input.signature?.signer), input.token)) {
     throw new HttpError(400, "unknown_document", "This PDF was not produced by Saathi or was modified.");
+  }
+  // Checked here and again by anyone on /verify: the signature must come from the key printed in this
+  // PDF and cover exactly these bytes.
+  const sig = input.signature;
+  if (sig && (!signedAtOk(sig.signedAt, SIGNATURE_MAX_AGE_S) || !(await signatureValid(sha, sig)))) {
+    throw new HttpError(400, "bad_signature", "The signature does not match this document.");
   }
   const id = randomUUID();
   const approvedAt = new Date();
@@ -86,6 +98,8 @@ export async function approveAndStore(input: {
     approvedAt,
     retentionUntil,
     arkivStatus: chain.configured ? "pending" : "not_configured",
+    signer: sig ? sig.signer.toLowerCase() : null,
+    signedAt: sig ? new Date(sig.signedAt * 1000) : null,
   });
   await audit(id, "approved", { retentionDays: input.retentionDays, method: input.consentMethod });
 
@@ -98,6 +112,7 @@ export async function approveAndStore(input: {
         approvedAt,
         retentionUntil,
         method: input.consentMethod,
+        signature: sig,
       });
       await d
         .update(documents)
@@ -107,6 +122,7 @@ export async function approveAndStore(input: {
           arkivConsentKey: rec.consentKey,
           arkivTxHash: rec.txHash,
           arkivExpiresBlock: rec.expiresAtBlock,
+          arkivSignatureKey: rec.signatureKey,
         })
         .where(eq(documents.id, id));
       await audit(id, "arkiv_recorded", { txHash: rec.txHash, entityKey: rec.commitmentKey });

@@ -10,8 +10,9 @@ import { createPublicClient, type PublicArkivClient } from "@arkiv-network/sdk";
 import { rabdi } from "@arkiv-network/sdk/chains";
 import { asc, eq } from "@arkiv-network/sdk/query";
 import { http, type Hex } from "viem";
-import type { VerificationEvent, VerificationResult } from "@/lib/types";
-import { Commitment, Consent, ShareGrant, str } from "./schemas";
+import { isSignMethod, isSignRole, signatureValid } from "@/lib/signing";
+import type { VerificationEvent, VerificationResult, VerificationSignature } from "@/lib/types";
+import { Commitment, Consent, ShareGrant, Signature, str } from "./schemas";
 
 export const ARKIV_CHAIN_ID = 7794095;
 export const ARKIV_EXPLORER = "https://rabdi.explorer.arkiv.network";
@@ -82,6 +83,30 @@ export async function verifyHashOnArkiv(
     detail: e.action.value,
   }));
 
+  // Signatures: each one is checked here (recover the signer from the signature), not taken on trust.
+  const signed = await client
+    .select({ $key: true, signer: true, signature: true, signedAt: true, method: true, role: true })
+    .from(Signature)
+    .where(eq("docHash", str(hash)))
+    .createdBy(writer)
+    .orderBy(asc("signedAt"))
+    .limit(20)
+    .fetch();
+  const signatures: VerificationSignature[] = await Promise.all(
+    signed.entities.map(async (e) => {
+      const method = e.method.value;
+      const role = e.role.value;
+      const signedAt = Number(e.signedAt.value);
+      const valid =
+        isSignMethod(method) &&
+        isSignRole(role) &&
+        (await signatureValid(hash, { signer: e.signer.value, signedAt, method, role, signature: e.signature.value }));
+      return { entityKey: e.$key, signer: e.signer.value, signedAt, method, role, valid };
+    }),
+  );
+  for (const s of signatures) history.push({ kind: "signed", at: s.signedAt, entityKey: s.entityKey, detail: s.method });
+  history.sort((a, b) => a.at - b.at);
+
   return {
     sha256: hash,
     status: "match",
@@ -96,6 +121,7 @@ export async function verifyHashOnArkiv(
       creator: row.$creator,
     },
     history,
+    signatures,
     checkedAgainst: "arkiv",
   };
 }

@@ -252,6 +252,8 @@ export interface CommitmentReceipt {
   approvedAt: string;
   retentionUntil: string;
   stored: boolean;
+  /** Present when the person signed the form in Saathi. */
+  signature?: { signer: string; signedAt: string; arkivKey: string | null };
   arkiv:
     | {
         status: "recorded";
@@ -273,10 +275,22 @@ export interface SavedForm extends CommitmentReceipt {
 }
 
 export interface VerificationEvent {
-  kind: "approved" | "stored" | "shared" | "share_revoked" | "erased" | "other";
+  kind: "approved" | "signed" | "stored" | "shared" | "share_revoked" | "erased" | "other";
   at: number; // unix seconds
   entityKey: string;
   detail?: string;
+}
+
+/** A signature recorded on Arkiv for a document, re-checked wherever the result was computed. */
+export interface VerificationSignature {
+  entityKey: string;
+  /** Public address of the signer's phone key. */
+  signer: string;
+  signedAt: number; // unix seconds
+  method: string;
+  role: string;
+  /** The signature recovers to `signer` over exactly this fingerprint and these details. */
+  valid: boolean;
 }
 
 export interface VerificationResult {
@@ -293,6 +307,7 @@ export interface VerificationResult {
     creator: string;
   };
   history: VerificationEvent[];
+  signatures?: VerificationSignature[];
   checkedAgainst: "arkiv" | "none";
   message?: string;
 }

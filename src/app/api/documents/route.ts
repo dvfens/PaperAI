@@ -1,5 +1,6 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { isAddress, isSignatureHex, isSignMethod, type SignatureProof } from "@/lib/signing";
 import type { RetentionChoice } from "@/lib/types";
 import { assertSameOrigin, deviceOwnerHash, formFile, formJson, HttpError, rateLimit, readForm, route } from "@/server/http";
 import { errorCode, log } from "@/server/log";
@@ -41,6 +42,15 @@ export const POST = route("documents.approve", async (req: NextRequest) => {
   const retention = Number(form.get("retentionDays"));
   if (![7, 30, 180].includes(retention)) throw new HttpError(400, "bad_retention", "Invalid retention.");
   const method = form.get("method") === "voice+tap" ? "voice+tap" : "tap";
+  // Optional: the person's signature over this PDF (role "signer"), checked in approveAndStore.
+  let signature: SignatureProof | undefined;
+  if (form.get("signature")) {
+    const s = { signer: form.get("signer"), signedAt: Number(form.get("signedAt")), method: form.get("signMethod"), signature: form.get("signature") };
+    if (!isAddress(s.signer) || !isSignMethod(s.method) || !isSignatureHex(s.signature) || !Number.isInteger(s.signedAt)) {
+      throw new HttpError(400, "bad_signature", "The signature could not be read.");
+    }
+    signature = { signer: s.signer, signedAt: s.signedAt, method: s.method, role: "signer", signature: s.signature };
+  }
   const ownerHash = (await deviceOwnerHash(true))!;
 
   const receipt = await approveAndStore({
@@ -50,6 +60,7 @@ export const POST = route("documents.approve", async (req: NextRequest) => {
     ...meta,
     retentionDays: retention as RetentionChoice,
     consentMethod: method,
+    signature,
   });
   return NextResponse.json(receipt, { status: 201 });
 });

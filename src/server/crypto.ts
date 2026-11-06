@@ -20,8 +20,12 @@ export function randomToken(bytes = 32): string {
 }
 
 /** Token handed to the browser with a generated PDF, proving Saathi produced exactly these bytes. */
-export function generationToken(sha256: string): string {
-  return hmacHex(`generated:${sha256}`);
+/**
+ * Proof that Saathi produced this exact PDF. A signed PDF's token is also bound to the signer key
+ * printed on its signature page, so it can only be saved together with that key's signature.
+ */
+export function generationToken(sha256: string, signer?: string): string {
+  return hmacHex(signer ? `generated:${sha256}:signer:${signer.toLowerCase()}` : `generated:${sha256}`);
 }
 
 const IV = 12;

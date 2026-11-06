@@ -6,7 +6,9 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { crc32, deflateSync } from "node:zlib";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 let cookie = "";
@@ -24,6 +26,43 @@ async function call(path, init = {}) {
   if (set) cookie = set.split(";")[0];
   return res;
 }
+/** A small transparent PNG with a blue scribble — a finger signature. */
+function signaturePng(w = 160, h = 50) {
+  const raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) if (Math.abs(y - h / 2 - 14 * Math.sin(x / 11)) < 2.5) raw.set([15, 30, 107, 255], y * (w * 4 + 1) + 1 + x * 4);
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+/** EIP-712 signature over a PDF fingerprint, written out here independently of src/lib/signing.ts. */
+const signTyped = (account, docHash, signedAt, method) =>
+  account.signTypedData({
+    domain: { name: "Saathi", version: "1", chainId: 7794095 },
+    types: {
+      DocumentSignature: [
+        { name: "document", type: "bytes32" },
+        { name: "signedAt", type: "uint64" },
+        { name: "method", type: "string" },
+        { name: "role", type: "string" },
+      ],
+    },
+    primaryType: "DocumentSignature",
+    message: { document: `0x${docHash}`, signedAt: BigInt(signedAt), method, role: "signer" },
+  });
+
 const json = async (path, body) =>
   (await call(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json();
 
@@ -177,6 +216,60 @@ async function main() {
   ok((await call(`/api/documents/${receipt.documentId}/file`)).status === 410, "erased document can no longer be downloaded");
   const after = await (await call("/api/documents")).json();
   ok(!after.forms?.some((f) => f.documentId === receipt.documentId), "erased form is gone from My forms");
+
+  // Finger signature: drawn into the form, the PDF signed with a key on the phone, recorded on Arkiv.
+  console.log("\n8. Sign with a finger and save");
+  const phone = privateKeyToAccount(generatePrivateKey());
+  const signedAt = Math.floor(Date.now() / 1000);
+  const sg = new FormData();
+  sg.set("fields", JSON.stringify(analysis.fields));
+  sg.set("answers", JSON.stringify(state.answers));
+  sg.set("pdf", new Blob([pdf], { type: "application/pdf" }), "form.pdf");
+  sg.set("signature", new Blob([signaturePng()], { type: "image/png" }), "signature.png");
+  sg.set("signer", phone.address);
+  sg.set("signedAt", String(signedAt));
+  sg.set("signMethod", "finger");
+  const signedRes = await call("/api/documents/generate", { method: "POST", body: sg });
+  const signedPdf = Buffer.from(await signedRes.arrayBuffer());
+  ok(signedRes.ok, "signed PDF generated");
+  const pagesBefore = (await PDFDocument.load(pdf)).getPageCount();
+  ok(signedRes.ok && (await PDFDocument.load(signedPdf)).getPageCount() === pagesBefore + 1, "a signature record page was added");
+  ok(Number(signedRes.headers.get("x-signed-boxes")) >= 1, `signature drawn in ${signedRes.headers.get("x-signed-boxes")} signature box(es)`);
+  const signedSha = sha(signedPdf);
+  const saveSigned = (who, signature) => {
+    const f = new FormData();
+    f.set("pdf", new Blob([signedPdf], { type: "application/pdf" }), "signed.pdf");
+    f.set("token", signedRes.headers.get("x-generation-token"));
+    f.set("meta", JSON.stringify({ category: analysis.category, language: "en", pageCount: pagesBefore + 1, fieldCount: analysis.fields.length }));
+    f.set("retentionDays", "7");
+    f.set("method", "tap");
+    f.set("consent", "yes");
+    f.set("signer", who);
+    f.set("signedAt", String(signedAt));
+    f.set("signMethod", "finger");
+    f.set("signature", signature);
+    return call("/api/documents", { method: "POST", body: f });
+  };
+  const thief = privateKeyToAccount(generatePrivateKey());
+  ok((await saveSigned(phone.address, await signTyped(thief, signedSha, signedAt, "finger"))).status === 400, "a signature made by another key is refused");
+  ok((await saveSigned(thief.address, await signTyped(thief, signedSha, signedAt, "finger"))).status === 400, "the PDF only saves with the key printed on it");
+  ok((await saveSigned(phone.address, await signTyped(phone, "0".repeat(64), signedAt, "finger"))).status === 400, "a signature over other bytes is refused");
+  const signedReceipt = await (await saveSigned(phone.address, await signTyped(phone, signedSha, signedAt, "finger"))).json();
+  ok(signedReceipt.signature?.signer === phone.address.toLowerCase(), "saved; the receipt shows the signer key");
+  console.log(`    Arkiv: ${signedReceipt.arkiv?.status}${signedReceipt.arkiv?.txHash ? ` tx ${signedReceipt.arkiv.txHash}` : ""}`);
+  if (signedReceipt.arkiv?.status === "recorded") {
+    const sv = await json("/api/verify", { sha256: signedSha });
+    const one = sv.signatures?.[0];
+    ok(sv.status === "match" && sv.signatures?.length === 1, "the signed PDF verifies, with one signature");
+    ok(one?.valid === true && one.signer.toLowerCase() === phone.address.toLowerCase(), "the signature on Arkiv checks out and names the phone key");
+    ok(sv.history?.some((e) => e.kind === "signed"), "signing is in the Arkiv history");
+  }
+  const er2 = await (await call(`/api/documents/${signedReceipt.documentId}`, { method: "DELETE" })).json();
+  ok(er2.erased === true, "signed document erased (its signature entity too)");
+  if (signedReceipt.arkiv?.status === "recorded") {
+    const gone = await json("/api/verify", { sha256: signedSha });
+    ok(gone.status !== "match" && !(gone.signatures?.length > 0), "after erasure Arkiv no longer has the signature");
+  }
 
   console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
   process.exit(failures ? 1 : 0);

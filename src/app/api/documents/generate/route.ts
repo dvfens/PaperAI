@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { generationToken, sha256Hex } from "@/server/crypto";
-import { assertSameOrigin, formFile, formJson, HttpError, rateLimit, readForm, route } from "@/server/http";
+import { isAddress, isSignMethod, SIGN_FRESH_FOR_PDF_S, signedAtOk } from "@/lib/signing";
+import { assertSameOrigin, formFile, formJson, HttpError, publicBaseUrl, rateLimit, readForm, route } from "@/server/http";
 import { decodeImageBytes, isPdf } from "@/server/services/image";
-import { generateCompletedPdf, type OriginalDocument } from "@/server/services/pdfGeneration";
+import { generateCompletedPdf, type OriginalDocument, type SignatureStamp } from "@/server/services/pdfGeneration";
 import { zAnswers, zFields } from "@/server/validation";
 
 export const runtime = "nodejs";
@@ -10,7 +11,8 @@ export const maxDuration = 60;
 
 /**
  * POST multipart: fields (JSON), answers (JSON) and the original — either `pdf` or page0..page3 images.
- * Returns the completed PDF. Nothing is stored. The X-Generation-Token header lets the person later
+ * Optional, when the person signed with a finger: `signature` (PNG), `signer` (their phone key's
+ * address), `signedAt` (unix seconds) and `signMethod`. Returns the completed PDF. Nothing is stored. The X-Generation-Token header lets the person later
  * prove (when they choose to save) that this is exactly the PDF Saathi produced.
  */
 export const POST = route("documents.generate", async (req: NextRequest) => {
@@ -36,14 +38,28 @@ export const POST = route("documents.generate", async (req: NextRequest) => {
     original = { kind: "images", images };
   }
 
-  const { bytes, written, skipped } = await generateCompletedPdf({ original, fields, answers });
+  let signature: SignatureStamp | undefined;
+  const png = await formFile(form, "signature", 400_000);
+  if (png) {
+    const signer = String(form.get("signer") ?? "");
+    const signedAt = Number(form.get("signedAt"));
+    const method = form.get("signMethod");
+    const isPng = png.length > 8 && png[0] === 0x89 && png[1] === 0x50 && png[2] === 0x4e && png[3] === 0x47;
+    if (!isPng || !isAddress(signer) || !isSignMethod(method) || !signedAtOk(signedAt, SIGN_FRESH_FOR_PDF_S)) {
+      throw new HttpError(400, "bad_signature", "The signature could not be used.");
+    }
+    signature = { png, signer, signedAt: new Date(signedAt * 1000), method, verifyUrl: `${publicBaseUrl(req)}/verify` };
+  }
+
+  const { bytes, written, skipped, signedBoxes } = await generateCompletedPdf({ original, fields, answers, signature });
   const sha = sha256Hex(bytes);
   return new Response(Buffer.from(bytes), {
     headers: {
       "content-type": "application/pdf",
       "content-disposition": 'inline; filename="completed-form.pdf"',
       "x-document-sha256": sha,
-      "x-generation-token": generationToken(sha),
+      "x-generation-token": generationToken(sha, signature?.signer),
+      "x-signed-boxes": String(signedBoxes),
       "x-fields-written": String(written),
       "x-fields-skipped": skipped.join(","),
       "cache-control": "no-store",

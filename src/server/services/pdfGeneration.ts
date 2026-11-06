@@ -4,6 +4,7 @@ import { join } from "node:path";
 // @pdf-lib/fontkit's Indic (Devanagari) shaper needs the regenerator runtime as a global.
 import "regenerator-runtime/runtime.js";
 import fontkit from "@pdf-lib/fontkit";
+import QRCode from "qrcode";
 import {
   PDFCheckBox,
   PDFDocument,
@@ -14,8 +15,10 @@ import {
   StandardFonts,
   rgb,
   type PDFFont,
+  type PDFImage,
   type PDFPage,
 } from "pdf-lib";
+import type { SignMethod } from "@/lib/signing";
 import type { Box, FieldAnswer, FormField } from "@/lib/types";
 import { env } from "@/server/env";
 import { HttpError } from "@/server/http";
@@ -28,13 +31,31 @@ import { loadPdf } from "./pdfForm";
  *  - fillable PDFs: the real AcroForm fields are filled (then flattened so the result prints the same everywhere);
  *  - flat PDFs: text is written onto the original vector pages at the mapped positions;
  *  - photos/scans: the scan becomes the page background and answers are written on top.
- * Signature and photo fields are always left for the person.
+ * Photo fields are always left for the person. Signature fields too — unless the person signed with
+ * a finger in Saathi: then the drawn signature goes into every signature box, and a "Signature record"
+ * page is added at the end (like an e-signature certificate).
  */
 
 export type OriginalDocument = { kind: "pdf"; bytes: Buffer } | { kind: "images"; images: DecodedImage[] };
 
 const INK = rgb(0.06, 0.12, 0.42); // dark blue, like a ballpoint pen
 const A4_WIDTH = 595.28;
+const A4_HEIGHT = 841.89;
+const TEXT = rgb(0.06, 0.09, 0.16);
+const MUTED = rgb(0.39, 0.45, 0.55);
+const RULE = rgb(0.85, 0.87, 0.9);
+
+/** The person's drawn signature and how it was made. */
+export interface SignatureStamp {
+  /** PNG with a transparent background, trimmed to the ink. */
+  png: Uint8Array;
+  /** Public address of the phone key that will sign this PDF. */
+  signer: string;
+  signedAt: Date;
+  method: SignMethod;
+  /** Where anyone can check the PDF, e.g. https://…/verify */
+  verifyUrl: string;
+}
 const DEVANAGARI = /[ऀ-ॿ᳐-᳿‌‍꣠-ꣿ]/;
 
 interface Fonts {
@@ -157,6 +178,91 @@ function drawTick(page: PDFPage, box: Box) {
   page.drawLine({ start: { x: x + s * 0.42, y: y + s * 0.2 }, end: { x: x + s * 0.88, y: y + s * 0.85 }, thickness, color: INK });
 }
 
+/** Fit the signature into a box: left-aligned, and allowed to rise above a thin "sign here" line. */
+function drawSignature(page: PDFPage, box: Box, image: PDFImage) {
+  const r = toPdfRect(page, box);
+  const maxW = r.w * 0.94;
+  const maxH = Math.max(r.h * 0.9, Math.min(30, r.h * 2.2));
+  const scale = Math.min(maxW / image.width, maxH / image.height);
+  const w = image.width * scale;
+  const h = image.height * scale;
+  const y = h <= r.h ? r.y + (r.h - h) / 2 : r.y + r.h * 0.08;
+  page.drawImage(image, { x: r.x + r.w * 0.03, y, width: w, height: h });
+}
+
+const INDIA_TIME = new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Kolkata" });
+
+/** The last page: what was signed, when, with which key, and how anyone can check it. */
+async function addSignaturePage(doc: PDFDocument, image: PDFImage, stamp: SignatureStamp, fonts: Fonts, boxes: number) {
+  const page = doc.addPage([A4_WIDTH, A4_HEIGHT]);
+  const left = 56;
+  const width = A4_WIDTH - left * 2;
+  const text = (t: string, x: number, y: number, size: number, color = TEXT) => {
+    try {
+      page.drawText(t, { x, y, size, font: fonts.latin, color });
+    } catch {
+      // unencodable character: skip
+    }
+  };
+  let y = A4_HEIGHT - 72;
+  text("Signature record", left, y, 20);
+  y -= 18;
+  text("Added by Saathi when this form was signed.", left, y, 10, MUTED);
+
+  // The signature itself, in a light frame.
+  y -= 24;
+  const frameH = 110;
+  page.drawRectangle({ x: left, y: y - frameH, width: 300, height: frameH, borderColor: RULE, borderWidth: 1 });
+  const scale = Math.min(280 / image.width, (frameH - 20) / image.height);
+  page.drawImage(image, {
+    x: left + 10,
+    y: y - frameH + (frameH - image.height * scale) / 2,
+    width: image.width * scale,
+    height: image.height * scale,
+  });
+  y -= frameH + 28;
+
+  const rows: [string, string][] = [
+    ["Signed on", `${INDIA_TIME.format(stamp.signedAt)} (India time)`],
+    ["How", stamp.method === "finger+voice" ? "Drawn with a finger on the signer's phone, and confirmed aloud" : "Drawn with a finger on the signer's phone"],
+    ["Signer key", stamp.signer],
+    ["Covers", `All ${doc.getPageCount()} pages of this PDF, including this one`],
+    ["Signature boxes", boxes ? `Signed in ${boxes} ${boxes === 1 ? "box" : "boxes"} on the form` : "No signature box was found on the form; the signature is on this page"],
+  ];
+  for (const [label, value] of rows) {
+    text(label, left, y, 9, MUTED);
+    y -= 14;
+    for (const line of wrap(value, width, 11, fonts)) {
+      text(line, left, y, 11);
+      y -= 15;
+    }
+    y -= 8;
+  }
+
+  y -= 6;
+  page.drawLine({ start: { x: left, y }, end: { x: left + width, y }, thickness: 0.75, color: RULE });
+  y -= 22;
+  const about = [
+    "The signer key is a digital key kept on the signer's phone. The signature made with it covers the exact bytes of this PDF. When the signer saves the form in Saathi, the signature is recorded on the Arkiv blockchain (Rabdi testnet), where it can no longer be changed.",
+    "To check this document, open the address below (or scan the code) and choose this PDF. A match shows when it was signed, by which key, and that the file has not changed since. It does not prove that the information in the form is true, and it is not an Aadhaar eSign.",
+  ];
+  for (const para of about) {
+    for (const line of wrap(para, width, 10, fonts)) {
+      text(line, left, y, 10, TEXT);
+      y -= 14;
+    }
+    y -= 8;
+  }
+
+  // QR code to the check page.
+  y -= 6;
+  const qr = await doc.embedPng(await QRCode.toBuffer(stamp.verifyUrl, { type: "png", margin: 1, width: 360, errorCorrectionLevel: "M" }));
+  const size = 96;
+  page.drawImage(qr, { x: left, y: y - size, width: size, height: size });
+  text("Check this document", left + size + 16, y - 30, 11);
+  text(stamp.verifyUrl, left + size + 16, y - 48, 10, MUTED);
+}
+
 async function baseDocument(original: OriginalDocument): Promise<PDFDocument> {
   if (original.kind === "pdf") return loadPdf(original.bytes);
   const doc = await PDFDocument.create();
@@ -173,7 +279,9 @@ export async function generateCompletedPdf(input: {
   original: OriginalDocument;
   fields: FormField[];
   answers: Record<string, Pick<FieldAnswer, "value" | "status">>;
-}): Promise<{ bytes: Uint8Array; written: number; skipped: string[] }> {
+  /** The person's signature: drawn into the signature boxes, plus a signature record page. */
+  signature?: SignatureStamp;
+}): Promise<{ bytes: Uint8Array; written: number; skipped: string[]; signedBoxes: number }> {
   const doc = await baseDocument(input.original);
   const fonts = await embedFonts(doc);
   const pages = doc.getPages();
@@ -264,6 +372,18 @@ export async function generateCompletedPdf(input: {
     }
   }
 
+  let signedBoxes = 0;
+  if (input.signature) {
+    const image = await doc.embedPng(input.signature.png);
+    for (const field of input.fields) {
+      const page = field.type === "signature" && field.box ? pages[field.box.page] : undefined;
+      if (!page) continue;
+      drawSignature(page, field.box!, image);
+      signedBoxes++;
+    }
+    await addSignaturePage(doc, image, input.signature, fonts, signedBoxes);
+  }
+
   // Generic metadata only — never personal details.
   doc.setTitle("Completed form");
   doc.setProducer("Saathi");
@@ -275,5 +395,5 @@ export async function generateCompletedPdf(input: {
   doc.setModificationDate(new Date());
 
   const bytes = await doc.save({ useObjectStreams: true, updateFieldAppearances: false });
-  return { bytes, written, skipped };
+  return { bytes, written, skipped, signedBoxes };
 }

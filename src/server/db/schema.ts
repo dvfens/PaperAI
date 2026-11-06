@@ -28,6 +28,10 @@ export const documents = pgTable(
     arkivTxHash: text("arkiv_tx_hash"),
     arkivExpiresBlock: text("arkiv_expires_block"),
     arkivError: text("arkiv_error"),
+    // Set when the person signed with a finger: their phone key's public address (no name).
+    signer: text("signer"),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    arkivSignatureKey: text("arkiv_signature_key"),
   },
   (t) => [index("documents_sha256_idx").on(t.sha256), index("documents_owner_idx").on(t.ownerHash)],
 );

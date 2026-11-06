@@ -11,7 +11,8 @@ import { eq } from "@arkiv-network/sdk/query";
 import { http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { ARKIV_CHAIN_ID, ARKIV_EXPLORER, commitmentExpiry, findActiveGrant, verifyHashOnArkiv } from "@/lib/arkiv/read";
-import { Commitment, Consent, ShareGrant, key, str, u64, type ConsentAction } from "@/lib/arkiv/schemas";
+import { addr, bytes, Commitment, Consent, ShareGrant, Signature, key, str, u64, type ConsentAction } from "@/lib/arkiv/schemas";
+import type { SignatureProof } from "@/lib/signing";
 import type { VerificationResult } from "@/lib/types";
 import { withAdvisoryLock } from "@/server/db/client";
 import { env, features } from "@/server/env";
@@ -34,7 +35,9 @@ export interface BlockchainVerificationService {
     approvedAt: Date;
     retentionUntil: Date;
     method: string;
-  }): Promise<{ commitmentKey: Hex; consentKey: Hex; txHash: Hex; expiresAtBlock: string }>;
+    /** The person's signature over docHash, already checked by the caller. Written in the same transaction. */
+    signature?: SignatureProof;
+  }): Promise<{ commitmentKey: Hex; consentKey: Hex; signatureKey: Hex | null; txHash: Hex; expiresAtBlock: string }>;
   recordShare(input: {
     commitmentKey: Hex;
     docHash: string;
@@ -102,9 +105,10 @@ class ArkivVerificationService implements BlockchainVerificationService {
 
   recordApproval(input: Parameters<BlockchainVerificationService["recordApproval"]>[0]) {
     return this.serial(async () => {
-      // Commitment + consent land atomically in one transaction; the consent references the
-      // commitment's key, which is predicted before sending.
-      const [c, k] = await this.reader.predictEntityKeys({ owner: this.writerAddress, count: 2 });
+      // Commitment + consent (+ signature) land atomically in one transaction; the others reference
+      // the commitment's key, which is predicted before sending.
+      const [c, k, s] = await this.reader.predictEntityKeys({ owner: this.writerAddress, count: 3 });
+      const sig = input.signature;
       const expiration = ExpirationTime.atDate(input.retentionUntil, { atLeast: ExpirationTime.fromHours(1) });
       const res = await this.wallet.executeBatch({
         creates: [
@@ -133,15 +137,35 @@ class ArkivVerificationService implements BlockchainVerificationService {
             salt: k.salt,
             flags: { readonly: true },
           },
+          ...(sig
+            ? [
+                {
+                  schema: Signature,
+                  values: {
+                    commitment: key(c.key),
+                    docHash: str(input.docHash),
+                    signer: addr(sig.signer),
+                    signature: bytes(sig.signature),
+                    signedAt: u64(BigInt(sig.signedAt)),
+                    method: str(sig.method),
+                    role: str(sig.role),
+                  },
+                  expiration,
+                  salt: s.salt,
+                  flags: { readonly: true },
+                },
+              ]
+            : []),
         ],
       });
-      const [commitmentKey, consentKey] = res.createdEntities;
+      const [commitmentKey, consentKey, signatureKey = null] = res.createdEntities;
       if (commitmentKey !== c.key) log.warn("arkiv.key_prediction_mismatch", { txHash: res.txHash });
       const expiry = await commitmentExpiry(this.reader, commitmentKey).catch(() => null);
       log.info("arkiv.approval_recorded", { entityKey: commitmentKey, txHash: res.txHash });
       return {
         commitmentKey,
         consentKey,
+        signatureKey,
         txHash: res.txHash,
         expiresAtBlock: expiry ? expiry.expiresAtBlock.toString() : "",
       };
@@ -194,7 +218,7 @@ class ArkivVerificationService implements BlockchainVerificationService {
   erase(docHash: string) {
     return this.serial(async () => {
       const keys: Hex[] = [];
-      for (const schema of [Commitment, Consent, ShareGrant]) {
+      for (const schema of [Commitment, Consent, ShareGrant, Signature]) {
         const page = await this.reader
           .select({ $key: true })
           .from(schema)

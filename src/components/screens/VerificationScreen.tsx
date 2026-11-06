@@ -15,6 +15,7 @@ import {
   Link2,
   Link2Off,
   Lock,
+  Signature,
   Trash2,
   XCircle,
   type LucideIcon,
@@ -35,6 +36,7 @@ import { useApp } from "@/components/app/AppContext";
 
 const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
   approved: "eventApproved",
+  signed: "eventSigned",
   stored: "eventStored",
   shared: "eventShared",
   share_revoked: "eventShareRevoked",
@@ -44,6 +46,7 @@ const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
 
 const EVENT_ICON: Record<VerificationEvent["kind"], LucideIcon> = {
   approved: BadgeCheck,
+  signed: Signature,
   stored: Lock,
   shared: Link2,
   share_revoked: Link2Off,
@@ -143,6 +146,8 @@ export function VerificationScreen() {
         : "unavailable";
   const showResult = Boolean(result && outcome && !checking);
   const approvedDate = result?.commitment ? formatDate(lang, result.commitment.approvedAt * 1000, true) : "";
+  const signatures = result?.signatures ?? [];
+  const signedOk = signatures.length > 0 && signatures.every((s) => s.valid);
 
   return (
     <AppScreen>
@@ -197,7 +202,7 @@ export function VerificationScreen() {
                 line={outcome === "match" ? t("approvedOn", { date: approvedDate }) : outcome === "no_match" ? t("verifyNoMatchDetail") : null}
                 spoken={
                   outcome === "match"
-                    ? `${t("verifyMatch")}. ${t("verifyMatchDetail", { date: approvedDate })} ${t("verifyDisclaimer")}`
+                    ? `${t("verifyMatch")}. ${t("verifyMatchDetail", { date: approvedDate })} ${signedOk ? t("sigValidSpoken") : ""} ${t("verifyDisclaimer")}`
                     : outcome === "no_match"
                       ? `${t("verifyNoMatch")}. ${t("verifyNoMatchDetail")}`
                       : t("verifyUnavailable")
@@ -209,6 +214,37 @@ export function VerificationScreen() {
                 }
                 fileName={file?.name ?? null}
               />
+
+              {/* Signatures: each one re-checked right here (the signer is recovered from the signature). */}
+              {outcome === "match" && signatures.length > 0 && (
+                <>
+                  <SectionTitle icon={Signature}>{t("verifySignatures")}</SectionTitle>
+                  <Card className="divide-y divide-slate-100 px-4">
+                    {signatures.map((s) => (
+                      <div key={s.entityKey} className="flex items-start gap-3 py-3">
+                        <span
+                          className={cn(
+                            "flex size-9 shrink-0 items-center justify-center rounded-full",
+                            s.valid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700",
+                          )}
+                          aria-hidden
+                        >
+                          {s.valid ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[15px] font-semibold leading-snug text-slate-900">{s.valid ? t("sigValid") : t("sigInvalid")}</p>
+                          <p className="text-[13px] text-slate-600">
+                            {t(s.method === "finger+voice" ? "sigHowVoice" : "sigHow")} · {formatDate(lang, s.signedAt * 1000, true)}
+                          </p>
+                          <p className="mt-0.5 break-all font-mono text-xs text-slate-500">
+                            {t("sigKey")}: {s.signer}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </Card>
+                </>
+              )}
 
               {outcome === "match" && result.history.length > 0 && (
                 <>

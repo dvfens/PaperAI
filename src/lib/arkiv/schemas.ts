@@ -6,7 +6,7 @@
  *
  * See /arkiv/schema.md for ownership and expiry rationale.
  */
-import { defineSchema, key, str, u64 } from "@arkiv-network/sdk/schema";
+import { addr, bytes, defineSchema, key, str, u64 } from "@arkiv-network/sdk/schema";
 
 /** One approved document. Created read-only: nobody — not even Saathi — can rewrite the hash. */
 export const Commitment = defineSchema("saathi.commitment.v1", {
@@ -39,7 +39,23 @@ export const ShareGrant = defineSchema("saathi.share.v1", {
   issuedAt: u64(),
 });
 
+/**
+ * A signature on an approved document: EIP-712 typed data over `docHash`, made by a key on the
+ * signer's phone (see src/lib/signing.ts). Anyone can recover `signer` from `signature` and check it.
+ * The key is a random per-phone key, not tied to a name; the drawn signature image is never stored
+ * here — it exists only inside the (encrypted) PDF. Read-only.
+ */
+export const Signature = defineSchema("saathi.signature.v1", {
+  commitment: key().indexed(),
+  docHash: str().indexed(),
+  signer: addr().indexed(), // the phone key's public address
+  signature: bytes(), // 65-byte secp256k1 signature
+  signedAt: u64().indexed(), // unix seconds, part of the signed message
+  method: str(), // "finger" | "finger+voice" — part of the signed message
+  role: str().indexed(), // "signer" — part of the signed message
+});
+
 export const CONSENT_ACTIONS = ["approve", "store", "share", "revoke_share"] as const;
 export type ConsentAction = (typeof CONSENT_ACTIONS)[number];
 
-export { key, str, u64 };
+export { addr, bytes, key, str, u64 };
