@@ -3,7 +3,7 @@
 import { Download, Lock, Mic, PenLine, ShieldCheck, ThumbsUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
-import { downloadBlob, pdfToPages } from "@/lib/client/media";
+import { downloadBlob, pagesWithinBudget, pdfToPages } from "@/lib/client/media";
 import { detectYesNo } from "@/lib/conversation/rules";
 import type { StringKey } from "@/lib/i18n";
 import type { FormField, RetentionChoice } from "@/lib/types";
@@ -59,7 +59,7 @@ export function FinalVerification() {
       try {
         const res = await api.generate(analysis.fields, conv.answers, {
           pdf: source.pdf,
-          pages: source.pages.map((p) => p.blob),
+          pages: pagesWithinBudget(source.pages).map((p) => p.blob),
         });
         const blob = new Blob([res.bytes], { type: "application/pdf" });
         const { pages } = await pdfToPages(res.bytes);

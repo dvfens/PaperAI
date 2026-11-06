@@ -88,13 +88,14 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
 
   const handleFile = async (file: File) => {
     setError(null);
-    if (file.size > MAX_UPLOAD_BYTES) {
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    // PDFs are uploaded as they are; photos are re-encoded much smaller in the browser first.
+    if (file.size > (isPdf ? MAX_UPLOAD_BYTES : 40_000_000)) {
       setError(t("errorTooBig"));
       return;
     }
     setBusy(true);
     try {
-      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
       if (isPdf) {
         const data = await file.arrayBuffer();
         const { pages, pageCount } = await pdfToPages(data);

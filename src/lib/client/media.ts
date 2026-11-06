@@ -2,14 +2,32 @@
 
 import type { PageImage } from "@/lib/types";
 
-export const MAX_UPLOAD_BYTES = 20_000_000;
-const MAX_EDGE = 2000;
+/**
+ * Hosted serverless functions accept request bodies of about 4.5 MB, and the original PDF travels
+ * with the page images on analysis and generation — so keep originals and page images small.
+ * 1600 px on the long edge is plenty for OCR and close to the size Claude's vision works at.
+ */
+export const MAX_UPLOAD_BYTES = 3_500_000;
+export const MAX_REQUEST_BYTES = 4_200_000;
+const MAX_EDGE = 1600;
 
 export interface PreparedPage extends PageImage {
   blob: Blob;
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.88): Promise<Blob> {
+/** Drop trailing pages until the request fits under the host's body-size limit. */
+export function pagesWithinBudget<T extends { blob: Blob }>(pages: T[], extraBytes = 0): T[] {
+  const out: T[] = [];
+  let total = extraBytes;
+  for (const p of pages) {
+    if (out.length && total + p.blob.size > MAX_REQUEST_BYTES) break;
+    total += p.blob.size;
+    out.push(p);
+  }
+  return out;
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.82): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode failed"))), "image/jpeg", quality),
   );

@@ -3,6 +3,7 @@
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
+import { MAX_REQUEST_BYTES, pagesWithinBudget } from "@/lib/client/media";
 import { initialState } from "@/lib/conversation/engine";
 import { Button } from "@/components/ui/button";
 import { Notice, Screen, TopBar } from "@/components/common/Chrome";
@@ -27,12 +28,20 @@ export function AnalyzingScreen() {
     setPhase("read");
     const toUnderstand = setTimeout(() => setPhase("understand"), 4000);
     const toSlow = setTimeout(() => setSlow(true), 15000);
-    const blobs = source.pages.map((p) => p.blob);
+    // Stay under the host request-size limit (~4.5 MB). The summary sends page images only. The full
+    // analysis sends the original PDF with its page images — but if they do not all fit, it sends the
+    // PDF alone rather than dropping pages: the server then reads every page from the PDF itself.
+    const pdfBytes = source.pdf?.size ?? 0;
+    const summaryBlobs = pagesWithinBudget(source.pages).map((p) => p.blob);
+    const withPdf = pagesWithinBudget(source.pages, pdfBytes);
+    const allFit =
+      withPdf.length === source.pages.length && pdfBytes + withPdf.reduce((n, p) => n + p.blob.size, 0) <= MAX_REQUEST_BYTES;
+    const analyzeBlobs = source.pdf && !allFit ? [] : withPdf.map((p) => p.blob);
     let previewShown = false;
 
     // Stage 1: a quick "what is this" so the person hears an explanation within seconds.
     api
-      .summary(lang, blobs)
+      .summary(lang, summaryBlobs)
       .then((s) => {
         if (!s.available) return;
         const { available: _a, ...preview } = s;
@@ -44,7 +53,7 @@ export function AnalyzingScreen() {
 
     // Stage 2: full understanding — fields, placement, instructions. Continues in the background.
     api
-      .analyze(lang, blobs, source.pdf)
+      .analyze(lang, analyzeBlobs, source.pdf)
       .then((analysis) => {
         update({ analysis, analysisError: null, conversation: initialState(lang, analysis.fields) });
         goFrom("analyzing", "understood");

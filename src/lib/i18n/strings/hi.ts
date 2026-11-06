@@ -150,7 +150,7 @@ export const hi: Strings = {
   linkActiveUntil: "{date} तक चलेगा",
   linkStopped: "बंद",
   deleteDocument: "मेरा कागज़ मिटाएँ",
-  deleteConfirm: "क्या सहेजी गई कॉपी हमेशा के लिए मिटा दें? सारे लिंक बंद हो जाएँगे और इसे ऑनलाइन जाँचा नहीं जा सकेगा।",
+  deleteConfirm: "क्या सहेजी गई कॉपी मिटा दें? सारे लिंक बंद हो जाएँगे और इसे ऑनलाइन जाँचा नहीं जा सकेगा।",
   deleted: "आपकी सहेजी गई कॉपी मिटा दी गई है।",
   nextStepsTitle: "आगे क्या करना है",
   stepOf: "कदम {n} / {total}",

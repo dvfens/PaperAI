@@ -157,7 +157,7 @@ export const en = {
   linkActiveUntil: "Works until {date}",
   linkStopped: "Stopped",
   deleteDocument: "Delete my document",
-  deleteConfirm: "Delete the saved copy for ever? Links will stop working and it can no longer be checked online.",
+  deleteConfirm: "Delete the saved copy? Links will stop working and it can no longer be checked online.",
   deleted: "Your saved copy has been deleted.",
   nextStepsTitle: "What to do next",
   stepOf: "Step {n} of {total}",
