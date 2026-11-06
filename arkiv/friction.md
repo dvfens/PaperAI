@@ -14,6 +14,7 @@ Things that got in our way while building Saathi with `@arkiv-network/sdk` **1.0
 - **Expected:** paste an address and receive tGLM (our writer key is generated server-side with `viem.generatePrivateKey()` — elderly users have no wallets, so the app writes on their behalf).
 - **What happened:** `hub.arkiv.network/faucet` shows "Connect your wallet — sign in with your wallet to claim tGLM". To fund a server key we must import a private key into a browser extension, which is exactly what we tell people never to do. Our first approval failed with `EntityMutationError > … > InsufficientFundsError > TransactionRejectedRpcError (-32003)`.
 - **Repro:** `npm run setup` (prints a fresh address) → open the faucet → no address field.
+- **Workaround:** a team member claimed tGLM through a browser wallet and funded the server address from there (10 tGLM); writes then went through first time.
 - **Ask:** allow claiming to a typed address (behind a captcha), or a CLI/HTTP faucet for CI and server wallets.
 
 ## 3. No documented local node

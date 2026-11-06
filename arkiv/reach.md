@@ -10,8 +10,9 @@
 
 The interface was designed around them rather than around the technology:
 
-- Opens directly on the camera; one big button per screen; text at 20–30 px; every state shown as colour + icon + words.
-- Everything is spoken (ElevenLabs Hindi/English voice) and every answer can be spoken; typing is always available.
+- Opens directly on the camera; normal phone-app text sizes with 48 px buttons; every state shown as colour + icon + words.
+- When the form is ready the person sees just two choices: **Save the form** and **Send to family or bank**. Checking the document is the recipient's job, so it lives on the share link and the "Check a document" page, not on the elderly person's screen.
+- Everything is spoken (Hindi/English voice from ElevenLabs; OpenAI or ElevenLabs listens) and every answer can be spoken; typing is always available.
 - It never uses words like "blockchain", "hash" or "wallet" — the person sees "a tamper-proof fingerprint", "kept safely until …", "link works for 1 day".
 - It never invents answers, reads important ones back, and says plainly that it has not submitted the form anywhere.
 

@@ -1,5 +1,9 @@
 # Saathi — a voice-first paperwork helper
 
+> **Saathi fills in your form by talking with you — and hands it over in a way the office can trust.**
+>
+> Two people use it: the **person filling the form** (talk → form ready → save it or send it to family or the bank) and the **person receiving it** (open the link or the PDF → see "Not changed", checked against Arkiv). Sharing and verification are the hand-over half of the same job, not a separate product.
+
 **Saathi** ("companion" in Hindi) helps elderly people, and anyone who cannot comfortably read or write, deal with paperwork by talking. Point the phone at a form; Saathi explains it in simple Hindi or English, asks the questions one at a time by voice, fills in the form, reads everything back for approval, produces a completed PDF, and explains what to do next. A tamper-evident fingerprint of the approved document, with the consent event, is recorded on **Arkiv** so the person — or the bank clerk they hand it to — can check that it has not been changed.
 
 > Built from scratch at ETHGlobal Mumbai 2026 for the **Arkiv — "Build on Arkiv (from scratch)"** track.
@@ -162,11 +166,11 @@ Everything in the demo path calls the real services when their keys are configur
 - Without a funded Arkiv wallet, saving still works and the receipt says the fingerprint **could not be recorded**; `/verify` reports "does not match" rather than inventing a record.
 - **No form is submitted to any organisation.** There is no submission integration; every screen after generation says so.
 - A matching fingerprint proves the file is **unchanged since approval** — not that its contents are true. The verify screen says this every time.
-- Verified in this repo: unit tests, the API e2e (with live Claude), and the UI flow in a phone-sized browser. Not verified here: camera/microphone on a physical phone (the dev browser pane blocks them) and live Arkiv writes (wallet awaiting testnet funds; the write reached the node and failed only with `InsufficientFundsError`).
+- Verified in this repo: unit tests, the API e2e (with live Claude and live Arkiv writes on Rabdi; example commitment tx [`0x65fe…e453`](https://rabdi.explorer.arkiv.network/tx/0x65fe766e3e1e67ebc63d9a115894fcc0bfe452c6a1926532266519f86fede453)), and the UI flow in a phone-sized browser. Not verified here: camera/microphone on a physical phone (the dev browser pane blocks them).
 
 ## How AI was used
 
-Per ETHGlobal rules: this project was built with **Claude Code** (Anthropic) as a pair-programmer — architecture, code, tests and documentation were written with AI assistance and reviewed/run by the team. At runtime the product uses Claude (document understanding and conversation) and ElevenLabs (voice), as described above.
+Per ETHGlobal rules: this project was built with **Claude Code** (Anthropic) as a pair-programmer — architecture, code, tests and documentation were written with AI assistance and reviewed/run by the team. At runtime the product uses Claude (document understanding and conversation), OpenAI (speech recognition) and ElevenLabs (speech recognition and voice), as described above.
 
 ## License
 

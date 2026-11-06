@@ -4,7 +4,7 @@ Every Arkiv feature we use changes something a person sees. Code: [`src/server/s
 
 | Arkiv feature | How we use it | What the person sees |
 |---|---|---|
-| **Indexed attributes + `where(eq(...))`** | `docHash` is indexed on all three schemas | `/verify`: choose a PDF → green "This document has not been changed" or red "does not match", in ~1 s |
+| **Indexed attributes + `where(eq(...))`** | `docHash` is indexed on all three schemas | `/verify` (reached from a share link or "Check a document"): choose a PDF → green "Not changed" or red "Doesn't match", in ~1 s |
 | **`createdBy(writer)`** | Every read is restricted to entities created by Saathi's writer wallet | A forged entity with the same schema tag and hash, written by someone else, can never turn a tampered document green |
 | **Named schemas (`arkiv.schema` tag)** | Three schemas share one wallet without colliding | — (keeps queries cheap and typed) |
 | **`readonly` creation flag** | Commitments and consent events are immutable | Technical details on `/verify` show "Read-only: yes — the record can never be changed" |
