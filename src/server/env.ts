@@ -33,7 +33,8 @@ export const env = {
   claudeAnalysisEffort: (str("CLAUDE_ANALYSIS_EFFORT", "low") as "low" | "medium" | "high"),
 
   elevenLabsApiKey: str("ELEVENLABS_API_KEY"),
-  elevenLabsVoiceId: str("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb"),
+  /** Default speaking voice: "Jessica", a warm, friendly young woman (clear in Hindi and English). */
+  elevenLabsVoiceId: str("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9"),
   /** turbo_v2_5: about half the latency of multilingual_v2 for Hindi and English (measured). */
   elevenLabsTtsModel: str("ELEVENLABS_TTS_MODEL", "eleven_turbo_v2_5"),
   elevenLabsSttModel: str("ELEVENLABS_STT_MODEL", "scribe_v2"),

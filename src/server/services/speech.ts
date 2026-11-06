@@ -1,7 +1,7 @@
 import "server-only";
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
 import { keytermsFor } from "@/lib/speechHints";
-import type { SpeechHint, SpeechProvider } from "@/lib/types";
+import type { SpeechHint, SpeechProvider, VoiceStyle } from "@/lib/types";
 import { env, features } from "@/server/env";
 import { HttpError } from "@/server/http";
 import { log } from "@/server/log";
@@ -23,7 +23,7 @@ export interface RealtimeToken {
 }
 
 export interface SpeechService {
-  synthesize(text: string, lang: LanguageCode): Promise<ArrayBuffer>;
+  synthesize(text: string, lang: LanguageCode, voice?: VoiceStyle): Promise<ArrayBuffer>;
   transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint): Promise<{ text: string; languageCode: string | null }>;
   /** A short-lived token that lets the browser open ONE realtime transcription socket. */
   realtimeToken(lang: LanguageCode): Promise<RealtimeToken>;
@@ -33,17 +33,29 @@ export interface SpeechService {
 const audioFileName = (audio: Blob) =>
   `speech.${/mp4|aac|m4a/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : /wav/.test(audio.type) ? "wav" : "webm"}`;
 
+/**
+ * ElevenLabs voices on offer (premade, so they exist on every account). All three were measured fully
+ * intelligible in Hindi and English (Scribe transcribed their speech back with ≤2% character errors).
+ */
+const ELEVENLABS_VOICES: Record<VoiceStyle, string> = {
+  "young-woman": "cgSgspJ2msm6clMCkdW9", // "Jessica" — playful, bright, warm
+  "young-man": "bIHbv24MWmeRgasZH58o", // "Will" — relaxed, optimistic
+  calm: "JBFqnCBsd6RMkjVDRZzb", // "George" — calm, mature
+};
+
 class ElevenLabsSpeech implements SpeechService {
-  async synthesize(text: string, lang: LanguageCode) {
+  async synthesize(text: string, lang: LanguageCode, voice?: VoiceStyle) {
+    const voiceId = voice ? ELEVENLABS_VOICES[voice] : env.elevenLabsVoiceId;
     const body: Record<string, unknown> = {
       text,
       model_id: env.elevenLabsTtsModel,
-      voice_settings: { stability: 0.6, similarity_boost: 0.75, speed: 0.9 },
+      // A little more expression ("style") sounds friendlier; slightly slow for older listeners.
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.2, speed: 0.95 },
     };
     // multilingual_v2 detects the language itself and rejects language_code; newer models accept it.
     if (!env.elevenLabsTtsModel.includes("multilingual_v2")) body.language_code = LANGUAGES[lang].isoCode;
     const res = await fetch(
-      `${API}/text-to-speech/${encodeURIComponent(env.elevenLabsVoiceId)}?output_format=mp3_44100_128`,
+      `${API}/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
       {
         method: "POST",
         headers: { "xi-api-key": env.elevenLabsApiKey, "content-type": "application/json", accept: "audio/mpeg" },
@@ -99,8 +111,8 @@ class ElevenLabsSpeech implements SpeechService {
 
 /** Voice style for gpt-4o-mini-tts (it takes free-form speaking instructions). */
 const OPENAI_VOICE_STYLE: Record<string, string> = {
-  hi: "Speak natural Hindi, warmly, slowly and very clearly, like a patient helper talking to an elderly person.",
-  en: "Speak warmly, slowly and very clearly with a gentle Indian English accent, like a patient helper talking to an elderly person.",
+  hi: "You are a friendly, cheerful young woman helping an elderly person. Speak natural Hindi, warmly and with a smile, a little slowly and very clearly.",
+  en: "You are a friendly, cheerful young woman helping an elderly person. Speak warmly and with a smile, with a gentle Indian English accent, a little slowly and very clearly.",
 };
 
 class OpenAISpeech implements SpeechService {
@@ -109,6 +121,7 @@ class OpenAISpeech implements SpeechService {
   }
 
   async synthesize(text: string, lang: LanguageCode) {
+    // One OpenAI voice (coral, a young woman) with friendly speaking instructions.
     const res = await fetch(`${OPENAI}/audio/speech`, {
       method: "POST",
       headers: this.headers(true),

@@ -231,6 +231,10 @@ export interface PageImage {
 /** Cloud speech engines the person can switch between (recognition and voice separately). */
 export type SpeechProvider = "elevenlabs" | "openai";
 
+/** Which speaking voice: a friendly young woman (default), a young man, or the calm older voice. */
+export type VoiceStyle = "young-woman" | "young-man" | "calm";
+export const VOICE_STYLES: VoiceStyle[] = ["young-woman", "young-man", "calm"];
+
 export interface ServiceStatus {
   claude: boolean;
   elevenlabs: boolean;
