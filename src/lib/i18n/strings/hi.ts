@@ -262,4 +262,8 @@ export const hi: Strings = {
   micCheckNothing: "(कुछ नहीं सुना)",
   micCheckChecking: "जाँच रहा है…",
   micCheckFailed: "यह इंजन जवाब नहीं दे पाया।",
+  snippetAsk: "आपका जवाब नीले खाने में लिखा जाएगा।",
+  snippetConfirm: "नीले खाने में “{value}” लिखा जाएगा।",
+  snippetAskChoice: "आपकी पसंद इनमें से एक नीले खाने में लगाई जाएगी।",
+  snippetConfirmChoice: "“{value}” वाले नीले खाने में निशान लगाया जाएगा।",
 };

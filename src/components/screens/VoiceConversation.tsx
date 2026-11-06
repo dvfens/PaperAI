@@ -13,6 +13,7 @@ import { AppBar, AppScreen, Chip, Dock, IconAction, IconButton, Notice, Page } f
 import { MicButton, type MicState } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
+import { FieldSnippet } from "@/components/FieldSnippet";
 
 const control = (intent: Interpretation["intent"]): Interpretation => ({
   intent,
@@ -225,6 +226,19 @@ export function VoiceConversation() {
 
   const p = progress(conv, fields);
   const currentField = fields.find((f) => f.id === (conv.pending?.fieldId ?? conv.currentFieldId));
+  const snippetPage = currentField?.box ? state.source?.pages[currentField.box.page] : undefined;
+  // Where the answer goes: the field's box, or for a choice every option's box — only the chosen one
+  // while confirming, so the picture never suggests an option the person did not choose.
+  const optionBoxes = currentField?.type === "choice" && currentField.optionBoxes ? currentField.optionBoxes : null;
+  const chosenBox = optionBoxes && conv.phase === "confirming" && conv.pending ? optionBoxes[conv.pending.value] : undefined;
+  const snippetBoxes = !currentField?.box
+    ? []
+    : chosenBox
+      ? [chosenBox]
+      : optionBoxes
+        ? Object.values(optionBoxes).filter((b) => b.page === currentField.box!.page)
+        : [currentField.box];
+  const isChoice = Boolean(optionBoxes);
   const lastAnswer = Object.values(conv.answers)
     .filter((a) => a.status === "answered" || a.status === "confirmed")
     .sort((a, b) => b.updatedAt - a.updatedAt)[0];
@@ -273,6 +287,18 @@ export function VoiceConversation() {
             {conv.phase === "paused" ? t("pausedTitle") : prompt || currentPrompt(conv)}
           </p>
           {currentField?.hint && conv.phase === "asking" && <p className="text-lg text-slate-500">{currentField.hint}</p>}
+          {/* Where on the form this answer goes: a zoomed crop of the page with the spot outlined. */}
+          {snippetPage && snippetBoxes.length > 0 && (conv.phase === "asking" || conv.phase === "confirming") && (
+            <FieldSnippet
+              page={snippetPage}
+              boxes={snippetBoxes}
+              caption={
+                conv.phase === "confirming" && conv.pending
+                  ? t(isChoice ? "snippetConfirmChoice" : "snippetConfirm", { value: currentField?.sensitive ? "••••" : conv.pending.display })
+                  : t(isChoice ? "snippetAskChoice" : "snippetAsk")
+              }
+            />
+          )}
         </section>
 
         {heard && (

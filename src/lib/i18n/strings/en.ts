@@ -274,6 +274,10 @@ export const en = {
   micCheckNothing: "(nothing heard)",
   micCheckChecking: "Checking…",
   micCheckFailed: "This engine could not be reached.",
+  snippetAsk: "Your answer will be written in the blue box.",
+  snippetConfirm: "“{value}” will be written in the blue box.",
+  snippetAskChoice: "Your choice will be marked in one of the blue boxes.",
+  snippetConfirmChoice: "“{value}” will be marked in the blue box.",
 } as const;
 
 export type StringKey = keyof typeof en;
