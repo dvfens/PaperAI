@@ -10,6 +10,7 @@ import {
   Download,
   ExternalLink,
   Fingerprint,
+  FolderOpen,
   Info,
   Link2,
   ListChecks,
@@ -23,6 +24,7 @@ import {
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
+import { forgetFormTitle } from "@/lib/client/form-titles";
 import { downloadBlob } from "@/lib/client/media";
 import { formatDate, type StringKey } from "@/lib/i18n";
 import { shortHash } from "@/lib/utils";
@@ -93,7 +95,13 @@ export function DoneScreen() {
 
   return (
     <AppScreen>
-      <AppBar menu={<AppMenu />} />
+      <AppBar
+        menu={
+          <AppMenu
+            actions={[{ id: "my-forms", icon: FolderOpen, label: t("myForms"), onSelect: () => (window.location.href = "/forms"), leaves: true }]}
+          />
+        }
+      />
       <Page>
         {/* Success hero */}
         <section className="flex flex-col items-center pt-3 text-center">
@@ -239,6 +247,7 @@ export function DoneScreen() {
             variant="danger"
             onClick={async () => {
               await api.erase(receipt!.documentId).catch(() => undefined);
+              forgetFormTitle(receipt!.documentId);
               setErased(true);
               setConfirmDelete(false);
             }}
@@ -258,7 +267,7 @@ export function DoneScreen() {
  * Share links in a bottom sheet. The component stays mounted while the sheet is closed so the
  * links made in this visit (and their stop buttons) are still there when it is opened again.
  */
-function ShareSection({ documentId, open, onOpenChange }: { documentId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function ShareSection({ documentId, open, onOpenChange }: { documentId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { t, lang } = useApp();
   const [hours, setHours] = useState<1 | 24 | 168>(24);
   const [shares, setShares] = useState<ShareInfo[]>([]);

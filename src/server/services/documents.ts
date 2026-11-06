@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { Hex } from "viem";
-import type { CommitmentReceipt, RetentionChoice } from "@/lib/types";
+import type { CommitmentReceipt, RetentionChoice, SavedForm } from "@/lib/types";
 import { generationToken, hmacHex, randomToken, safeEqualHex, sha256Hex } from "@/server/crypto";
 import { db } from "@/server/db/client";
 import { auditEvents, documents, shareLinks, type DocumentRow } from "@/server/db/schema";
@@ -154,6 +154,27 @@ export async function documentReceipt(id: string, ownerHash: string) {
     }
   }
   return { ...receipt, arkivExpiry, erased: row.status === "erased" };
+}
+
+/**
+ * The forms this device saved and can still open ("My forms"), newest first. Only stored documents;
+ * anything past its retention date is destroyed on the way (same rule as a single read).
+ */
+export async function listOwnedDocuments(ownerHash: string): Promise<SavedForm[]> {
+  const d = await db();
+  const rows = await d
+    .select()
+    .from(documents)
+    .where(and(eq(documents.ownerHash, ownerHash), eq(documents.status, "stored")))
+    .orderBy(desc(documents.approvedAt))
+    .limit(50);
+  const live = (await Promise.all(rows.map(expireIfDue))).filter((r) => r.status === "stored");
+  return live.map((row) => ({
+    ...receiptFrom(row),
+    category: row.category as SavedForm["category"],
+    language: row.language,
+    pageCount: row.pageCount,
+  }));
 }
 
 export async function readOwnedPdf(id: string, ownerHash: string): Promise<Buffer> {

@@ -39,7 +39,9 @@ async function main() {
   form.set("lang", "en");
   form.set("pdf", new Blob([pdf], { type: "application/pdf" }), "form.pdf");
   const analysis = await (await call("/api/documents/analyze", { method: "POST", body: form })).json();
-  ok(Array.isArray(analysis.fields) && analysis.fields.length >= 10, `found ${analysis.fields?.length} fields (source: ${analysis.source})`);
+  ok(Array.isArray(analysis.fields) && analysis.fields.length >= 8, `found ${analysis.fields?.length} fields (source: ${analysis.source})`);
+  const questions = analysis.fields.filter((f) => f.aiFillable).length;
+  ok(questions <= 8, `sample form asks at most 8 questions (asks ${questions})`);
   const byLabel = (re) => analysis.fields.find((f) => re.test(f.label));
   console.log(`    category: ${analysis.category}; title: ${analysis.title}`);
   const sig = byLabel(/signature/i);
@@ -68,8 +70,7 @@ async function main() {
     gender: ["Male"],
     mobile: ["98765 43210"],
     email: ["skip"],
-    address: ["Flat 4, Shanti Niwas, 18 Karve Road, Pune"],
-    "pin code": ["411004"],
+    address: ["Flat 4, Shanti Niwas, 18 Karve Road, Pune 411004"],
     "reading language": ["Hindi"],
     senior: ["yes"],
   };
@@ -112,6 +113,8 @@ async function main() {
   a.set("consent", "yes");
   const receipt = await (await call("/api/documents", { method: "POST", body: a })).json();
   ok(receipt.documentId && receipt.sha256 === sha(completed), "stored; receipt fingerprint matches");
+  const mine = await (await call("/api/documents")).json();
+  ok(mine.forms?.some((f) => f.documentId === receipt.documentId), "saved form is listed in My forms");
   console.log(`    Arkiv: ${receipt.arkiv.status}${receipt.arkiv.txHash ? ` tx ${receipt.arkiv.txHash}` : receipt.arkiv.reason ? ` (${receipt.arkiv.reason})` : ""}`);
 
   const forged = new FormData();
@@ -172,6 +175,8 @@ async function main() {
   const er = await (await call(`/api/documents/${receipt.documentId}`, { method: "DELETE" })).json();
   ok(er.erased === true, "document erased");
   ok((await call(`/api/documents/${receipt.documentId}/file`)).status === 410, "erased document can no longer be downloaded");
+  const after = await (await call("/api/documents")).json();
+  ok(!after.forms?.some((f) => f.documentId === receipt.documentId), "erased form is gone from My forms");
 
   console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
   process.exit(failures ? 1 : 0);

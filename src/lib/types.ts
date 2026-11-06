@@ -265,6 +265,13 @@ export interface CommitmentReceipt {
     | { status: "failed"; reason: string };
 }
 
+/** A form this device saved and can still open ("My forms"). No personal data: the title stays on the device. */
+export interface SavedForm extends CommitmentReceipt {
+  category: DocumentCategory;
+  language: string;
+  pageCount: number;
+}
+
 export interface VerificationEvent {
   kind: "approved" | "stored" | "shared" | "share_revoked" | "erased" | "other";
   at: number; // unix seconds

@@ -50,6 +50,7 @@
 | `DoneScreen` | Receipt (retention date read from Arkiv), share links + QR, technical details, secure delete |
 | `VerificationScreen` | Hash on device, query Arkiv from the browser, history, tamper demo |
 | `SharedDocument` | What a recipient sees for a share link |
+| `MyForms` (`/forms`) | Forms this phone saved: open, send, delete. Reached from the "My forms" button on the camera screen (shown when there are saved forms) and the menu on the finished-form screen |
 
 ### Backend services (`src/server/services`)
 

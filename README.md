@@ -31,6 +31,7 @@
 7. **Consent** — "Keep a protected copy?" with a retention choice (1 week / 1 month / 6 months) — or just download.
 8. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Saathi always says it has **not** submitted the form anywhere.
 9. **Share & verify** — a short-lived link + QR for the bank; anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser).
+10. **My forms** — saved forms come back any time from the **My forms** button: open, send or delete. The PDF is stored encrypted and opens only on the phone that saved it; Arkiv holds only its fingerprint.
 
 ---
 

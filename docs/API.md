@@ -82,6 +82,9 @@ Encrypts and stores the PDF, records the commitment + consent on Arkiv, sets the
 ```
 `arkiv.status` is `recorded`, `not_configured` or `failed` (with `reason`). Errors: `400 consent_required`, `400 unknown_document` (bad token / modified PDF).
 
+### `GET /api/documents` (owner — "My forms")
+`{ forms: SavedForm[] }`: the stored documents this device saved, newest first (max 50) — each a receipt plus `category`, `language`, `pageCount`. Past-retention documents are destroyed on the way. No cookie → `{ forms: [] }`. Form titles are not stored on the server; the app keeps them on the device.
+
 ### `GET /api/documents/{id}` (owner)
 Receipt plus `arkivExpiry` (retention date read back from the Arkiv entity) and `erased`.
 
@@ -89,7 +92,7 @@ Receipt plus `arkivExpiry` (retention date read back from the Arkiv entity) and 
 Secure deletion: crypto-shred + overwrite + unlink, revoke links, delete Arkiv entities for the fingerprint. → `{ erased: true, arkivTxHash }`.
 
 ### `GET /api/documents/{id}/file` (owner)
-Decrypted PDF download.
+Decrypted PDF download. `?inline=1` opens it in the browser's PDF viewer (My forms → Open).
 
 ### `GET /api/documents/{id}/shares` · `POST /api/documents/{id}/shares` (owner)
 `POST { hours: 1 | 24 | 168 }` → `{ shareId, url, expiresAt, arkiv: { grantKey, txHash, explorerTxUrl } | null }`. The link lifetime is recorded as the Arkiv grant's expiry. Fails closed (`502`) if the grant cannot be recorded when Arkiv is configured.

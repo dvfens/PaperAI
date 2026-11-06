@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { RetentionChoice } from "@/lib/types";
 import { assertSameOrigin, deviceOwnerHash, formFile, formJson, HttpError, rateLimit, readForm, route } from "@/server/http";
 import { errorCode, log } from "@/server/log";
-import { approveAndStore, purgeExpired } from "@/server/services/documents";
+import { approveAndStore, listOwnedDocuments, purgeExpired } from "@/server/services/documents";
 import { zCategory, zLang } from "@/server/validation";
 
 export const runtime = "nodejs";
@@ -14,6 +14,12 @@ const Meta = z.object({
   language: zLang,
   pageCount: z.number().int().min(1).max(50),
   fieldCount: z.number().int().min(0).max(500),
+});
+
+/** "My forms": the forms this device saved and can still open. A device with no cookie has none. */
+export const GET = route("documents.list", async () => {
+  const ownerHash = await deviceOwnerHash(false);
+  return NextResponse.json({ forms: ownerHash ? await listOwnedDocuments(ownerHash) : [] }, { headers: { "cache-control": "no-store, private" } });
 });
 
 /**

@@ -1,7 +1,9 @@
 // Generates the demo forms used by "Try a sample form" and the README walkthrough:
 //   public/samples/library-membership-form.pdf       — fillable (AcroForm) version
 //   public/samples/library-membership-form-flat.pdf  — "paper" version with printed blanks (scan/flat path)
-// The form is fictional and asks for nothing sensitive.
+// The form is fictional and asks for nothing sensitive. It is kept to 8 questions so a demo is quick,
+// while still showing each kind of answer: text, a date (corrected in the demo), a choice, an optional
+// field (skipped), a multi-line address, a dropdown and a tick box. The signature is left for the person.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 // @pdf-lib/fontkit's Indic shaper needs the regenerator runtime as a global.
@@ -23,12 +25,9 @@ const FIELDS = [
   { name: "gender", label: "Gender", tip: "Gender", radio: ["Male", "Female", "Other"] },
   { name: "mobile", label: "Mobile number", tip: "Mobile number", required: true },
   { name: "email", label: "Email (optional)", tip: "Email (optional)" },
-  { name: "address", label: "Residential address", tip: "Residential address", multiline: true, required: true },
-  { name: "pin_code", label: "PIN code", tip: "PIN code" },
+  { name: "address", label: "Residential address (with PIN code)", tip: "Residential address (with PIN code)", multiline: true, required: true },
   { name: "reading_language", label: "Preferred reading language", tip: "Preferred reading language", dropdown: ["English", "Hindi", "Marathi", "Other"] },
   { name: "senior_citizen", label: "I am a senior citizen (60 years or older) - no annual fee", tip: "Senior citizen (60+)", checkbox: true },
-  { name: "emergency_name", label: "Emergency contact name", tip: "Emergency contact name" },
-  { name: "emergency_mobile", label: "Emergency contact mobile", tip: "Emergency contact mobile" },
 ];
 
 async function build(fillable) {
@@ -127,52 +126,12 @@ async function build(fillable) {
     y -= f.multiline ? 48 : 30;
   }
 
-  // Section B — family members (basic table)
-  y -= 6;
-  page.drawText("Section B - Family members who will also use this card (optional)", { x: left, y, size: 12, font: bold, color: INK });
-  y -= 22;
-  const cols = [
-    { title: "Name", w: 260 },
-    { title: "Relation", w: 140 },
-    { title: "Age", w: 99 },
-  ];
-  const rowH = 22;
-  let x = left;
-  for (const c of cols) {
-    page.drawRectangle({ x, y: y - 6, width: c.w, height: rowH, borderColor: LINE, borderWidth: 1, color: rgb(0.96, 0.97, 0.99) });
-    page.drawText(c.title, { x: x + 6, y: y + 1, size: 10, font: bold, color: INK });
-    x += c.w;
-  }
-  for (let row = 1; row <= 2; row++) {
-    y -= rowH;
-    x = left;
-    page.drawText(`${row}.`, { x: left - 14, y: y + 1, size: 10, font, color: MUTED });
-    for (const c of cols) {
-      page.drawRectangle({ x, y: y - 6, width: c.w, height: rowH, borderColor: LINE, borderWidth: 1 });
-      if (fillable) {
-        const tf = form.createTextField(`family_${row}_${c.title.toLowerCase()}`);
-        tf.addToPage(page, { x: x + 2, y: y - 4, width: c.w - 4, height: rowH - 4, borderWidth: 0, font });
-        tip(tf, `Family member ${row} - ${c.title}`);
-      }
-      x += c.w;
-    }
-  }
-
-  // Section C — declaration and signature
-  y -= 40;
-  page.drawText("Section C - Declaration", { x: left, y, size: 12, font: bold, color: INK });
+  // Section B — declaration and signature
+  y -= 14;
+  page.drawText("Section B - Declaration", { x: left, y, size: 12, font: bold, color: INK });
   y -= 18;
   page.drawText("I confirm that the details above are correct and I will follow the library rules.", { x: left, y, size: 10, font, color: INK });
   y -= 34;
-  page.drawText("Date of application:", { x: left, y, size: 10.5, font, color: INK });
-  const dx = left + font.widthOfTextAtSize("Date of application:", 10.5) + 8;
-  if (fillable) {
-    const tf = form.createTextField("application_date");
-    tf.addToPage(page, { x: dx, y: y - 5, width: 120, height: 18, borderColor: LINE, borderWidth: 1, font });
-    tip(tf, "Date of application");
-  } else {
-    page.drawText("________________", { x: dx, y, size: 10.5, font, color: LINE });
-  }
   page.drawText("Signature of applicant:", { x: 320, y, size: 10.5, font, color: INK });
   page.drawLine({ start: { x: 320, y: y - 30 }, end: { x: right, y: y - 30 }, thickness: 1, color: INK });
   if (fillable) {
@@ -186,7 +145,7 @@ async function build(fillable) {
   page.drawRectangle({ x: left - 8, y: y - 92, width: right - left + 16, height: 108, color: rgb(0.97, 0.97, 0.98) });
   page.drawText("Instructions", { x: left, y, size: 11, font: bold, color: INK });
   const lines = [
-    "1. Fill in all fields marked * in BLOCK LETTERS.",
+    "1. Fill in all fields marked *. Write your name in BLOCK LETTERS.",
     "2. Attach one proof of address (Aadhaar card copy, electricity bill or ration card) and one passport-size photograph.",
     "3. Senior citizens (60 years or older) pay no annual fee. Others pay Rs. 200 per year at the front desk.",
     "4. Sign the form and hand it in at the front desk: Sunrise Community Library, 12 MG Road, Pune 411001.",

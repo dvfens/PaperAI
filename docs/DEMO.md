@@ -13,9 +13,9 @@ Prerequisites: `npm run setup`, keys in `.env.local` (Claude, ElevenLabs, funded
 | 2 | Camera appears | Big shutter button, "Choose photo or PDF", light toggle on Android. |
 | 3 | Scan the printed sample | Take the photo → "Use this photo". (Or tap "Try a sample form".) |
 | 4 | AI identifies and explains | Within ~8 s Saathi says: "This appears to be: Library membership form. This is the form to become a member of the library…". Tap **Explain this document** to hear the instructions and papers to bring; ask "फ़ीस कितनी है?" by voice. |
-| 5 | AI asks for the name | Tap **Help me fill this document**. "I will ask you 18 questions… What is your full name?" |
+| 5 | AI asks for the name | Tap **Help me fill this document**. "I will ask you 8 questions… What is your full name?" |
 | 6 | Answer by voice | Say "मेरा नाम राम कुमार शर्मा है". Saathi confirms the name (written as RAM KUMAR SHARMA — the form asks for BLOCK LETTERS). Say "हाँ". |
-| 7 | Remaining fields | Date of birth "बारह मार्च उन्नीस सौ साठ", gender "पुरुष", mobile "नौ आठ सात छह पाँच…", address, PIN, language, "60+?" → "हाँ". Show **Repeat**, **Pause/Continue**, **Skip** (email). |
+| 7 | Remaining fields | Date of birth "बारह मार्च उन्नीस सौ साठ", gender "पुरुष", mobile "नौ आठ सात छह पाँच…", address (with PIN), language, "60+?" → "हाँ". Show **Repeat**, **Pause/Continue**, **Skip** (email). |
 | 8 | Correct one answer | While it confirms "12 March 1960", say "नहीं, तेरह मार्च" → it re-confirms "13 March 1960". Or later: "मेरा नाम बदलना है, राम किशोर शर्मा" → it jumps back, confirms, and returns to where it was. |
 | 9 | Completed PDF | **See all answers** → statuses (confirmed, missing, "you sign this", "stick your photo here") → **Make my document**. Completed vs Original tabs; signature place highlighted. |
 | 10 | Read-back | Saathi reads the important details (sensitive numbers masked) and asks "Is everything correct?". |

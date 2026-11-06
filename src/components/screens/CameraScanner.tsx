@@ -1,8 +1,9 @@
 "use client";
 
-import { CameraOff, Check, Flashlight, FlashlightOff, ImageUp, Loader2, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { CameraOff, Check, Flashlight, FlashlightOff, FolderOpen, ImageUp, Loader2, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "@/lib/client/api";
 import { captureVideoFrame, imageFileToPage, MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
 import { IconAction } from "@/components/common/Chrome";
 import { LanguageSelector } from "@/components/common/LanguageSelector";
@@ -30,6 +31,15 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
   const [captured, setCaptured] = useState<PreparedPage | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Forms this phone saved earlier: shown as a "My forms" button only when there are some.
+  const [savedCount, setSavedCount] = useState(0);
+
+  useEffect(() => {
+    api
+      .myForms()
+      .then((forms) => setSavedCount(forms.length))
+      .catch(() => undefined);
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((tr) => tr.stop());
@@ -219,6 +229,17 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
           </div>
         ) : (
           <>
+            {savedCount > 0 && (
+              <div className="mb-2.5 flex justify-center">
+                <Link
+                  href="/forms"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-5 text-[15px] font-semibold text-slate-900 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                >
+                  <FolderOpen className="size-4" aria-hidden /> {t("myForms")}
+                  <span className="ml-0.5 rounded-full bg-blue-600 px-1.5 text-xs font-bold leading-5 text-white">{savedCount}</span>
+                </Link>
+              </div>
+            )}
             <div className="mb-4 flex justify-center gap-2">
               <button
                 onClick={() => void trySample()}

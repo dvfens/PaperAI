@@ -9,6 +9,7 @@ import type {
   FormField,
   NextStepsGuide,
   RetentionChoice,
+  SavedForm,
   ServiceStatus,
   TurnResult,
   SpeechHint,
@@ -147,6 +148,8 @@ export const api = {
     form.set("consent", "yes");
     return json<CommitmentReceipt>("/api/documents", { method: "POST", body: form });
   },
+
+  myForms: () => json<{ forms: SavedForm[] }>("/api/documents").then((r) => r.forms),
 
   receipt: (id: string) => json<CommitmentReceipt & { arkivExpiry: string | null; erased: boolean }>(`/api/documents/${id}`),
 

@@ -3,6 +3,7 @@
 import { AlertTriangle, ChevronDown, Download, ListChecks, Mic, PenLine, RotateCcw, ShieldCheck, ThumbsUp } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
+import { rememberFormTitle } from "@/lib/client/form-titles";
 import { downloadBlob, pagesWithinBudget, pdfToPages } from "@/lib/client/media";
 import { detectYesNo } from "@/lib/conversation/rules";
 import type { StringKey } from "@/lib/i18n";
@@ -277,6 +278,7 @@ function ConsentDialog({
         retentionDays: retention,
         method,
       });
+      rememberFormTitle(receipt.documentId, analysis.title);
       onDone(receipt);
     } catch (err) {
       setError(errorKey(err));
