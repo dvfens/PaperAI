@@ -40,7 +40,8 @@
 
 | Module | Role |
 |---|---|
-| `CameraScanner` | Opens straight into the rear camera, with a document scanner: a live blue outline follows the page and the photo is taken automatically once it is still (or with the shutter). Each photo (camera or gallery) is cut out, straightened and cleaned (shadows removed, paper white) on the phone; crop, rotate, filter and up to 4 pages are optional. Upload (image/PDF), torch where supported, sample forms, language switch |
+| `DesktopHome` | Start screen on a computer (main pointer is a mouse or trackpad; `useIsComputer`), because a webcam cannot scan paper: drop or choose the form's PDF or photo (photos get the same review sheet as the camera), sample form, "Check a document", My forms, a QR code that opens the app on a phone, and "Use this computer's camera" as a fallback. Shares file handling with `CameraScanner` (`useFileIntake`) |
+| `CameraScanner` | Start screen on a phone or tablet. Opens straight into the rear camera, with a document scanner: a live blue outline follows the page and the photo is taken automatically once it is still (or with the shutter). Each photo (camera or gallery) is cut out, straightened and cleaned (shadows removed, paper white) on the phone; crop, rotate, filter and up to 4 pages are optional. Upload (image/PDF), torch where supported, sample forms, language switch |
 | `ScanReview`, `CropEditor`, `LiveOutline` | The scanner UI. The image work is plain TypeScript in `src/lib/scan` (edge finding by Hough lines scored against the page outline, perspective warp, shadow removal), no OpenCV download |
 | `DocumentPreview` | Page images with highlighted regions (sign here, uncertain placement, missing) |
 | `DocumentExplanation` | "This appears to be…", simple explanation, instructions, required papers, voice Q&A |

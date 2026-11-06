@@ -9,7 +9,7 @@ Prerequisites: `npm run setup`, keys in `.env.local` (Claude, ElevenLabs, funded
 
 | # | Step | What to show / say |
 |---|---|---|
-| 1 | Open the app | It opens straight on the camera. Language switch top-right (हिन्दी / English). |
+| 1 | Open the app | On a phone it opens straight on the camera. On a laptop it opens on an upload page instead (drop the PDF, "Try a sample form", or the QR code to continue on a phone). Language switch top-right (हिन्दी / English). |
 | 2 | Camera appears | Big shutter button, "Choose photo or PDF", light toggle on Android. |
 | 3 | Scan the printed sample | A blue outline finds the page; hold still and the photo is taken by itself (or tap the shutter). It comes back cut out, straight and white → "Use photo". (Or tap "Try a sample form".) |
 | 4 | AI identifies and explains | Within ~8 s Paper AI says: "This appears to be: Library membership form. This is the form to become a member of the library…". Tap **Explain this document** to hear the instructions and papers to bring; ask "फ़ीस कितनी है?" by voice. |

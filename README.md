@@ -22,7 +22,7 @@
 
 ## What the person experiences
 
-1. **Camera first** — the app opens on the camera (big shutter button, upload, light toggle, language switch). No dashboard. It works like a scanner app: it outlines the page, takes the photo by itself when the page is still, and straightens and cleans it (crop, rotate, filters and extra pages are optional).
+1. **Camera first** — the app opens on the camera (big shutter button, upload, light toggle, language switch). No dashboard. It works like a scanner app: it outlines the page, takes the photo by itself when the page is still, and straightens and cleans it (crop, rotate, filters and extra pages are optional). On a computer, where a webcam cannot scan paper, the app opens on an upload page instead: drop the form's PDF or photo, try the sample form, or scan a QR code to continue on the phone.
 2. **"This appears to be a library membership form…"** — spoken within ~8 s (a quick first-impression call), while the full field analysis continues in the background.
 3. **Explain** — 3–6 simple sentences, the instructions printed on the form, the papers to bring; ask questions by voice.
 4. **Fill by voice** — one question at a time; big microphone; listens again automatically after each question; "repeat", "pause", "skip", "change my name…" all work; important answers are read back ("Let me confirm. Date of birth: 12 March 1960. Is that correct?"). Nothing is ever written that the person did not say.
@@ -146,7 +146,7 @@ Judging files: [`arkiv/schema.md`](arkiv/schema.md) · [`arkiv/friction.md`](ark
 ```
 src/
   app/                    pages (/, /verify, /s/[token]) and API route handlers
-  components/screens/     CameraScanner, DocumentExplanation, VoiceConversation, FormReview,
+  components/screens/     CameraScanner, DesktopHome, DocumentExplanation, VoiceConversation, FormReview,
                           FinalVerification, StepByStepGuide, DoneScreen, VerificationScreen, SharedDocument
   lib/conversation/       deterministic conversation engine + offline interpreter (shared client/server)
   lib/arkiv/              Arkiv schemas + read queries (shared: server and browser verifier)

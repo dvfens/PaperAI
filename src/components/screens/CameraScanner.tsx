@@ -1,48 +1,31 @@
 "use client";
 
-import { CameraOff, Flashlight, FlashlightOff, FolderOpen, ImageUp, Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import { CameraOff, ChevronLeft, Flashlight, FlashlightOff, FolderOpen, ImageUp, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
-import { MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
-import { findPage, grabFrame, imageToCanvas, PHOTO_EDGE, type NormQuad } from "@/lib/client/scanner";
+import type { PreparedPage } from "@/lib/client/media";
+import { grabFrame, type NormQuad } from "@/lib/client/scanner";
 import { IconAction } from "@/components/common/Chrome";
 import { LanguageSelector } from "@/components/common/LanguageSelector";
 import { VoiceEngineButton } from "@/components/common/VoiceEngine";
 import { LiveOutline, type TrackState } from "@/components/scan/LiveOutline";
 import { ScanReview } from "@/components/scan/ScanReview";
+import { MAX_PAGES, safeFind, useFileIntake } from "@/components/scan/useFileIntake";
 import { useApp, type SourceDocument } from "@/components/app/AppContext";
 
 type CameraState = "starting" | "live" | "unavailable";
-
-/** The analysis and fill requests take up to four page images. */
-const MAX_PAGES = 4;
-
-interface Draft {
-  id: number;
-  /** The photo at full resolution. */
-  source: HTMLCanvasElement;
-  /** Page outline found in it (null: none found, the whole photo is used). */
-  quad: NormQuad | null;
-}
-
-function safeFind(source: HTMLCanvasElement): NormQuad | null {
-  try {
-    return findPage(source, source.width, source.height, PHOTO_EDGE);
-  } catch {
-    return null;
-  }
-}
 
 interface TorchCapabilities extends MediaTrackCapabilities {
   torch?: boolean;
 }
 
 /**
- * Screen 1 — the app opens straight into the camera. One big shutter button, an upload option,
- * a light toggle where the phone supports it, and the language switch. Nothing else.
+ * Screen 1 on a phone — the app opens straight into the camera. One big shutter button, an upload
+ * option, a light toggle where the phone supports it, and the language switch. Nothing else.
+ * (Computers get DesktopHome instead; `onBack` returns there when its camera was opened from it.)
  */
-export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument) => void }) {
+export function CameraScanner({ onDocument, onBack }: { onDocument: (doc: SourceDocument) => void; onBack?: () => void }) {
   const { t } = useApp();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -50,17 +33,13 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
   const [camera, setCamera] = useState<CameraState>("starting");
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
-  // The photo being checked, and pages already kept with "Add page".
-  const [draft, setDraft] = useState<Draft | null>(null);
+  // Pages already kept with "Add page" (the photo being checked is the intake's draft).
   const [pages, setPages] = useState<PreparedPage[]>([]);
-  const draftId = useRef(0);
   const [track, setTrack] = useState<TrackState>("searching");
   const [flash, setFlash] = useState(false);
   const liveQuad = useRef<NormQuad | null>(null);
   // No automatic photo in the first moments after the camera opens or a photo is put away.
   const [autoAfter, setAutoAfter] = useState(() => Date.now() + 1500);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // Forms this phone saved earlier: shown as a "My forms" button only when there are some.
   const [savedCount, setSavedCount] = useState(0);
 
@@ -75,6 +54,8 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
     streamRef.current?.getTracks().forEach((tr) => tr.stop());
     streamRef.current = null;
   }, []);
+
+  const { busy, error, draft, openDraft, closeDraft, handleFile, trySample } = useFileIntake(onDocument, stopCamera);
 
   const startCamera = useCallback(async () => {
     setCamera("starting");
@@ -125,11 +106,11 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
     navigator.vibrate?.(30);
     const source = grabFrame(video);
     // A closer look at the full photo; the live outline is the fallback.
-    setDraft({ id: ++draftId.current, source, quad: safeFind(source) ?? liveQuad.current });
+    openDraft(source, safeFind(source) ?? liveQuad.current);
   };
 
   const putAwayDraft = () => {
-    setDraft(null);
+    closeDraft();
     setAutoAfter(Date.now() + 2500);
   };
 
@@ -137,58 +118,6 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
     stopCamera();
     onDocument({ kind: "image", pdf: null, pages: all, pageCount: all.length });
   };
-
-  const handleFile = async (file: File) => {
-    setError(null);
-    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    // PDFs are uploaded as they are; photos are re-encoded much smaller in the browser first.
-    if (file.size > (isPdf ? MAX_UPLOAD_BYTES : 40_000_000)) {
-      setError(t("errorTooBig"));
-      return;
-    }
-    setBusy(true);
-    try {
-      if (isPdf) {
-        const data = await file.arrayBuffer();
-        const { pages, pageCount } = await pdfToPages(data);
-        stopCamera();
-        onDocument({ kind: "pdf", pdf: new Blob([data], { type: "application/pdf" }), pages, pageCount });
-      } else if (file.type.startsWith("image/")) {
-        // Photos from the gallery get the same cut-out, straightening and clean-up as camera photos.
-        const source = await imageToCanvas(file);
-        setDraft({ id: ++draftId.current, source, quad: safeFind(source) });
-      } else {
-        setError(t("errorFileType"));
-      }
-    } catch {
-      setError(t("errorFileType"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const trySample = async (variant: "fillable" | "flat" = "fillable") => {
-    setBusy(true);
-    try {
-      const name = variant === "flat" ? "library-membership-form-flat.pdf" : "library-membership-form.pdf";
-      const res = await fetch(`/samples/${name}`);
-      const blob = await res.blob();
-      await handleFile(new File([blob], name, { type: "application/pdf" }));
-    } catch {
-      setError(t("errorNetwork"));
-      setBusy(false);
-    }
-  };
-
-  // Demo shortcut: /?sample=flat loads the "paper" version (scan pipeline), /?sample=fillable the AcroForm one.
-  useEffect(() => {
-    const sample = new URLSearchParams(window.location.search).get("sample");
-    if (sample === "flat" || sample === "fillable") {
-      window.history.replaceState(null, "", "/");
-      void trySample(sample);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="relative h-dvh overflow-hidden bg-black text-white">
@@ -202,7 +131,20 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
 
       {/* Top bar */}
       <div inert={Boolean(draft)} className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6">
-        <span className="text-[17px] font-bold tracking-tight">{t("appName")}</span>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={() => {
+              stopCamera();
+              onBack();
+            }}
+            className="-ml-1 inline-flex min-h-10 items-center gap-1 rounded-full bg-black/45 pl-2 pr-3.5 text-[15px] font-semibold backdrop-blur hover:bg-black/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+          >
+            <ChevronLeft className="size-5" aria-hidden /> {t("back")}
+          </button>
+        ) : (
+          <span className="text-[17px] font-bold tracking-tight">{t("appName")}</span>
+        )}
         <div className="flex items-center gap-2">
           <VoiceEngineButton tone="dark" />
           <LanguageSelector tone="dark" />
