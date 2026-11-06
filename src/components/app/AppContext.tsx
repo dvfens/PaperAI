@@ -130,11 +130,25 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
   useEffect(() => {
     if (!persist) return;
     const startingSample = new URLSearchParams(window.location.search).has("sample");
+    // Show the app after 3 s at the latest, saved session or not; a session that turns up later is
+    // ignored rather than yanking the person away from what they are doing.
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      setHydrated(true);
+    };
+    const timer = setTimeout(finish, 3000);
     (startingSample ? clearSession().then(() => null) : loadSession<AppState>())
       .then((saved) => {
-        if (saved && saved.step !== "scan") setState({ ...INITIAL, ...saved });
+        if (!done && saved && saved.step !== "scan") setState({ ...INITIAL, ...saved });
       })
-      .finally(() => setHydrated(true));
+      .catch(() => undefined)
+      .finally(() => {
+        clearTimeout(timer);
+        finish();
+      });
+    return () => clearTimeout(timer);
   }, [persist]);
 
   useEffect(() => {
