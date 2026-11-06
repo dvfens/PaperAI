@@ -51,7 +51,7 @@ Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defi
 - **Expiry = the link's lifetime** (1 hour, 1 day or 7 days, capped at the document's retention). When it expires on Arkiv, `/s/<token>` stops serving the file.
 - **Deleted** when the person taps "Stop this link" (a `revoke_share` consent event is written in the same batch).
 
-## 4. `saathi.signature.v1` — a finger signature on an approved document
+## 4. `saathi.signature.v1` — a signature on an approved document (the owner's, or a co-signer's)
 
 | Attribute | Type | Indexed | Meaning |
 |---|---|---|---|
@@ -60,10 +60,11 @@ Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defi
 | `signer` | `addr` | ✅ | public address of the key on the signer's phone — a random per-phone key, not tied to a name |
 | `signature` | `bytes` | — | 65-byte secp256k1 signature over EIP-712 typed data `DocumentSignature{document: bytes32 docHash, signedAt: uint64, method: string, role: string}`, domain `{name: "Saathi", version: "1", chainId: 7794095}` |
 | `signedAt` | `u64` | ✅ | unix seconds; part of the signed message and printed on the PDF's signature page |
-| `method` | `str` | — | `finger` or `finger+voice`; part of the signed message |
-| `role` | `str` | ✅ | `signer`; part of the signed message (room for co-signers later) |
+| `method` | `str` | — | `finger`, `finger+voice` (the owner) or `tap` (a co-signer); part of the signed message |
+| `role` | `str` | ✅ | `signer` (the owner) or a co-signer's `witness`, `guarantor`, `family`, `official`; part of the signed message, so a witness signature cannot pass as a guarantor's |
 
 - **Created** in the same atomic `executeBatch` as the commitment and its consent event, only when the person signed with a finger and then chose "Save & protect". The server first checks that the signature recovers to `signer` over exactly these bytes, and that `signer` is the key printed in the PDF (the generation token is bound to it).
+- **Co-signatures** are created by `POST /api/share/<token>/cosign`: whoever received a share link signs the same `docHash` with their own phone's key. The server checks the link is alive on Arkiv (its `saathi.share.v1` grant), the signature is genuine, and — inside the serialized write queue — that this key has not signed the document yet and it has fewer than 10 signatures, then creates one entity with the commitment's expiry.
 - **Saathi cannot forge it:** the key lives only on the phone; the writer wallet merely carries the signature onto Arkiv. Anyone re-checks it: `/verify` recovers the signer from `signature` in the browser.
 - **Never stored:** the drawn signature image (it exists only inside the encrypted PDF), names, or anything else about the person.
 - **Owner / creator:** writer wallet. **Flags:** `readonly: true`. **Expiry:** the document's retention. **Deleted** with everything else by "Delete my document".

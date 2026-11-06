@@ -95,6 +95,9 @@ Secure deletion: crypto-shred + overwrite + unlink, revoke links, delete Arkiv e
 ### `GET /api/documents/{id}/file` (owner)
 Decrypted PDF download. `?inline=1` opens it in the browser's PDF viewer (My forms → Open).
 
+### `POST /api/share/{token}/cosign` — co-sign a shared document
+`{ signer, signedAt, method: "tap", role: "witness"|"guarantor"|"family"|"official", signature }` — an EIP-712 signature over the document's SHA-256 by the co-signer's phone key (`src/lib/signing.ts`). Refused when the link is dead (`410`), the signature does not check out (`400 bad_signature`), this key already signed the document, including the owner's own key (`409 already_signed`), or the document has 10 signatures (`409`). Recorded on Arkiv as `saathi.signature.v1`. → `201 { role, signedAt, txHash, explorerTxUrl }`.
+
 ### `GET /api/documents/{id}/shares` · `POST /api/documents/{id}/shares` (owner)
 `POST { hours: 1 | 24 | 168 }` → `{ shareId, url, expiresAt, arkiv: { grantKey, txHash, explorerTxUrl } | null }`. The link lifetime is recorded as the Arkiv grant's expiry. Fails closed (`502`) if the grant cannot be recorded when Arkiv is configured.
 

@@ -31,7 +31,7 @@
 7. **Sign** — sign with a finger, like an e-signature app: the signature goes into the form's signature boxes and a "Signature record" page is added (time, signer key, QR to check it). A key kept on the phone signs the finished PDF (EIP-712) — no wallet, no account. Skippable ("sign on paper later"). Already have a filled form (a filled PDF, or one filled by hand and scanned)? **Already filled? Sign it** skips the questions: check it, sign it, save and protect it — nothing is written into it except the signature.
 8. **Consent** — "Keep a protected copy?" with a retention choice (1 week / 1 month / 6 months) — or just download. On saving, the fingerprint, the consent event and the signature are recorded on Arkiv in one transaction.
 9. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Saathi always says it has **not** submitted the form anywhere.
-10. **Share & verify** — a short-lived link + QR for the bank; anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser, signatures re-checked there too).
+10. **Share, co-sign & verify** — a short-lived link + QR for the bank or family. Whoever opens it sees the document and can **Co-sign** it as a witness, guarantor, family member or official, with their own phone's key (no account); the co-signature goes on Arkiv next to the owner's. Anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser) and see every signer, each signature re-checked there.
 11. **My forms** — saved forms come back any time from the **My forms** button: open, send or delete. The PDF is stored encrypted and opens only on the phone that saved it; Arkiv holds only its fingerprint.
 
 ---
@@ -97,7 +97,7 @@ Unit tests for the conversation engine and the offline interpreter (dates, India
 npm run test:e2e
 ```
 
-Runs the whole demo scenario against a running dev server through the real API: analyse → conversation with a correction → generate → approve (consent required, forged PDFs refused) → verify → **tampered copy fails** → share link → revoke → secure deletion → **finger signature** (signature boxes + record page, forged / wrong-key / wrong-bytes signatures refused, signature on Arkiv re-checked, erased with the document). When Arkiv is recorded it also asserts the on-chain match, consent history and signature.
+Runs the whole demo scenario against a running dev server through the real API: analyse → conversation with a correction → generate → approve (consent required, forged PDFs refused) → verify → **tampered copy fails** → share link → revoke → secure deletion → **finger signature** (signature boxes + record page, forged / wrong-key / wrong-bytes signatures refused, signature on Arkiv re-checked, erased with the document) → **co-signing** through a share link (wrong role, wrong bytes, signing twice, the owner's own key and a stopped link all refused; both signatures on Arkiv and genuine). When Arkiv is recorded it also asserts the on-chain match, consent history and signature.
 
 ---
 
