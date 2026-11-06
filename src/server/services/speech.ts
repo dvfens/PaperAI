@@ -34,11 +34,13 @@ const audioFileName = (audio: Blob) =>
   `speech.${/mp4|aac|m4a/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : /wav/.test(audio.type) ? "wav" : "webm"}`;
 
 /**
- * ElevenLabs voices on offer (premade, so they exist on every account). All three were measured fully
- * intelligible in Hindi and English (Scribe transcribed their speech back with ≤2% character errors).
+ * ElevenLabs voices on offer. All were measured intelligible in Hindi and English (Scribe transcribed
+ * their speech back with ≤2% character errors). "Anjali" is a native Hindi voice from the ElevenLabs
+ * voice library, added to this project's ElevenLabs account; the other two are premade voices.
+ * Another deployment's ElevenLabs account can use Anjali too: library voices work by id.
  */
 const ELEVENLABS_VOICES: Record<VoiceStyle, string> = {
-  "young-woman": "cgSgspJ2msm6clMCkdW9", // "Jessica" — playful, bright, warm
+  "young-woman": "Kfn3fYy8XcPyUvbTxn1H", // "Anjali — Friendly EdTech Teacher": warm, patient, young Indian woman
   "young-man": "bIHbv24MWmeRgasZH58o", // "Will" — relaxed, optimistic
   calm: "JBFqnCBsd6RMkjVDRZzb", // "George" — calm, mature
 };
