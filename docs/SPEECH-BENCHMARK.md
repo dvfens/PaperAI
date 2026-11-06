@@ -20,6 +20,21 @@ In ordinary conditions the two engines are equal, and OpenAI is best for a norma
 ElevenLabs is best with a loud TV right next to the phone. Both are offered, and each phone keeps its own
 choice. The ElevenLabs background filter does not cause the need to shout; it helps.
 
+## Language setting and microphone audio
+
+- **Wrong language setting:** someone answers in Hindi while the app is set to English, or the other way
+  round. Clean speech (32 clips): ElevenLabs live 32/32 with the matching setting, 32/32 with the wrong
+  one, 31/32 with auto-detect. OpenAI live 31/32, 29/32 and 30/32. The language setting does not explain
+  poor recognition.
+- **Resampling:** phones record at 44.1/48 kHz and the app converts to 16 kHz (ElevenLabs) or 24 kHz
+  (OpenAI). The first version averaged neighbouring samples. That let hiss and the high parts of "s",
+  "sh" and "ch" fold back into the 2–7 kHz speech band at only −5 to −16 dB. The synthetic voices in this
+  benchmark have little energy up there, so the tests could not show it, but a real phone microphone
+  does. It now uses a windowed-sinc low-pass: speech stays flat to about 6 kHz, and folding is cut by
+  −40 to −98 dB (see `tests/audio.test.ts`).
+- **Microphone check:** the voice panel in the app can record one sentence on the person's own phone and
+  show what the live engine and both engines on the whole recording heard. Nothing is stored.
+
 ## Method (first run)
 
 - **Answers:** 16 typical form answers (names, dates, phone numbers, PIN, addresses, yes/no, an option) in
