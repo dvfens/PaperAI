@@ -106,8 +106,16 @@ export function finaliseFields(drafts: FieldDraft[], ocr: OcrPage[] | null, acro
     const acroName = d.acroName && acroByName.has(d.acroName) ? d.acroName : undefined;
     // Printed tick-box choices on a scan: tick the chosen option instead of writing over the options.
     const anchor = d.anchorLineId ? linesById.get(d.anchorLineId) : undefined;
+    // Fillable PDF radio buttons: each option's own button, matched to the options by name.
+    const acroOptions = acroName ? acroByName.get(acroName)?.optionBoxes : undefined;
     const optionBoxes =
-      !acroName && rest.type === "choice" && rest.options?.length && anchor ? optionBoxesFromWords(anchor.words, rest.options, anchor.page) : undefined;
+      rest.type === "choice" && rest.options?.length
+        ? acroOptions
+          ? matchOptionBoxes(rest.options, acroOptions)
+          : !acroName && anchor
+            ? optionBoxesFromWords(anchor.words, rest.options, anchor.page)
+            : undefined
+        : undefined;
     return {
       ...rest,
       id,
@@ -121,6 +129,19 @@ export function finaliseFields(drafts: FieldDraft[], ocr: OcrPage[] | null, acro
 }
 
 /** Locate "[ ] Option" marks on a line: the tick goes on the bracket just before each option word. */
+/** Re-key option boxes to the field's own option names (case and spacing ignored); all or nothing. */
+export function matchOptionBoxes(options: string[], boxes: Record<string, Box>): Record<string, Box> | undefined {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const byName = new Map(Object.entries(boxes).map(([k, b]) => [norm(k), b]));
+  const out: Record<string, Box> = {};
+  for (const o of options) {
+    const b = byName.get(norm(o));
+    if (!b) return undefined;
+    out[o] = b;
+  }
+  return out;
+}
+
 export function optionBoxesFromWords(words: OcrWord[], options: string[], page: number): Record<string, Box> {
   const out: Record<string, Box> = {};
   const clean = (s: string) => s.replace(/[\][|()☐□▢❏]/g, "").toLowerCase();
@@ -225,6 +246,7 @@ export function fieldsFromAcro(acro: AcroFieldInfo[], lang: LanguageCode): FormF
         id: slug(a.name, i),
         acroName: a.name,
         box: a.box ?? undefined,
+        optionBoxes: a.optionBoxes,
         required: a.required,
         options: a.options.length ? a.options : undefined,
         mappingConfidence: "high",

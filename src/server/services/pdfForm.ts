@@ -27,6 +27,8 @@ export interface AcroFieldInfo {
   multiline: boolean;
   maxLength: number | null;
   box: Box | null;
+  /** Radio groups: where each option's button sits (keyed by the option as getOptions() returns it). */
+  optionBoxes?: Record<string, Box>;
 }
 
 export interface PdfInspection {
@@ -83,24 +85,29 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
     fields = [];
   }
 
+  const boxOf = (widget: ReturnType<PDFField["acroField"]["getWidgets"]>[number] | undefined): Box | null => {
+    if (!widget) return null;
+    const pageIdx = widgetPage.get(widget.dict) ?? 0;
+    const { width, height } = pageSizes[pageIdx] ?? pageSizes[0];
+    const r = widget.getRectangle();
+    return { page: pageIdx, x: r.x / width, y: 1 - (r.y + r.height) / height, w: r.width / width, h: r.height / height };
+  };
+
   const out: AcroFieldInfo[] = fields.map((f) => {
     const type = fieldType(f);
-    const widget = f.acroField.getWidgets()[0];
-    let box: Box | null = null;
-    if (widget) {
-      const pageIdx = widgetPage.get(widget.dict) ?? 0;
-      const { width, height } = pageSizes[pageIdx] ?? pageSizes[0];
-      const r = widget.getRectangle();
-      box = {
-        page: pageIdx,
-        x: r.x / width,
-        y: 1 - (r.y + r.height) / height,
-        w: r.width / width,
-        h: r.height / height,
-      };
-    }
+    const widgets = f.acroField.getWidgets();
+    const box = boxOf(widgets[0]);
     let options: string[] = [];
     if (f instanceof PDFDropdown || f instanceof PDFOptionList || f instanceof PDFRadioGroup) options = f.getOptions();
+    // A radio group has one widget per option, in the same order pdf-lib lists the options.
+    let optionBoxes: Record<string, Box> | undefined;
+    if (f instanceof PDFRadioGroup && widgets.length > 1 && widgets.length === options.length) {
+      optionBoxes = {};
+      widgets.forEach((w, i) => {
+        const b = boxOf(w);
+        if (b) optionBoxes![options[i]] = b;
+      });
+    }
     return {
       name: f.getName(),
       tooltip: tooltipOf(f),
@@ -110,6 +117,7 @@ export async function inspectPdf(bytes: Uint8Array): Promise<PdfInspection> {
       multiline: f instanceof PDFTextField ? f.isMultiline() : false,
       maxLength: f instanceof PDFTextField ? (f.getMaxLength() ?? null) : null,
       box,
+      optionBoxes,
     };
   });
 
