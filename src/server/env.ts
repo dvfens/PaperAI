@@ -33,7 +33,8 @@ export const env = {
   claudeAnalysisEffort: (str("CLAUDE_ANALYSIS_EFFORT", "low") as "low" | "medium" | "high"),
   /**
    * Fast mode (Claude API research preview, Opus 5.5/5 and 4.8): the same model at up to 2.5x output
-   * speed for 2x the per-token price. Used for the per-answer interpretation, where people wait.
+   * speed for 2x the per-token price. Used for every Claude call, because a person is waiting on each one
+   * (reading the form, the first explanation, questions, each spoken answer, next steps).
    */
   claudeFastMode: str("CLAUDE_FAST_MODE", "true") === "true",
 
