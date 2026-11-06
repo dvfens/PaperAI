@@ -1,5 +1,7 @@
 import "server-only";
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
+import { keytermsFor } from "@/lib/speechHints";
+import type { SpeechHint } from "@/lib/types";
 import { env, features } from "@/server/env";
 import { HttpError } from "@/server/http";
 import { log } from "@/server/log";
@@ -13,7 +15,7 @@ const API = "https://api.elevenlabs.io/v1";
 
 export interface SpeechService {
   synthesize(text: string, lang: LanguageCode): Promise<ArrayBuffer>;
-  transcribe(audio: Blob, lang: LanguageCode): Promise<{ text: string; languageCode: string | null }>;
+  transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint): Promise<{ text: string; languageCode: string | null }>;
   /** A single-use, 15-minute token that lets the browser open ONE realtime transcription socket. */
   realtimeToken(): Promise<string>;
 }
@@ -43,7 +45,7 @@ class ElevenLabsSpeech implements SpeechService {
     return res.arrayBuffer();
   }
 
-  async transcribe(audio: Blob, lang: LanguageCode) {
+  async transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint) {
     const form = new FormData();
     form.append("model_id", env.elevenLabsSttModel);
     // Name the file by its real container: Chrome/Android record WebM/Opus, iPhones MP4/AAC.
@@ -51,6 +53,9 @@ class ElevenLabsSpeech implements SpeechService {
     form.append("file", audio, `speech.${ext}`);
     form.append("language_code", LANGUAGES[lang].isoCode);
     form.append("tag_audio_events", "false");
+    // Keyterms only where the expected words are known (yes/no, options). Measured on noisy Hindi and
+    // English answers they improved accuracy without making the model invent answers from noise.
+    for (const term of keytermsFor(hint)) form.append("keyterms", term);
     const res = await fetch(`${API}/speech-to-text`, {
       method: "POST",
       headers: { "xi-api-key": env.elevenLabsApiKey },

@@ -27,6 +27,17 @@ export type FieldType =
 
 export type MappingConfidence = "high" | "medium" | "low";
 
+/**
+ * What kind of answer is expected, so speech recognition listens for the right words. Deliberately
+ * holds no question text: while confirming, the question contains the person's answer.
+ */
+export interface SpeechHint {
+  /** "yesno" while confirming an answer; otherwise the type of the field being filled. */
+  kind?: FieldType | "yesno";
+  /** Allowed answers of a choice field. */
+  options?: string[];
+}
+
 export interface FormField {
   id: string;
   /** Label exactly as printed on the form. */

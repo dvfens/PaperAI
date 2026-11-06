@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { isEnabledLanguage, type LanguageCode } from "@/lib/i18n/languages";
-import { DOCUMENT_CATEGORIES } from "@/lib/types";
+import { DOCUMENT_CATEGORIES, type SpeechHint } from "@/lib/types";
 
 /** Request validation for every API route. Limits keep payloads small and bounded. */
 
@@ -37,6 +37,27 @@ export const zField = z.object({
   optionBoxes: z.record(s(200), zBox).optional(),
 });
 export const zFields = z.array(zField).max(200);
+
+/**
+ * What kind of answer a recording holds; only steers speech recognition, so it is best-effort:
+ * anything malformed is dropped (never rejected) and options are trimmed, not refused.
+ */
+const zHintKind = z.enum(["text", "multiline", "date", "number", "phone", "email", "checkbox", "choice", "signature", "photo", "yesno"]);
+export function parseSpeechHint(raw: unknown): SpeechHint | undefined {
+  if (typeof raw !== "string" || !raw || raw.length > 4000) return undefined;
+  let value: { kind?: unknown; options?: unknown };
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  const kind = zHintKind.safeParse(value?.kind);
+  if (!kind.success) return undefined;
+  const options = Array.isArray(value.options)
+    ? value.options.filter((o): o is string => typeof o === "string" && o.length > 0 && o.length <= 50).slice(0, 20)
+    : [];
+  return options.length ? { kind: kind.data, options } : { kind: kind.data };
+}
 
 export const zAnswer = z.object({
   fieldId: s(80),
