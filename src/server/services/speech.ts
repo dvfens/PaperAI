@@ -1,0 +1,70 @@
+import "server-only";
+import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
+import { env, features } from "@/server/env";
+import { HttpError } from "@/server/http";
+import { log } from "@/server/log";
+
+/**
+ * SpeechService — ElevenLabs text-to-speech and speech-to-text (Scribe).
+ * The browser falls back to the Web Speech API when this service is not configured; that decision
+ * is made client-side from /api/health so speech keeps working without an API key.
+ */
+const API = "https://api.elevenlabs.io/v1";
+
+export interface SpeechService {
+  synthesize(text: string, lang: LanguageCode): Promise<ArrayBuffer>;
+  transcribe(audio: Blob, lang: LanguageCode): Promise<{ text: string; languageCode: string | null }>;
+}
+
+class ElevenLabsSpeech implements SpeechService {
+  async synthesize(text: string, lang: LanguageCode) {
+    const body: Record<string, unknown> = {
+      text,
+      model_id: env.elevenLabsTtsModel,
+      voice_settings: { stability: 0.6, similarity_boost: 0.75, speed: 0.9 },
+    };
+    // multilingual_v2 detects the language itself and rejects language_code; newer models accept it.
+    if (!env.elevenLabsTtsModel.includes("multilingual_v2")) body.language_code = LANGUAGES[lang].isoCode;
+    const res = await fetch(
+      `${API}/text-to-speech/${encodeURIComponent(env.elevenLabsVoiceId)}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": env.elevenLabsApiKey, "content-type": "application/json", accept: "audio/mpeg" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    if (!res.ok) {
+      log.warn("tts.failed", { provider: "elevenlabs", status: res.status });
+      throw new HttpError(502, "tts_failed", "Voice service failed.");
+    }
+    return res.arrayBuffer();
+  }
+
+  async transcribe(audio: Blob, lang: LanguageCode) {
+    const form = new FormData();
+    form.append("model_id", env.elevenLabsSttModel);
+    form.append("file", audio, "speech.webm");
+    form.append("language_code", LANGUAGES[lang].isoCode);
+    form.append("tag_audio_events", "false");
+    const res = await fetch(`${API}/speech-to-text`, {
+      method: "POST",
+      headers: { "xi-api-key": env.elevenLabsApiKey },
+      body: form,
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) {
+      log.warn("stt.failed", { provider: "elevenlabs", status: res.status });
+      throw new HttpError(502, "stt_failed", "Speech recognition failed.");
+    }
+    const json = (await res.json()) as { text?: string; language_code?: string };
+    return { text: (json.text ?? "").trim(), languageCode: json.language_code ?? null };
+  }
+}
+
+let instance: SpeechService | null = null;
+export function speechService(): SpeechService {
+  if (!features.elevenLabs()) throw new HttpError(503, "speech_not_configured", "ElevenLabs is not configured.");
+  instance ??= new ElevenLabsSpeech();
+  return instance;
+}
