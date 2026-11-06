@@ -121,11 +121,32 @@ describe("overlapping answers", () => {
 
   it("never moves an exact fillable-PDF box", () => {
     const placed = [
-      { box: box(0.1, 0.2), confidence: "high" as const },
-      { box: box(0.1, 0.2), confidence: "high" as const },
+      { box: box(0.1, 0.2), confidence: "high" as const, fixed: true },
+      { box: box(0.1, 0.2), confidence: "high" as const, fixed: true },
     ];
     separateOverlaps(placed, [null, box(0.5, 0.2)]);
     assert.deepEqual(placed[1].box, box(0.1, 0.2));
+    assert.equal(placed[1].confidence, "high");
+  });
+
+  it("catches two scanned blanks found in the same place, even when both looked certain", () => {
+    const placed = [
+      { box: box(0.1, 0.2), confidence: "high" as const },
+      { box: box(0.1, 0.2), confidence: "high" as const },
+    ];
+    separateOverlaps(placed, [null, null]);
+    assert.equal(placed[0].confidence, "low");
+    assert.equal(placed[1].confidence, "low");
+  });
+
+  it("ignores places where nothing is written (signature, photo)", () => {
+    const placed = [
+      { box: box(0.1, 0.2), confidence: "medium" as const, undrawn: true },
+      { box: box(0.1, 0.2), confidence: "medium" as const },
+    ];
+    separateOverlaps(placed, [null, box(0.5, 0.2)]);
+    assert.deepEqual(placed[1].box, box(0.1, 0.2));
+    assert.equal(placed[1].confidence, "medium");
   });
 
   it("finaliseFields gives every field of a two-column row its own place", () => {
@@ -139,5 +160,62 @@ describe("overlapping answers", () => {
     );
     assert.equal(overlapShare(fields[0].box!, fields[1].box!), 0);
     assert.ok(fields.every((f) => f.mappingConfidence === "medium"));
+  });
+});
+
+describe("placement edge cases on printed forms", () => {
+  const one = (l: OcrLine, d: FieldDraft) => resolvePlacement(d, new Map([[l.id, l]]), acro).box!;
+
+  it("tells the same label apart by the model's estimate (applicant / witness \"Date:\")", () => {
+    const l = line("l", 0.5, [["Date:", 0.08, 0.05], ["__________", 0.14, 0.25], ["Date:", 0.55, 0.05], ["__________", 0.61, 0.25]]);
+    const a = one(l, draft("d1", "Date", "l", "right_of_label", { x: 0.14, y: 0.5, w: 0.25, h: 0.02 }));
+    const b = one(l, draft("d2", "Date", "l", "right_of_label", { x: 0.61, y: 0.5, w: 0.25, h: 0.02 }));
+    assert.ok(Math.abs(a.x - 0.144) < 0.005 && Math.abs(b.x - 0.614) < 0.005, `${a.x} ${b.x}`);
+  });
+
+  it("keeps Hindi words with different vowel signs apart (आयु ≠ आय)", () => {
+    const l = line("l", 0.5, [["आयु", 0.08, 0.04], ["________", 0.13, 0.2], ["आय", 0.55, 0.04], ["________", 0.6, 0.2]]);
+    assert.equal(findLabel(l, "आयु")!.start, 0);
+    assert.equal(findLabel(l, "आय")!.start, 2);
+    const p = line("p", 0.5, [["पिता", 0.08, 0.04], ["का", 0.125, 0.02], ["नाम", 0.15, 0.04], ["पता", 0.6, 0.04]]);
+    assert.equal(findLabel(p, "पता")!.start, 3);
+  });
+
+  it("starts after a colon printed far from the label (colons lined up in a column)", () => {
+    const l = line("l", 0.5, [["Name", 0.08, 0.05], ["of", 0.135, 0.02], ["Applicant", 0.16, 0.09], [":", 0.42, 0.006]]);
+    const b = one(l, draft("n", "Name of Applicant", "l", "right_of_label", { x: 0.44, y: 0.5, w: 0.45, h: 0.02 }));
+    assert.ok(b.x >= 0.426, `x ${b.x}`);
+  });
+
+  it("finds a blank merged into the label's word (\"Name:______\")", () => {
+    const l = line("l", 0.5, [["Name:______________", 0.08, 0.3], ["Age:______", 0.42, 0.12]]);
+    const name = one(l, draft("n", "Name", "l", "right_of_label", null));
+    const age = one(l, draft("a", "Age", "l", "right_of_label", null));
+    assert.ok(name.x > 0.12 && name.x + name.w <= 0.42, `name ${name.x} ${name.w}`);
+    assert.ok(age.x > 0.44 && age.x + age.w <= 0.55, `age ${age.x} ${age.w}`);
+  });
+
+  it("treats a dotted blank with a stray comma as the blank", () => {
+    const l = line("l", 0.5, [["Village:", 0.08, 0.07], ["..............,....", 0.16, 0.3]]);
+    const b = one(l, draft("v", "Village", "l", "right_of_label", { x: 0.16, y: 0.5, w: 0.3, h: 0.02 }));
+    assert.ok(Math.abs(b.x - 0.164) < 0.005 && Math.abs(b.w - 0.296) < 0.005, `${b.x} ${b.w}`);
+  });
+
+  it("writes after printed \"+91\" on the underscores", () => {
+    const l = line("l", 0.5, [["Mobile", 0.08, 0.06], ["No.:", 0.145, 0.04], ["+91", 0.25, 0.03], ["__________", 0.29, 0.3]]);
+    const b = one(l, draft("m", "Mobile No.", "l", "right_of_label", null));
+    assert.ok(Math.abs(b.x - 0.294) < 0.005 && b.w > 0.25, `${b.x} ${b.w}`);
+  });
+
+  it("keeps a printed hint in brackets with the label, not as the next label", () => {
+    const l = line("l", 0.5, [["Full", 0.08, 0.04], ["Name", 0.125, 0.05], ["(in", 0.215, 0.025], ["BLOCK", 0.243, 0.05], ["LETTERS)", 0.296, 0.07]]);
+    const b = one(l, draft("f", "Full Name", "l", "below_label", { x: 0.08, y: 0.52, w: 0.8, h: 0.03 }));
+    assert.ok(b.w > 0.7, `w ${b.w}`);
+  });
+
+  it("stops a label at its colon so inline choices keep their place (\"Gender: [ ]Male\")", () => {
+    const l = line("l", 0.5, [["Gender:", 0.08, 0.065], ["[", 0.155, 0.006], ["]Male", 0.162, 0.05], ["[", 0.25, 0.006], ["]Female", 0.257, 0.07]]);
+    const b = one(l, draft("g", "Gender", "l", "right_of_label", { x: 0.155, y: 0.5, w: 0.28, h: 0.02 }));
+    assert.ok(b.x < 0.16 && b.x + b.w > 0.4, `${b.x} ${b.w}`);
   });
 });
