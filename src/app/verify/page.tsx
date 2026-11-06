@@ -6,10 +6,13 @@ export const metadata = { title: "Check a document — Saathi" };
 
 export default function VerifyPage() {
   return (
-    <AppProvider>
-      <Suspense>
+    // Suspense wraps the provider, not the other way round: otherwise the provider hydrates first,
+    // applies the saved language, and the screen then hydrates in a different language than the
+    // server rendered (hydration mismatch).
+    <Suspense>
+      <AppProvider>
         <VerificationScreen />
-      </Suspense>
-    </AppProvider>
+      </AppProvider>
+    </Suspense>
   );
 }

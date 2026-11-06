@@ -232,6 +232,8 @@ export const hi: Strings = {
   safeUntil: "{date} तक सुरक्षित",
   protectedChip: "पक्का फ़िंगरप्रिंट",
   share: "साझा करें",
+  saveForm: "फ़ॉर्म सहेजें",
+  sendForm: "परिवार या बैंक को भेजें",
   verify: "जाँचें",
   nextSteps: "आगे क्या करें",
   newDoc: "नया फ़ॉर्म",

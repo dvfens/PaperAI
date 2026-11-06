@@ -20,7 +20,6 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
@@ -35,7 +34,6 @@ import {
   Card,
   Chip,
   Dock,
-  IconAction,
   ListGroup,
   Notice,
   Page,
@@ -139,24 +137,18 @@ export function DoneScreen() {
           </div>
         </section>
 
-        {/* Quick actions */}
-        <Card className="mt-5 py-2">
-          <div className="flex flex-wrap items-start justify-around gap-2">
-            <IconAction icon={Download} label={t("download")} onClick={() => downloadBlob(generated.blob, "completed-form.pdf")} />
-            {receipt && !erased && <IconAction icon={Share2} label={t("share")} onClick={() => setShareOpen(true)} />}
-            {receipt && (
-              <Link
-                href={`/verify?h=${receipt.sha256}`}
-                className="group flex min-w-16 max-w-24 flex-col items-center gap-1 rounded-xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-              >
-                <span className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-800 transition-colors group-hover:bg-slate-200">
-                  <ShieldCheck className="size-5" aria-hidden />
-                </span>
-                <span className="text-center text-xs font-medium leading-tight text-slate-700">{t("verify")}</span>
-              </Link>
-            )}
-          </div>
-        </Card>
+        {/* The person's two jobs from here: keep the form, and get it to whoever needs it.
+            Checking a document is the recipient's job — it lives on the share link and /verify. */}
+        <div className="mt-5 flex flex-col gap-2.5">
+          <Button block size="lg" onClick={() => downloadBlob(generated.blob, "completed-form.pdf")}>
+            <Download aria-hidden /> {t("saveForm")}
+          </Button>
+          {receipt && !erased && (
+            <Button block size="lg" variant="secondary" onClick={() => setShareOpen(true)}>
+              <Share2 aria-hidden /> {t("sendForm")}
+            </Button>
+          )}
+        </div>
 
         {/* Next steps */}
         {state.guide ? (

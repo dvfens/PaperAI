@@ -244,6 +244,8 @@ export const en = {
   safeUntil: "Safe until {date}",
   protectedChip: "Tamper-proof",
   share: "Share",
+  saveForm: "Save the form",
+  sendForm: "Send to family or bank",
   verify: "Verify",
   nextSteps: "Next steps",
   newDoc: "New form",
