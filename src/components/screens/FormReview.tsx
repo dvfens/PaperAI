@@ -314,7 +314,7 @@ function EditAnswerDialog({
               )}
             </div>
             <p aria-live="polite" className={cn("px-1 text-base", listening ? "font-semibold text-red-700" : "text-slate-500", !listening && !field.hint && "sr-only")}>
-              {listening ? t("listening") : field.hint}
+              {listening ? (listen.partial ? `“${listen.partial}”` : t("listening")) : field.hint}
             </p>
             {problem && <Notice tone="warning">{problem}</Notice>}
             <Button type="submit" block>

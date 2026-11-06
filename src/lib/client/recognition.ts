@@ -2,13 +2,20 @@
 
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
 import { api } from "./api";
+import { canCapturePcm, MicError, primeAudioOnTap } from "./audioCapture";
+import { RealtimeSpeechInput } from "./realtimeRecognition";
+
+export { MicError };
 
 /**
  * Speech INPUT, kept modular so the recogniser can be replaced:
+ *  - RealtimeSpeechInput (realtimeRecognition.ts): streams the microphone to ElevenLabs Scribe
+ *    realtime, so words appear while the person speaks. Falls back to batch transcription of the
+ *    same audio if streaming fails, and to the recorder below if the browser gives it no audio.
  *  - ElevenLabsSpeechInput: records with MediaRecorder, stops automatically after a pause in
- *    speech, and transcribes with ElevenLabs Scribe via our server (best Hindi accuracy).
+ *    speech, and transcribes the recording with ElevenLabs Scribe via our server.
  *  - BrowserSpeechInput: the Web Speech API (Chrome/Edge/Safari), used when ElevenLabs is not set up.
- * Typing is always available as a third option in the UI.
+ * Typing is always available as a further option in the UI.
  */
 export interface ListenSession {
   /** Final transcript ("" when nothing was heard). */
@@ -30,12 +37,6 @@ export interface ListenOptions {
 export interface SpeechInput {
   readonly kind: "elevenlabs" | "browser";
   listen(opts: ListenOptions): ListenSession;
-}
-
-export class MicError extends Error {
-  constructor(readonly code: "denied" | "unavailable") {
-    super(code);
-  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -214,6 +215,10 @@ class BrowserSpeechInput implements SpeechInput {
 export function createSpeechInput(elevenLabsAvailable: boolean): SpeechInput | null {
   if (typeof window === "undefined") return null;
   const canRecord = typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  if (elevenLabsAvailable && canRecord && canCapturePcm()) {
+    primeAudioOnTap();
+    return new RealtimeSpeechInput(new ElevenLabsSpeechInput());
+  }
   if (elevenLabsAvailable && canRecord) return new ElevenLabsSpeechInput();
   if (recognitionCtor()) return new BrowserSpeechInput();
   return null;

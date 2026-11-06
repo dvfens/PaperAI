@@ -167,10 +167,14 @@ export const api = {
 
   stt: (audio: Blob, lang: LanguageCode) => {
     const form = new FormData();
-    form.set("audio", audio, "speech.webm");
+    const ext = /wav/.test(audio.type) ? "wav" : /mp4|aac/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : "webm";
+    form.set("audio", audio, `speech.${ext}`);
     form.set("lang", lang);
     return json<{ text: string }>("/api/speech/stt", { method: "POST", body: form });
   },
+
+  /** Single-use token for one realtime transcription socket (the API key stays on the server). */
+  sttToken: () => json<{ token: string; model: string }>("/api/speech/token", { method: "POST" }),
 };
 
 export function errorKey(err: unknown): "errorNetwork" | "errorBusy" | "errorTooBig" | "errorFileType" | "errorGeneric" {
