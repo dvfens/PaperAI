@@ -12,16 +12,31 @@ import {
   Loader2,
   MessageSquareMore,
   Mic,
+  PenLine,
   Signature,
 } from "lucide-react";
 import { useState, type ComponentType } from "react";
 import { nextOpenField, setAnswerManually } from "@/lib/conversation/engine";
 import { normaliseAnswer } from "@/lib/conversation/rules";
-import type { FieldAnswer, FormField } from "@/lib/types";
+import type { FieldAnswer, FormField, PageImage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { AppBar, AppScreen, Chip, Dock, ListGroup, ListRow, Notice, Page, SectionTitle } from "@/components/common/Chrome";
+import { FieldSnippet } from "@/components/FieldSnippet";
+import {
+  AppBar,
+  AppScreen,
+  Card,
+  Chip,
+  Dock,
+  ListGroup,
+  ListRow,
+  Notice,
+  Page,
+  ProgressBar,
+  SectionTitle,
+} from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
 import { compactHint } from "@/lib/speechHints";
@@ -46,12 +61,14 @@ export function isFilled(answer: FieldAnswer | undefined) {
 
 type Status = { label: string; cls: string; Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }> };
 
-/** Round status mark on the right of each row: shape + colour + hidden text, never colour alone. */
-function StatusMark({ status }: { status: Status }) {
+/**
+ * Round status dot leading each row: shape + colour. Hidden from screen readers: the row says its
+ * status in words (visible for empty, by-hand and "Please check" rows; sr-only for answered ones).
+ */
+function StatusDot({ status }: { status: Status }) {
   return (
-    <span title={status.label} className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", status.cls)}>
-      <status.Icon className="size-6" aria-hidden />
-      <span className="sr-only">{status.label}</span>
+    <span aria-hidden className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", status.cls)}>
+      <status.Icon className="size-5" />
     </span>
   );
 }
@@ -66,6 +83,7 @@ export function FormReview() {
   const missingRequired = analysis.fields.filter((f) => f.aiFillable && f.required && !isFilled(conv.answers[f.id]));
   const unanswered = analysis.fields.filter((f) => f.aiFillable && !isFilled(conv.answers[f.id]));
   const fillable = analysis.fields.filter((f) => f.aiFillable);
+  const filledCount = fillable.length - unanswered.length;
 
   const answerMissing = () => {
     // Forget skipped / "don't know" answers so those questions are asked again.
@@ -87,10 +105,9 @@ export function FormReview() {
         ? { label: t("statusPhoto"), cls: "bg-blue-50 text-blue-800", Icon: Camera }
         : { label: t("statusByHand"), cls: "bg-blue-50 text-blue-800", Icon: Signature };
     if (!value) {
+      if (f.required) return { label: t("statusMissing"), cls: "bg-amber-100 text-amber-800", Icon: CircleAlert };
       if (a?.status === "skipped") return { label: t("statusSkipped"), cls: "bg-slate-100 text-slate-600", Icon: CircleDashed };
-      return f.required
-        ? { label: t("statusMissing"), cls: "bg-amber-100 text-amber-800", Icon: CircleAlert }
-        : { label: t("statusMissing"), cls: "bg-slate-100 text-slate-600", Icon: CircleDashed };
+      return { label: t("statusEmpty"), cls: "bg-slate-100 text-slate-600", Icon: CircleDashed };
     }
     if (f.mappingConfidence === "low") return { label: t("statusCheck"), cls: "bg-amber-100 text-amber-800", Icon: AlertTriangle };
     if (a?.status === "confirmed") return { label: t("statusConfirmed"), cls: "bg-green-100 text-green-800", Icon: CheckCircle2 };
@@ -108,68 +125,123 @@ export function FormReview() {
 
   return (
     <AppScreen>
-      <AppBar onBack={() => go("conversation")} title={t("answersTitle")} />
-      <Page>
-        <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="green" icon={CheckCircle2} className="text-base">
-            {fillable.length - unanswered.length} / {fillable.length}
-          </Chip>
-          {unanswered.length > 0 && (
-            <Chip
-              tone={missingRequired.length > 0 ? "amber" : "neutral"}
-              icon={missingRequired.length > 0 ? CircleAlert : CircleDashed}
-              className="text-base"
-            >
+      {/* When the conversation is complete, its mount bounces straight back here, so Back goes to the overview. */}
+      <AppBar
+        onBack={() => go(conv.phase === "complete" ? "understood" : "conversation")}
+        title={t("answersTitle")}
+        menu={<AppMenu />}
+      />
+      <Page className="pt-2">
+        <Card className="flex flex-col gap-3">
+          <p className="text-xl font-bold text-slate-900">{t("answeredOf", { n: filledCount, total: fillable.length })}</p>
+          <ProgressBar value={fillable.length ? filledCount / fillable.length : 0} />
+          {missingRequired.length > 0 ? (
+            <p className="flex items-start gap-2 text-base font-semibold text-amber-800">
+              <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden />
+              {missingRequired.length === 1 ? t("requiredMissingOne") : t("requiredMissing", { n: missingRequired.length })}
+            </p>
+          ) : unanswered.length > 0 ? (
+            <p className="flex items-start gap-2 text-base font-semibold text-slate-600">
+              <CircleDashed className="mt-0.5 size-5 shrink-0" aria-hidden />
               {t("emptyCount", { n: unanswered.length })}
-            </Chip>
+            </p>
+          ) : (
+            <p className="flex items-start gap-2 text-base font-semibold text-green-800">
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden />
+              {t("allAnswered")}
+            </p>
           )}
-        </div>
-        <p className="mt-3 px-1 text-base text-slate-500">{t("reviewHint")}</p>
+          <p className="flex items-start gap-2 text-base text-slate-700">
+            <PenLine className="mt-0.5 size-5 shrink-0 text-slate-500" aria-hidden />
+            {t("reviewHint")}
+          </p>
+        </Card>
 
-        {sections.map((section, i) => (
-          <section key={section.group ?? `_${i}`}>
-            {section.group ? <SectionTitle>{section.group}</SectionTitle> : <div className={i === 0 ? "mt-4" : "mt-6"} />}
-            <ListGroup>
-              {section.fields.map((f) => {
-                const a = conv.answers[f.id];
-                const value = displayValue(f, a, t);
-                const byHand = !f.aiFillable;
-                const spoken = byHand ? null : spokenValue(f, a);
-                return (
-                  <ListRow
-                    key={f.id}
-                    label={
-                      <span className="whitespace-normal text-base">
-                        {f.labelLocalized}
-                        {f.required && <span className="text-red-700"> *</span>}
-                      </span>
-                    }
-                    value={
-                      byHand ? (
-                        <span className="font-medium text-slate-700">{t(f.type === "photo" ? "statusPhoto" : "statusByHand")}</span>
-                      ) : (
-                        value ?? <span className="font-normal italic text-slate-500">{t("emptyValue")}</span>
-                      )
-                    }
-                    sub={spoken ? <span className="text-base text-slate-600">{spoken}</span> : undefined}
-                    right={<StatusMark status={statusOf(f, a, value)} />}
-                    onClick={byHand ? undefined : () => setEditing(f)}
-                  />
-                );
-              })}
-            </ListGroup>
-          </section>
-        ))}
+        {sections.map((section, i) => {
+          const empty = section.fields.filter((f) => f.aiFillable && !isFilled(conv.answers[f.id]));
+          const emptyRequired = empty.some((f) => f.required);
+          return (
+            <section key={section.group ?? `_${i}`}>
+              {section.group ? (
+                <SectionTitle
+                  right={
+                    empty.length > 0 ? <Chip tone={emptyRequired ? "amber" : "neutral"}>{t("emptyCount", { n: empty.length })}</Chip> : undefined
+                  }
+                >
+                  {section.group}
+                </SectionTitle>
+              ) : (
+                <div className={i === 0 ? "mt-4" : "mt-6"} />
+              )}
+              <ListGroup>
+                {section.fields.map((f) => {
+                  const a = conv.answers[f.id];
+                  const value = displayValue(f, a, t);
+                  const byHand = !f.aiFillable;
+                  const spoken = byHand ? null : spokenValue(f, a);
+                  const status = statusOf(f, a, value);
+                  const lowConf = !byHand && Boolean(value) && f.mappingConfidence === "low";
+                  return (
+                    <ListRow
+                      key={f.id}
+                      lead={<StatusDot status={status} />}
+                      label={f.labelLocalized}
+                      value={
+                        byHand ? (
+                          <span className="font-medium text-blue-800">{status.label}</span>
+                        ) : (
+                          value ?? <span className={f.required ? "font-semibold text-amber-800" : "font-normal text-slate-500"}>{status.label}</span>
+                        )
+                      }
+                      sub={
+                        !value && f.required && !byHand ? (
+                          <span className="text-amber-800">{t("neededOnForm")}</span>
+                        ) : spoken || lowConf ? (
+                          <>
+                            {spoken && <span className="block">{spoken}</span>}
+                            {lowConf && (
+                              <span className="flex items-center gap-1.5 font-semibold text-amber-800">
+                                <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                                {t("statusCheck")}
+                              </span>
+                            )}
+                          </>
+                        ) : undefined
+                      }
+                      // A filled row shows the value instead of the status word: say "Answered" / "Confirmed" to screen readers.
+                      right={value && !byHand && !lowConf ? <span className="sr-only">{status.label}</span> : undefined}
+                      onClick={byHand ? undefined : () => setEditing(f)}
+                      quiet={byHand}
+                    />
+                  );
+                })}
+              </ListGroup>
+            </section>
+          );
+        })}
       </Page>
 
       <Dock>
-        <Button block onClick={() => go("final")}>
-          <FileCheck2 aria-hidden /> {t("makePdf")}
-        </Button>
-        {unanswered.length > 0 && (
-          <Button block size="md" variant="ghost" onClick={answerMissing}>
-            <MessageSquareMore aria-hidden /> {t("fillEmpty")}
-          </Button>
+        {missingRequired.length > 0 ? (
+          <>
+            <Button block size="lg" onClick={answerMissing}>
+              <MessageSquareMore aria-hidden /> {t("answerMissing")}
+            </Button>
+            <Button block size="md" variant="secondary" onClick={() => go("final")}>
+              <FileCheck2 aria-hidden /> {t("makeDocument")}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button block size="lg" onClick={() => go("final")}>
+              <FileCheck2 aria-hidden /> {t("makeDocument")}
+            </Button>
+            {unanswered.length > 0 && (
+              <Button block size="md" variant="secondary" onClick={answerMissing}>
+                <MessageSquareMore aria-hidden /> {t("answerMissing")}
+              </Button>
+            )}
+          </>
         )}
       </Dock>
 
@@ -178,6 +250,7 @@ export function FormReview() {
           key={editing.id}
           field={editing}
           answer={conv.answers[editing.id]}
+          page={editing.box ? state.source?.pages[editing.box.page] : undefined}
           onClose={() => setEditing(null)}
           onSave={(v, d) => save(editing, v, d)}
           lang={lang}
@@ -190,12 +263,14 @@ export function FormReview() {
 function EditAnswerDialog({
   field,
   answer,
+  page,
   onClose,
   onSave,
   lang,
 }: {
   field: FormField;
   answer: FieldAnswer | undefined;
+  page?: PageImage;
   onClose: () => void;
   onSave: (value: string, display: string) => void;
   lang: ReturnType<typeof useApp>["lang"];
@@ -240,12 +315,17 @@ function EditAnswerDialog({
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={t("changeTitle")} description={field.labelLocalized} closeLabel={t("close")}>
       <div className="flex flex-col gap-4">
-        {showPrinted && (
-          <div className="-mt-2">
-            <Chip className="max-w-full rounded-2xl text-base">
-              <span className="min-w-0 break-words">{field.label}</span>
-            </Chip>
-          </div>
+        {showPrinted && <p className="-mt-2 break-words text-base text-slate-600">{field.label}</p>}
+        {page && field.box && (
+          <FieldSnippet
+            page={page}
+            boxes={
+              field.type === "choice" && field.optionBoxes
+                ? Object.values(field.optionBoxes).filter((b) => b.page === field.box!.page)
+                : [field.box]
+            }
+            caption={t(field.type === "choice" && field.optionBoxes ? "snippetAskChoice" : "snippetAsk")}
+          />
         )}
         {uncertain && <Notice tone="warning">{t("uncertainPlacement")}</Notice>}
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { AppBar, AppScreen, Card, Chip, Dock, Page, SpeakButton, Spinner } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { useApp } from "@/components/app/AppContext";
 
 type Meta =
@@ -29,7 +30,7 @@ export function SharedDocument({ token }: { token: string }) {
   return (
     <AppScreen>
       {/* The full title wraps on the card below instead of being cut off in the bar. */}
-      <AppBar />
+      <AppBar menu={<AppMenu />} />
       <Page dock={Boolean(valid)}>
         {!meta && (
           <div className="flex justify-center py-16">

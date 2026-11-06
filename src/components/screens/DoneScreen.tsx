@@ -43,6 +43,7 @@ import {
   Segmented,
   Spinner,
 } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { useApp } from "@/components/app/AppContext";
 import { StepByStepGuide } from "./StepByStepGuide";
 
@@ -94,7 +95,7 @@ export function DoneScreen() {
 
   return (
     <AppScreen>
-      <AppBar />
+      <AppBar menu={<AppMenu />} />
       <Page>
         {/* Success hero */}
         <section className="flex flex-col items-center pt-4 text-center">
@@ -146,12 +147,12 @@ export function DoneScreen() {
             {receipt && (
               <Link
                 href={`/verify?h=${receipt.sha256}`}
-                className="group flex min-w-16 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="group flex min-w-20 max-w-28 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
               >
                 <span className="flex size-14 items-center justify-center rounded-full bg-slate-100 text-slate-800 transition-colors group-hover:bg-slate-200">
                   <ShieldCheck className="size-7" aria-hidden />
                 </span>
-                <span className="text-sm font-semibold text-slate-700">{t("verify")}</span>
+                <span className="text-center text-base font-semibold leading-tight text-slate-700">{t("verify")}</span>
               </Link>
             )}
           </div>

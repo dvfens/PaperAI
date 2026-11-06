@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { AppBar, AppScreen, Card, Chip, Dock, IconAction, ListRow, Notice, Page, Segmented, SpeakButton, Spinner } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { useListen } from "@/components/common/useListen";
 import { DocumentPreview, type Highlight } from "@/components/DocumentPreview";
 import { useApp } from "@/components/app/AppContext";
@@ -24,7 +25,7 @@ function masked(value: string, t: ReturnType<typeof useApp>["t"]) {
 
 /** Screen 5 — completed PDF, read-back of the important details and explicit approval. */
 export function FinalVerification() {
-  const { state, update, go, t, speak, lang } = useApp();
+  const { state, update, go, t, speak, stopSpeaking, lang } = useApp();
   const analysis = state.analysis!;
   const conv = state.conversation!;
   const source = state.source!;
@@ -97,7 +98,20 @@ export function FinalVerification() {
   return (
     <AppScreen>
       {/* "Check & approve" is cut off in the bar at 375px (both languages); "Final check" fits. */}
-      <AppBar onBack={() => go("review")} title={t("finalTitle")} />
+      <AppBar
+        onBack={() => go("review")}
+        title={t("finalTitle")}
+        menu={
+          <AppMenu
+            onOpenChange={(open) => {
+              // The menu (and its microphone check) must not run alongside the Yes / No mic or the read-back.
+              if (!open) return;
+              listen.cancel();
+              stopSpeaking();
+            }}
+          />
+        }
+      />
       <Page className={generated ? "pb-64" : undefined}>
         {!generated && !error && (
           <div className="flex min-h-[50dvh] items-center justify-center">

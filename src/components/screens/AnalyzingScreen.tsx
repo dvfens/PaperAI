@@ -8,6 +8,7 @@ import { initialState } from "@/lib/conversation/engine";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AppBar, AppScreen, Card, Dock, ListGroup, ListRow, Notice, Page } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { DocumentPreview } from "@/components/DocumentPreview";
 import { useApp } from "@/components/app/AppContext";
 import type { StringKey } from "@/lib/i18n";
@@ -77,7 +78,7 @@ export function AnalyzingScreen() {
 
   return (
     <AppScreen>
-      <AppBar onBack={reset} back="close" />
+      <AppBar onBack={reset} back="close" menu={<AppMenu />} />
       <Page dock={Boolean(error)} className="flex flex-col items-center pt-4">
         {/* Page thumbnail with a live status badge */}
         <Card className="relative w-fit p-3">

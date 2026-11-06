@@ -19,6 +19,7 @@ import {
   ListOrdered,
   Loader2,
   MessageCircleQuestion,
+  Mic,
   Paperclip,
   PenLine,
   PiggyBank,
@@ -35,21 +36,24 @@ import { api } from "@/lib/client/api";
 import type { DocumentCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import {
   AppBar,
   AppScreen,
   Card,
   Chip,
   Dock,
-  IconAction,
   ListGroup,
   ListRow,
+  MetaLine,
   Notice,
   Page,
+  ReadAloudButton,
   SectionTitle,
   SpeakButton,
   Spinner,
 } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { MicButton } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
 import { DocumentPreview } from "@/components/DocumentPreview";
@@ -69,7 +73,7 @@ const CATEGORY_ICONS: Record<DocumentCategory, LucideIcon> = {
   other: FileText,
 };
 
-/** Big tappable choice tile: icon, short title, one small line. */
+/** Compact tappable choice tile for the Dock: icon, short title, one small line. */
 function ActionTile({
   icon: I,
   title,
@@ -92,7 +96,7 @@ function ActionTile({
       disabled={busy}
       aria-busy={busy || undefined}
       className={cn(
-        "flex min-h-24 w-full items-center gap-4 rounded-3xl p-4 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-wait",
+        "flex min-h-20 w-full items-center gap-3 rounded-3xl px-4 py-3 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-wait",
         primary
           ? "bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 disabled:hover:bg-blue-700"
           : "border border-slate-200/80 bg-white text-slate-900 hover:border-blue-300 active:bg-slate-50",
@@ -100,17 +104,17 @@ function ActionTile({
     >
       <span
         className={cn(
-          "flex size-14 shrink-0 items-center justify-center rounded-2xl",
+          "flex size-12 shrink-0 items-center justify-center rounded-2xl",
           primary ? "bg-white/15 text-white" : "bg-blue-50 text-blue-700",
         )}
       >
-        {busy ? <Loader2 className="size-7 animate-spin" aria-hidden /> : <I className="size-7" aria-hidden />}
+        {busy ? <Loader2 className="size-6 animate-spin" aria-hidden /> : <I className="size-6" aria-hidden />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block break-words text-lg font-bold leading-tight">{title}</span>
-        <span className={cn("mt-1 block break-words text-base", primary ? "text-blue-100" : "text-slate-600")}>{sub}</span>
+        <span className={cn("mt-0.5 block break-words text-base", primary ? "text-blue-100" : "text-slate-600")}>{sub}</span>
       </span>
-      {!busy && <ChevronRight className={cn("size-6 shrink-0", primary ? "text-white/80" : "text-slate-400")} aria-hidden />}
+      {!busy && <ChevronRight className={cn("size-5 shrink-0", primary ? "text-white/80" : "text-slate-400")} aria-hidden />}
     </button>
   );
 }
@@ -136,98 +140,79 @@ export function DocumentUnderstood() {
   const pageCount = state.source?.pageCount ?? analysis?.pageCount ?? 0;
   const questionCount = analysis ? analysis.fields.filter((f) => f.aiFillable).length : 0;
 
+  // Back starts over (reset). With answers given, ask first: Back must not silently delete them.
+  const hasAnswers = Object.values(state.conversation?.answers ?? {}).some((x) => x.status === "answered" || x.status === "confirmed");
+  const [confirmNew, setConfirmNew] = useState(false);
+  const backButton = useRef<HTMLElement | null>(null);
+  const onBack = () => {
+    if (!hasAnswers) return reset();
+    backButton.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setConfirmNew(true);
+  };
+
   return (
     <AppScreen>
-      <AppBar onBack={reset} back="close" />
-      <Page dock={false}>
-        {/* Hero: page, what it is */}
-        <Card className="flex items-center gap-4">
-          {state.source ? (
-            <div className="relative w-20 shrink-0">
-              <DocumentPreview pages={state.source.pages} alt={t("original")} maxPages={1} />
-              <span
-                className="absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white ring-4 ring-white"
-                aria-hidden
-              >
-                <CategoryIcon className="size-5" />
-              </span>
-            </div>
-          ) : (
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700" aria-hidden>
-              <CategoryIcon className="size-8" />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="sr-only">{t("understoodLead")}</p>
-            <h1 className="break-words text-xl font-bold leading-tight text-slate-900">{a.title}</h1>
-            {(pageCount > 1 || questionCount > 1 || analysis?.source === "basic") && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {pageCount > 1 && (
-                  <Chip icon={Files} className="text-base">
-                    {t("pagesCount", { n: pageCount })}
-                  </Chip>
-                )}
-                {questionCount > 1 && (
-                  <Chip tone="blue" icon={ListChecks} className="text-base">
-                    {t("questionsCount", { n: questionCount })}
-                  </Chip>
-                )}
-                {analysis?.source === "basic" && (
-                  <Chip tone="amber" icon={AlertTriangle} className="text-base">
-                    {t("basicChip")}
-                  </Chip>
-                )}
+      <AppBar onBack={onBack} menu={<AppMenu />} />
+      <Page className="flex flex-col gap-4 pt-2">
+        {/* Hero: one card answers "what is this paper" */}
+        <Card className="flex flex-col gap-4">
+          <div className="flex items-start gap-4">
+            {state.source ? (
+              <div className="relative w-20 shrink-0">
+                <DocumentPreview pages={state.source.pages} alt={t("original")} maxPages={1} />
+                <span
+                  className="absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white ring-4 ring-white"
+                  aria-hidden
+                >
+                  <CategoryIcon className="size-5" />
+                </span>
               </div>
+            ) : (
+              <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700" aria-hidden>
+                <CategoryIcon className="size-8" />
+              </span>
             )}
+            <div className="min-w-0 flex-1">
+              <p className="text-base text-slate-600">{t("understoodLead")}</p>
+              <h1 className="mt-0.5 break-words text-xl font-bold leading-tight text-slate-900">{a.title}</h1>
+              {(questionCount > 1 || pageCount > 1) && (
+                <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {questionCount > 1 && <MetaLine icon={ListChecks}>{t("questionsCount", { n: questionCount })}</MetaLine>}
+                  {pageCount > 1 && <MetaLine icon={Files}>{t("pagesCount", { n: pageCount })}</MetaLine>}
+                </p>
+              )}
+            </div>
           </div>
+          <p className="border-t border-slate-100 pt-4 text-lg leading-relaxed text-slate-800">{a.summary}</p>
+          <ReadAloudButton text={intro} className="self-start" />
         </Card>
 
-        {/* One-line summary, read aloud on demand */}
-        <div className="mt-4 flex items-start gap-3 px-1">
-          <p className="min-w-0 flex-1 text-lg leading-relaxed text-slate-700">{a.summary}</p>
-          <SpeakButton text={intro} />
-        </div>
-
-        {(state.analysisError || (analysis && !fillable)) && (
-          <div className="mt-4 flex flex-col gap-3">
-            {analysis && !fillable && <Notice tone="info">{t("noFieldsFound")}</Notice>}
-            {state.analysisError && (
-              <Notice tone="error">
-                <p>{t(state.analysisError)}</p>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-3"
-                  onClick={() => {
-                    update({ analysisError: null, preview: null });
-                    go("analyzing");
-                  }}
-                >
-                  <RotateCcw aria-hidden /> {t("tryAgain")}
-                </Button>
-              </Notice>
-            )}
-          </div>
+        {analysis?.source === "basic" && <Notice tone="warning">{t("basicMode")}</Notice>}
+        {analysis && !fillable && <Notice tone="info">{t("noFieldsFound")}</Notice>}
+        {state.analysisError && (
+          <Notice tone="error">
+            <p>{t(state.analysisError)}</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-3"
+              onClick={() => {
+                update({ analysisError: null, preview: null });
+                go("analyzing");
+              }}
+            >
+              <RotateCcw aria-hidden /> {t("tryAgain")}
+            </Button>
+          </Notice>
         )}
 
-        {/* The two choices */}
-        <div className="mt-6 flex flex-col gap-3">
-          {pending ? (
-            <ActionTile icon={PenLine} title={t("fillTitle")} sub={t("preparingQuestions")} primary busy />
-          ) : (
-            fillable &&
-            analysis && <ActionTile icon={PenLine} title={t("fillTitle")} sub={t("fillSub")} primary onClick={() => go("conversation")} />
-          )}
-          <ActionTile icon={BookOpen} title={t("explainShort")} sub={t("explainSub")} primary={!fillable} onClick={() => go("explain")} />
-        </div>
-
         {analysis && analysis.ambiguities.length > 0 && (
-          <details className="group mt-4 rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+          <details className="group rounded-3xl border border-slate-200/80 bg-white shadow-sm">
             <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-3xl px-4 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-800">
                 <AlertTriangle className="size-5" aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("details")}</span>
+              <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("unsureTitle")}</span>
               <Chip tone="amber" className="text-base">
                 {analysis.ambiguities.length}
               </Chip>
@@ -241,19 +226,54 @@ export function DocumentUnderstood() {
           </details>
         )}
 
-        <div className="mt-6 flex justify-center">
-          <Button variant="ghost" size="md" onClick={reset}>
-            <ScanLine aria-hidden /> {t("scanAgain")}
+        <Button variant="ghost" size="md" className="self-center" onClick={reset}>
+          <ScanLine aria-hidden /> {t("scanAgain")}
+        </Button>
+      </Page>
+
+      <Dock>
+        {pending ? (
+          <ActionTile icon={PenLine} title={t("fillTitle")} sub={t("preparingQuestions")} primary busy />
+        ) : analysis && fillable ? (
+          <ActionTile icon={PenLine} title={t("fillTitle")} sub={t("fillSub")} primary onClick={() => go("conversation")} />
+        ) : null}
+        {pending || (analysis && fillable) ? (
+          <Button block size="lg" variant="secondary" onClick={() => go("explain")}>
+            <BookOpen aria-hidden /> {t("explainShort")}
+          </Button>
+        ) : (
+          <ActionTile icon={BookOpen} title={t("explainShort")} sub={t("explainSub")} primary={Boolean(analysis)} onClick={() => go("explain")} />
+        )}
+      </Dock>
+
+      <Dialog
+        open={confirmNew}
+        onOpenChange={setConfirmNew}
+        onCloseAutoFocus={(e) => {
+          // Back to the Back button (it is not a Radix trigger); after "Start new" it is gone, so nothing happens.
+          e.preventDefault();
+          backButton.current?.focus();
+        }}
+        title={t("startNewTitle")}
+        description={t("startNewBody")}
+        closeLabel={t("close")}
+      >
+        <div className="flex flex-col gap-3">
+          <Button block onClick={() => setConfirmNew(false)}>
+            {t("keepAnswers")}
+          </Button>
+          <Button block variant="secondary" onClick={reset}>
+            <RotateCcw aria-hidden /> {t("startNew")}
           </Button>
         </div>
-      </Page>
+      </Dialog>
     </AppScreen>
   );
 }
 
 /** Explanation in simple language, plus spoken questions about the document. */
 export function DocumentExplanation() {
-  const { state, go, t, lang, speak } = useApp();
+  const { state, go, t, lang, speak, stopSpeaking } = useApp();
   const analysis = state.analysis;
   const preview = state.preview ?? analysis!;
   const a = {
@@ -303,7 +323,20 @@ export function DocumentExplanation() {
   return (
     <AppScreen>
       {/* Short title: "About this document" and a speaker button do not fit the bar at 375px. */}
-      <AppBar onBack={() => go("understood")} title={t("explainShort")} />
+      <AppBar
+        onBack={() => go("understood")}
+        title={t("explainShort")}
+        menu={
+          <AppMenu
+            onOpenChange={(open) => {
+              // The menu (and its microphone check) must not run alongside this screen's mic or voice.
+              if (!open) return;
+              listen.cancel();
+              stopSpeaking();
+            }}
+          />
+        }
+      />
       <Page dock={fillable}>
         {/* What it is — the speaker reads the whole explanation aloud. */}
         <SectionTitle icon={Info} right={<SpeakButton text={fullText} />}>
@@ -371,32 +404,36 @@ export function DocumentExplanation() {
 
           {listen.error && <Notice tone="warning">{t("micUnavailable")}</Notice>}
 
-          {listen.supported && !typing && (
-            <div className="flex flex-col items-center gap-1">
-              <div className="grid w-full grid-cols-3 items-center justify-items-center">
-                <span aria-hidden />
-                {analysis ? (
-                  <MicButton
-                    size="md"
-                    showLabel={false}
-                    state={listen.state === "idle" ? (asking ? "processing" : "idle") : listen.state}
-                    level={listen.level}
-                    label={micLabel}
-                    onPress={onMic}
-                  />
-                ) : (
-                  <span className="size-16" aria-hidden />
+          {listen.supported && !typing && analysis && (
+            <div className="flex flex-col items-center gap-2">
+              <MicButton
+                size="md"
+                showLabel={false}
+                state={listen.state === "idle" ? (asking ? "processing" : "idle") : listen.state}
+                level={listen.level}
+                label={micLabel}
+                onPress={onMic}
+              />
+              <p
+                aria-live="polite"
+                className={cn(
+                  "flex min-h-7 items-center justify-center gap-2 text-center text-lg font-semibold",
+                  listen.state === "listening" ? "text-red-700" : "text-slate-700",
                 )}
-                <IconAction icon={Keyboard} label={t("type")} onClick={() => setTyping(true)} />
-              </div>
-              {analysis && (
-                <p
-                  className={cn("text-center text-base font-semibold", listen.state === "listening" ? "text-red-700" : "text-slate-500")}
-                  aria-live="polite"
-                >
-                  {micLabel}
-                </p>
-              )}
+              >
+                {listen.state === "listening" && <span className="inline-block size-2.5 rounded-full bg-red-600" aria-hidden />}
+                {micLabel}
+              </p>
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => {
+                  listen.cancel();
+                  setTyping(true);
+                }}
+              >
+                <Keyboard aria-hidden /> {t("typeInstead")}
+              </Button>
             </div>
           )}
 
@@ -414,7 +451,7 @@ export function DocumentExplanation() {
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder={t("askPrompt")}
                 aria-label={t("askPrompt")}
-                className="min-h-14 min-w-0 flex-1 rounded-full border-2 border-slate-200 bg-slate-50 px-5 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                className="min-h-14 min-w-0 flex-1 rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
               />
               <button
                 type="submit"
@@ -425,13 +462,18 @@ export function DocumentExplanation() {
               </button>
             </form>
           )}
+          {listen.supported && typing && (
+            <Button variant="ghost" size="md" className="self-center" onClick={() => setTyping(false)}>
+              <Mic aria-hidden /> {t("speakInstead")}
+            </Button>
+          )}
         </Card>
       </Page>
 
       {fillable && (
         <Dock>
           <Button block size="lg" onClick={() => go("conversation")}>
-            <PenLine aria-hidden /> {t("startFilling")}
+            <PenLine aria-hidden /> {t("fillTitle")}
           </Button>
         </Dock>
       )}

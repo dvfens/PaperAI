@@ -30,6 +30,7 @@ import type { VerificationEvent, VerificationResult } from "@/lib/types";
 import { cn, shortHash } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AppBar, AppScreen, Card, Dock, Page, SectionTitle, SpeakButton, Spinner } from "@/components/common/Chrome";
+import { AppMenu } from "@/components/common/AppMenu";
 import { useApp } from "@/components/app/AppContext";
 
 const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
@@ -146,7 +147,7 @@ export function VerificationScreen() {
   return (
     <AppScreen>
       {/* "Check a document" is cut off in the bar at 375px; the one-word label fits. */}
-      <AppBar title={t("verify")} onBack={() => (window.location.href = "/")} />
+      <AppBar title={t("verify")} onBack={() => (window.location.href = "/")} menu={<AppMenu />} />
       <Page dock={showResult}>
         <input
           ref={fileRef}

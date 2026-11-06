@@ -223,13 +223,13 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
               <button
                 onClick={() => void trySample()}
                 disabled={busy}
-                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <Sparkles className="size-4" aria-hidden /> {t("cam_sample")}
               </button>
               <Link
                 href="/verify"
-                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <ShieldCheck className="size-4" aria-hidden /> {t("cam_check")}
               </Link>
