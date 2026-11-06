@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   Zap,
   type LucideIcon,
+  Signature,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
@@ -243,6 +244,19 @@ export function DocumentUnderstood() {
           </Button>
         ) : (
           <ActionTile icon={BookOpen} title={t("explainShort")} sub={t("explainSub")} primary={Boolean(analysis)} onClick={() => go("explain")} />
+        )}
+        {/* Already filled (by hand, or a filled PDF): skip the questions — check it, sign it, protect it. */}
+        {(pending || analysis) && (
+          <ActionTile
+            icon={Signature}
+            title={t("signOnlyTitle")}
+            sub={t("signOnlySub")}
+            busy={pending}
+            onClick={() => {
+              update({ intent: "sign", generated: null });
+              go("final");
+            }}
+          />
         )}
       </Dock>
 

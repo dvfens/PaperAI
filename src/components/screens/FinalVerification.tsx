@@ -39,12 +39,16 @@ export function FinalVerification() {
   const [saidYes, setSaidYes] = useState(false);
   const started = useRef(false);
 
-  const filled = analysis.fields.filter((f) => f.aiFillable && isFilled(conv.answers[f.id]));
+  // Already-filled form: nothing is written into it, nothing is "missing" — check it, sign it, protect it.
+  const signOnly = state.intent === "sign";
+  const answers = useMemo(() => (signOnly ? {} : conv.answers), [signOnly, conv.answers]);
+  const filled = analysis.fields.filter((f) => f.aiFillable && isFilled(answers[f.id]));
   const important = filled.filter((f) => f.confirm || f.required);
-  const missing = analysis.fields.filter((f) => f.aiFillable && f.required && !isFilled(conv.answers[f.id]));
+  const missing = signOnly ? [] : analysis.fields.filter((f) => f.aiFillable && f.required && !isFilled(answers[f.id]));
   const generated = state.generated;
 
   const readback = useMemo(() => {
+    if (signOnly) return t("signOnlyIntro");
     const parts = [t("readbackIntro")];
     for (const f of important.length ? important : filled) {
       const v = displayValue(f, conv.answers[f.id], t) ?? "";
@@ -53,7 +57,7 @@ export function FinalVerification() {
     if (missing.length) parts.push(`${t("missingInfo")}: ${missing.map((f) => f.labelLocalized).join(", ")}.`);
     parts.push(t("readbackAsk"));
     return parts.join(" ");
-  }, [important, filled, missing, conv.answers, t]);
+  }, [signOnly, important, filled, missing, conv.answers, t]);
 
   // Generate the completed PDF, then read the important details back.
   useEffect(() => {
@@ -61,7 +65,7 @@ export function FinalVerification() {
     started.current = true;
     (async () => {
       try {
-        const res = await api.generate(analysis.fields, conv.answers, {
+        const res = await api.generate(analysis.fields, answers, {
           pdf: source.pdf,
           pages: pagesWithinBudget(source.pages).map((p) => p.blob),
         });
@@ -73,19 +77,19 @@ export function FinalVerification() {
         setError(errorKey(err));
       }
     })();
-  }, [analysis.fields, conv.answers, source, update, speak, readback]);
+  }, [analysis.fields, answers, source, update, speak, readback]);
 
   const signed = Boolean(generated?.signature);
   const highlights: Highlight[] = [
     ...analysis.fields
-      .filter((f) => (f.type === "signature" || f.type === "photo") && f.box)
+      .filter((f) => (f.type === "signature" || (f.type === "photo" && !signOnly)) && f.box)
       .map((f) =>
         f.type === "signature" && signed
           ? { box: f.box!, tone: "info" as const, label: t("statusSigned") }
           : { box: f.box!, tone: "sign" as const, label: t(f.type === "photo" ? "statusPhoto" : "statusByHand") },
       ),
     ...analysis.fields
-      .filter((f) => f.aiFillable && f.box && isFilled(conv.answers[f.id]) && f.mappingConfidence === "low")
+      .filter((f) => f.aiFillable && f.box && isFilled(answers[f.id]) && f.mappingConfidence === "low")
       .map((f) => ({ box: f.box!, tone: "warning" as const, label: t("statusCheck") })),
     ...missing.filter((f) => f.box).map((f) => ({ box: f.box!, tone: "missing" as const })),
   ];
@@ -110,8 +114,8 @@ export function FinalVerification() {
     <AppScreen>
       {/* "Check & approve" is cut off in the bar at 375px (both languages); "Final check" fits. */}
       <AppBar
-        onBack={() => go("review")}
-        title={t("finalTitle")}
+        onBack={() => go(signOnly ? "understood" : "review")}
+        title={signOnly ? t("signShort") : t("finalTitle")}
         menu={
           <AppMenu
             onOpenChange={(open) => {
@@ -152,18 +156,20 @@ export function FinalVerification() {
               </section>
             )}
 
-            <Segmented
-              label={`${t("completed")} / ${t("original")}`}
-              value={tab}
-              onChange={setTab}
-              options={[
-                { value: "completed", label: t("completed") },
-                { value: "original", label: t("original") },
-              ]}
-            />
+            {!signOnly && (
+              <Segmented
+                label={`${t("completed")} / ${t("original")}`}
+                value={tab}
+                onChange={setTab}
+                options={[
+                  { value: "completed", label: t("completed") },
+                  { value: "original", label: t("original") },
+                ]}
+              />
+            )}
 
             <Card className="mt-4 p-2">
-              {tab === "completed" ? (
+              {tab === "completed" || signOnly ? (
                 <DocumentPreview pages={generated.pages} highlights={highlights} alt={t("completed")} />
               ) : (
                 <DocumentPreview pages={source.pages} alt={t("original")} />
@@ -171,34 +177,36 @@ export function FinalVerification() {
             </Card>
 
             {/* Answers: collapsed by default; the speaker reads the important ones aloud. */}
-            <div className="relative mt-4">
-              <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-2xl py-2 pr-14 pl-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                    <ListChecks className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1 text-[15px] font-semibold text-slate-900">{t("approvedFields")}</span>
-                  <Chip>{filled.length}</Chip>
-                  <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
-                </summary>
-                <div className="divide-y divide-slate-100 border-t border-slate-100">
-                  {filled.map((f) => {
-                    const spoken = spokenValue(f, conv.answers[f.id]);
-                    return (
-                      <ListRow
-                        key={f.id}
-                        label={<span className="whitespace-normal">{f.labelLocalized}</span>}
-                        value={displayValue(f, conv.answers[f.id], t)}
-                        sub={spoken ? <span className="text-[13px] text-slate-600">{spoken}</span> : undefined}
-                      />
-                    );
-                  })}
+            {!signOnly && (
+              <div className="relative mt-4">
+                <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-2xl py-2 pr-14 pl-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                      <ListChecks className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1 text-[15px] font-semibold text-slate-900">{t("approvedFields")}</span>
+                    <Chip>{filled.length}</Chip>
+                    <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                  </summary>
+                  <div className="divide-y divide-slate-100 border-t border-slate-100">
+                    {filled.map((f) => {
+                      const spoken = spokenValue(f, conv.answers[f.id]);
+                      return (
+                        <ListRow
+                          key={f.id}
+                          label={<span className="whitespace-normal">{f.labelLocalized}</span>}
+                          value={displayValue(f, conv.answers[f.id], t)}
+                          sub={spoken ? <span className="text-[13px] text-slate-600">{spoken}</span> : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                </details>
+                <div className="absolute top-1 right-2">
+                  <SpeakButton text={readback} />
                 </div>
-              </details>
-              <div className="absolute top-1 right-2">
-                <SpeakButton text={readback} />
               </div>
-            </div>
+            )}
           </>
         )}
       </Page>
@@ -221,13 +229,19 @@ export function FinalVerification() {
       {generated && (
         <Dock>
           <p aria-live="polite" className={cn("text-center text-[15px] font-medium", listening ? "text-red-700" : "text-slate-900")}>
-            {listening ? t("listening") : t("readbackAsk")}
+            {listening ? t("listening") : signOnly ? (signed ? t("signedAsk") : t("signOnlyAsk")) : t("readbackAsk")}
           </p>
-          <Button block variant="success" onClick={next}>
-            <ThumbsUp aria-hidden /> {t("allCorrect")}
-          </Button>
+          {signOnly ? (
+            <Button block variant={signed ? "primary" : "success"} onClick={next}>
+              {signed ? <ShieldCheck aria-hidden /> : <Signature aria-hidden />} {signed ? t("saveShort") : t("signNow")}
+            </Button>
+          ) : (
+            <Button block variant="success" onClick={next}>
+              <ThumbsUp aria-hidden /> {t("allCorrect")}
+            </Button>
+          )}
           <div className="flex items-start justify-around gap-2">
-            <IconAction icon={PenLine} label={t("edit")} onClick={() => go("review")} />
+            {!signOnly && <IconAction icon={PenLine} label={t("edit")} onClick={() => go("review")} />}
             <IconAction icon={Signature} label={signed ? t("statusSigned") : t("signShort")} active={signed} onClick={() => setSignOpen(true)} />
             {listen.supported && <IconAction icon={Mic} label={`${t("yes")} / ${t("no")}`} active={listening} onClick={sayYesNo} />}
             <IconAction icon={Download} label={t("download")} onClick={() => downloadBlob(generated.blob, "completed-form.pdf")} />
@@ -239,6 +253,7 @@ export function FinalVerification() {
         <SignSheet
           open={signOpen}
           onOpenChange={setSignOpen}
+          answers={answers}
           saidYes={saidYes}
           onSigned={() => {
             setSignOpen(false);

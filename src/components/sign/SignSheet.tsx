@@ -7,6 +7,7 @@ import { pagesWithinBudget, pdfToPages } from "@/lib/client/media";
 import { signDocument, signerAddress } from "@/lib/client/signer";
 import type { StringKey } from "@/lib/i18n";
 import type { SignMethod } from "@/lib/signing";
+import type { FieldAnswer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Notice, SpeakButton } from "@/components/common/Chrome";
@@ -21,11 +22,14 @@ import { SignaturePad, type SignaturePadHandle } from "./SignaturePad";
 export function SignSheet({
   open,
   onOpenChange,
+  answers,
   saidYes,
   onSigned,
   onSkip,
 }: {
   open: boolean;
+  /** The answers written into the form (none when the form was already filled). */
+  answers: Record<string, FieldAnswer>;
   onOpenChange: (open: boolean) => void;
   /** The person also said "yes" aloud on the final check. */
   saidYes: boolean;
@@ -38,7 +42,6 @@ export function SignSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<StringKey | null>(null);
   const analysis = state.analysis!;
-  const conv = state.conversation!;
   const source = state.source!;
   const boxes = analysis.fields.filter((f) => f.type === "signature" && f.box).length;
   const spoken = `${t("signSpoken")} ${boxes ? "" : t("signNoBox")}`.trim();
@@ -62,7 +65,7 @@ export function SignSheet({
       const method: SignMethod = saidYes ? "finger+voice" : "finger";
       const res = await api.generate(
         analysis.fields,
-        conv.answers,
+        answers,
         { pdf: source.pdf, pages: pagesWithinBudget(source.pages).map((p) => p.blob) },
         { png, signer: signerAddress(), signedAt, method },
       );

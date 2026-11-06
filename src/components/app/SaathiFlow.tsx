@@ -17,7 +17,7 @@ export function SaathiFlow() {
       return (
         <CameraScanner
           onDocument={(source) => {
-            update({ source, preview: null, analysis: null, analysisError: null, conversation: null, generated: null, receipt: null, guide: null });
+            update({ source, preview: null, analysis: null, analysisError: null, conversation: null, generated: null, receipt: null, guide: null, intent: "fill" });
             go("analyzing");
           }}
         />

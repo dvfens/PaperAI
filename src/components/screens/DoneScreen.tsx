@@ -77,10 +77,10 @@ export function DoneScreen() {
     if (state.guide || guideRequested.current) return;
     guideRequested.current = true;
     api
-      .guide(lang, analysis, state.conversation!.answers)
+      .guide(lang, analysis, state.intent === "sign" ? {} : (state.conversation?.answers ?? {}))
       .then((guide) => update({ guide }))
       .catch(() => undefined);
-  }, [state.guide, lang, analysis, state.conversation, update]);
+  }, [state.guide, lang, analysis, state.conversation, state.intent, update]);
 
   // Retention date read back from the Arkiv commitment entity.
   useEffect(() => {

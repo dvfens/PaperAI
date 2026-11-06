@@ -264,6 +264,21 @@ async function main() {
     ok(one?.valid === true && one.signer.toLowerCase() === phone.address.toLowerCase(), "the signature on Arkiv checks out and names the phone key");
     ok(sv.history?.some((e) => e.kind === "signed"), "signing is in the Arkiv history");
   }
+  // "Already filled? Sign it": no answers are sent, so nothing may be written into the form — only the signature.
+  const so = new FormData();
+  so.set("fields", JSON.stringify(analysis.fields));
+  so.set("answers", JSON.stringify({}));
+  so.set("pdf", new Blob([pdf], { type: "application/pdf" }), "form.pdf");
+  so.set("signature", new Blob([signaturePng()], { type: "image/png" }), "signature.png");
+  so.set("signer", phone.address);
+  so.set("signedAt", String(Math.floor(Date.now() / 1000)));
+  so.set("signMethod", "finger");
+  const signOnly = await call("/api/documents/generate", { method: "POST", body: so });
+  ok(
+    signOnly.ok && signOnly.headers.get("x-fields-written") === "0" && Number(signOnly.headers.get("x-signed-boxes")) >= 1,
+    "sign-only: nothing written into an already-filled form, only the signature",
+  );
+
   const er2 = await (await call(`/api/documents/${signedReceipt.documentId}`, { method: "DELETE" })).json();
   ok(er2.erased === true, "signed document erased (its signature entity too)");
   if (signedReceipt.arkiv?.status === "recorded") {
