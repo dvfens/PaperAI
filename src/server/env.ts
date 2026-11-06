@@ -34,8 +34,16 @@ export const env = {
 
   elevenLabsApiKey: str("ELEVENLABS_API_KEY"),
   elevenLabsVoiceId: str("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb"),
-  elevenLabsTtsModel: str("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2"),
+  /** turbo_v2_5: about half the latency of multilingual_v2 for Hindi and English (measured). */
+  elevenLabsTtsModel: str("ELEVENLABS_TTS_MODEL", "eleven_turbo_v2_5"),
   elevenLabsSttModel: str("ELEVENLABS_STT_MODEL", "scribe_v2"),
+
+  /** OpenAI speech: an optional second engine the person can switch to. */
+  openaiApiKey: str("OPENAI_API_KEY"),
+  openaiSttModel: str("OPENAI_STT_MODEL", "gpt-transcribe"),
+  openaiLiveSttModel: str("OPENAI_LIVE_STT_MODEL", "gpt-live-transcribe"),
+  openaiTtsModel: str("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
+  openaiTtsVoice: str("OPENAI_TTS_VOICE", "coral"),
 
   arkivAccessKey: str("ARKIV_ACCESS_KEY"),
   arkivPrivateKey: str("ARKIV_PRIVATE_KEY"),
@@ -60,6 +68,7 @@ export const env = {
 export const features = {
   claude: () => Boolean(env.anthropicApiKey),
   elevenLabs: () => Boolean(env.elevenLabsApiKey),
+  openai: () => Boolean(env.openaiApiKey),
   arkiv: () => /^0x[0-9a-fA-F]{64}$/.test(env.arkivPrivateKey),
 };
 

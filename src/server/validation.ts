@@ -7,6 +7,9 @@ import { DOCUMENT_CATEGORIES, type SpeechHint } from "@/lib/types";
 
 export const zLang = z.string().refine(isEnabledLanguage, "unsupported language").transform((v) => v as LanguageCode);
 
+/** Which speech engine to use; ElevenLabs when not given (older clients). */
+export const zSpeechProvider = z.enum(["elevenlabs", "openai"]).default("elevenlabs");
+
 const s = (max: number) => z.string().max(max);
 
 export const zBox = z.object({

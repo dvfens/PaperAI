@@ -13,6 +13,7 @@ export const GET = route("health", async () => {
   const status: ServiceStatus = {
     claude: features.claude(),
     elevenlabs: features.elevenLabs(),
+    openai: features.openai(),
     arkiv: arkivInfo(),
     database: databaseProvider(),
     demoTools: env.demoTools,

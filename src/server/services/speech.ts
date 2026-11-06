@@ -1,24 +1,37 @@
 import "server-only";
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
 import { keytermsFor } from "@/lib/speechHints";
-import type { SpeechHint } from "@/lib/types";
+import type { SpeechHint, SpeechProvider } from "@/lib/types";
 import { env, features } from "@/server/env";
 import { HttpError } from "@/server/http";
 import { log } from "@/server/log";
 
 /**
- * SpeechService — ElevenLabs text-to-speech and speech-to-text (Scribe, batch and realtime).
- * The browser falls back to the Web Speech API when this service is not configured; that decision
- * is made client-side from /api/health so speech keeps working without an API key.
+ * SpeechService — text-to-speech and speech-to-text from ElevenLabs (default) or OpenAI; the person
+ * can switch engines in the app. The browser falls back to the Web Speech API when neither is
+ * configured; that decision is made client-side from /api/health. API keys never leave the server:
+ * live recognition uses short-lived, single-connection tokens.
  */
 const API = "https://api.elevenlabs.io/v1";
+const OPENAI = "https://api.openai.com/v1";
+
+export interface RealtimeToken {
+  token: string;
+  model: string;
+  /** Unix seconds; null when the provider does not say (ElevenLabs tokens last 15 minutes). */
+  expiresAt: number | null;
+}
 
 export interface SpeechService {
   synthesize(text: string, lang: LanguageCode): Promise<ArrayBuffer>;
   transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint): Promise<{ text: string; languageCode: string | null }>;
-  /** A single-use, 15-minute token that lets the browser open ONE realtime transcription socket. */
-  realtimeToken(): Promise<string>;
+  /** A short-lived token that lets the browser open ONE realtime transcription socket. */
+  realtimeToken(lang: LanguageCode): Promise<RealtimeToken>;
 }
+
+/** Name the upload by its real container: Chrome/Android record WebM/Opus, iPhones MP4/AAC. */
+const audioFileName = (audio: Blob) =>
+  `speech.${/mp4|aac|m4a/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : /wav/.test(audio.type) ? "wav" : "webm"}`;
 
 class ElevenLabsSpeech implements SpeechService {
   async synthesize(text: string, lang: LanguageCode) {
@@ -48,9 +61,7 @@ class ElevenLabsSpeech implements SpeechService {
   async transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint) {
     const form = new FormData();
     form.append("model_id", env.elevenLabsSttModel);
-    // Name the file by its real container: Chrome/Android record WebM/Opus, iPhones MP4/AAC.
-    const ext = /mp4|aac|m4a/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : /wav/.test(audio.type) ? "wav" : "webm";
-    form.append("file", audio, `speech.${ext}`);
+    form.append("file", audio, audioFileName(audio));
     form.append("language_code", LANGUAGES[lang].isoCode);
     form.append("tag_audio_events", "false");
     // Keyterms only where the expected words are known (yes/no, options). Measured on noisy Hindi and
@@ -82,13 +93,109 @@ class ElevenLabsSpeech implements SpeechService {
     }
     const json = (await res.json()) as { token?: string };
     if (!json.token) throw new HttpError(502, "stt_token_failed", "Speech recognition is unavailable.");
-    return json.token;
+    return { token: json.token, model: "scribe_v2_realtime", expiresAt: null };
   }
 }
 
-let instance: SpeechService | null = null;
-export function speechService(): SpeechService {
+/** Voice style for gpt-4o-mini-tts (it takes free-form speaking instructions). */
+const OPENAI_VOICE_STYLE: Record<string, string> = {
+  hi: "Speak natural Hindi, warmly, slowly and very clearly, like a patient helper talking to an elderly person.",
+  en: "Speak warmly, slowly and very clearly with a gentle Indian English accent, like a patient helper talking to an elderly person.",
+};
+
+class OpenAISpeech implements SpeechService {
+  private headers(json = false): Record<string, string> {
+    return { authorization: `Bearer ${env.openaiApiKey}`, ...(json ? { "content-type": "application/json" } : {}) };
+  }
+
+  async synthesize(text: string, lang: LanguageCode) {
+    const res = await fetch(`${OPENAI}/audio/speech`, {
+      method: "POST",
+      headers: this.headers(true),
+      body: JSON.stringify({
+        model: env.openaiTtsModel,
+        voice: env.openaiTtsVoice,
+        input: text,
+        response_format: "mp3",
+        speed: 0.95,
+        instructions: OPENAI_VOICE_STYLE[LANGUAGES[lang].isoCode] ?? OPENAI_VOICE_STYLE.en,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      log.warn("tts.failed", { provider: "openai", status: res.status });
+      throw new HttpError(502, "tts_failed", "Voice service failed.");
+    }
+    return res.arrayBuffer();
+  }
+
+  async transcribe(audio: Blob, lang: LanguageCode, hint?: SpeechHint) {
+    const form = new FormData();
+    form.append("file", audio, audioFileName(audio));
+    form.append("model", env.openaiSttModel);
+    // gpt-transcribe takes languages[] and keywords[]; the older gpt-4o-* models take language.
+    if (env.openaiSttModel.startsWith("gpt-transcribe")) {
+      form.append("languages[]", LANGUAGES[lang].isoCode);
+      for (const term of keytermsFor(hint)) form.append("keywords[]", term);
+    } else {
+      form.append("language", LANGUAGES[lang].isoCode);
+    }
+    const res = await fetch(`${OPENAI}/audio/transcriptions`, {
+      method: "POST",
+      headers: this.headers(),
+      body: form,
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) {
+      log.warn("stt.failed", { provider: "openai", status: res.status });
+      throw new HttpError(502, "stt_failed", "Speech recognition failed.");
+    }
+    const json = (await res.json()) as { text?: string; languages?: { code?: string }[] };
+    return { text: (json.text ?? "").trim(), languageCode: json.languages?.[0]?.code ?? null };
+  }
+
+  /**
+   * Client secret for one transcription-only realtime session. The session (model, language, audio
+   * format, noise reduction) is fixed here on the server; the browser only streams audio. This model
+   * has no server-side turn detection, so the browser commits the answer when it ends.
+   */
+  async realtimeToken(lang: LanguageCode) {
+    const res = await fetch(`${OPENAI}/realtime/client_secrets`, {
+      method: "POST",
+      headers: this.headers(true),
+      body: JSON.stringify({
+        expires_after: { anchor: "created_at", seconds: 600 },
+        session: {
+          type: "transcription",
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: 24000 },
+              // Off: "near_field" cut distant and normal voices (5/32 correct vs 30/32 without it).
+              noise_reduction: null,
+              transcription: { model: env.openaiLiveSttModel, languages: [LANGUAGES[lang].isoCode] },
+              turn_detection: null,
+            },
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      log.warn("stt.token_failed", { provider: "openai", status: res.status });
+      throw new HttpError(502, "stt_token_failed", "Speech recognition is unavailable.");
+    }
+    const json = (await res.json()) as { value?: string; expires_at?: number };
+    if (!json.value) throw new HttpError(502, "stt_token_failed", "Speech recognition is unavailable.");
+    return { token: json.value, model: env.openaiLiveSttModel, expiresAt: json.expires_at ?? null };
+  }
+}
+
+const instances: Partial<Record<SpeechProvider, SpeechService>> = {};
+export function speechService(provider: SpeechProvider = "elevenlabs"): SpeechService {
+  if (provider === "openai") {
+    if (!features.openai()) throw new HttpError(503, "speech_not_configured", "OpenAI is not configured.");
+    return (instances.openai ??= new OpenAISpeech());
+  }
   if (!features.elevenLabs()) throw new HttpError(503, "speech_not_configured", "ElevenLabs is not configured.");
-  instance ??= new ElevenLabsSpeech();
-  return instance;
+  return (instances.elevenlabs ??= new ElevenLabsSpeech());
 }

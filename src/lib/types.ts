@@ -228,9 +228,13 @@ export interface PageImage {
   height: number;
 }
 
+/** Cloud speech engines the person can switch between (recognition and voice separately). */
+export type SpeechProvider = "elevenlabs" | "openai";
+
 export interface ServiceStatus {
   claude: boolean;
   elevenlabs: boolean;
+  openai: boolean;
   arkiv: { configured: boolean; writerAddress: string | null; chainId: number; explorerUrl: string };
   database: "postgres" | "pglite" | "pglite-ephemeral";
   demoTools: boolean;

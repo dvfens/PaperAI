@@ -6,6 +6,7 @@ const isProd = process.env.NODE_ENV === "production";
 // speech recognition streams microphone audio straight from the browser (with a single-use token).
 const ARKIV_RPC = "https://rpc.rabdi.db-chain.testnet.arkiv.network wss://rpc.rabdi.db-chain.testnet.arkiv.network";
 const ELEVENLABS_REALTIME = "wss://api.elevenlabs.io";
+const OPENAI_REALTIME = "wss://api.openai.com";
 
 const csp = [
   "default-src 'self'",
@@ -14,7 +15,7 @@ const csp = [
   "img-src 'self' blob: data:",
   "media-src 'self' blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${ARKIV_RPC} ${ELEVENLABS_REALTIME}`,
+  `connect-src 'self' ${ARKIV_RPC} ${ELEVENLABS_REALTIME} ${OPENAI_REALTIME}`,
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
