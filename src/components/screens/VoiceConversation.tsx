@@ -1,6 +1,21 @@
 "use client";
 
-import { CheckCircle2, Ear, EarOff, Keyboard, ListChecks, Loader2, Pause, Play, Repeat2, Send, SkipForward } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  CircleDashed,
+  Ear,
+  Keyboard,
+  ListChecks,
+  Loader2,
+  Mic,
+  Pause,
+  Play,
+  Repeat2,
+  Send,
+  SkipForward,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { applyTurn, introFor, progress, questionFor } from "@/lib/conversation/engine";
@@ -8,11 +23,12 @@ import { interpretWithRules, plainYesNo } from "@/lib/conversation/rules";
 import type { AnswerSource, ConversationState, Interpretation, SpeechHint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { compactHint } from "@/lib/speechHints";
-import { VoiceEngineButton } from "@/components/common/VoiceEngine";
-import { AppBar, AppScreen, Chip, Dock, IconAction, IconButton, Notice, Page } from "@/components/common/Chrome";
+import { AppMenu, type MenuAction, type MenuSwitch } from "@/components/common/AppMenu";
+import { AppBar, AppScreen, Card, Dock, IconAction, Notice, Page } from "@/components/common/Chrome";
 import { MicButton, type MicState } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
+import { Button } from "@/components/ui/button";
 import { FieldSnippet } from "@/components/FieldSnippet";
 
 const control = (intent: Interpretation["intent"]): Interpretation => ({
@@ -36,12 +52,17 @@ export function VoiceConversation() {
   const [handsFree, setHandsFree] = useState(true);
   const [busy, setBusy] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [lastHeard, setLastHeard] = useState("");
+  // What the person last said, tagged with the question it answered: shown only under that question.
+  const [lastHeard, setLastHeard] = useState<{ text: string; fieldId: string | null } | null>(null);
+  // The part of the spoken reply that is not the question ("Sorry, I didn't understand…"), for this field only.
+  const [replyNote, setReplyNote] = useState<{ text: string; fieldId: string; tone: "info" | "warning" } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
   const [typed, setTyped] = useState("");
 
   const convRef = useRef<ConversationState>(conv);
+  // Same as `busy`, but set at once (a tap can arrive before the re-render that disables the buttons).
+  const busyRef = useRef(false);
   const alive = useRef(true);
   const emptyStreak = useRef(0);
   const sheetOpen = useRef(false);
@@ -76,8 +97,8 @@ export function VoiceConversation() {
   const sayThenListen = useCallback(
     async (text: string, c: ConversationState) => {
       setPrompt(text);
-      // The voice-engine sheet is open: show the reply but do not speak or listen; closing the
-      // sheet asks the current question again.
+      // The menu or the voice-engine sheet is open: keep the reply but do not speak or listen;
+      // closing the sheet asks the current question again.
       if (sheetOpen.current) return;
       await speak(text);
       if (!alive.current) return;
@@ -104,8 +125,12 @@ export function VoiceConversation() {
 
   const processUtterance = useCallback(
     async (utterance: string, source: AnswerSource) => {
-      setLastHeard(utterance);
+      const before = convRef.current;
+      const beforeFieldId = before.pending?.fieldId ?? before.currentFieldId;
+      setLastHeard({ text: utterance, fieldId: beforeFieldId });
       setNotice(null);
+      setReplyNote(null);
+      busyRef.current = true;
       setBusy(true);
       let next: { state: ConversationState; reply: string };
       // A reply that is only "yes" or only "no" to "Is that correct?" needs no AI: apply it on the
@@ -119,10 +144,18 @@ export function VoiceConversation() {
         // Server unreachable: keep going with the on-device interpreter.
         next = applyTurn(convRef.current, fields, interpretWithRules(utterance, convRef.current, fields), utterance, source);
       } finally {
+        busyRef.current = false;
         setBusy(false);
       }
       if (!alive.current) return;
       setConv(next.state);
+      // Still on the same question: show only the extra part of the reply (not the question itself).
+      const nextFieldId = next.state.currentFieldId;
+      const f = fields.find((x) => x.id === nextFieldId);
+      if (f && next.state.phase === "asking" && nextFieldId === beforeFieldId) {
+        const extra = next.reply.replace(f.question, " ").replace(/\s+/g, " ").trim();
+        if (extra) setReplyNote({ text: extra, fieldId: f.id, tone: next.state.misses > before.misses ? "warning" : "info" });
+      }
       if (await finishIfComplete(next.state, next.reply)) return;
       await sayThenListen(next.reply, next.state);
     },
@@ -155,10 +188,15 @@ export function VoiceConversation() {
   }, [listen, t, sayThenListen, processUtterance, fields]);
   hearRef.current = hear;
 
-  // Local control actions (no network needed): pause / resume / skip / repeat.
+  // Local control actions (no network needed): pause / resume / skip / repeat / yes / no.
   const applyControl = async (intent: Interpretation["intent"]) => {
+    // While a spoken answer is being understood, its result will replace the state: a yes / no / skip
+    // tapped now would be applied to the old question and then overwritten. Pause and resume still work.
+    if (busyRef.current && intent !== "pause" && intent !== "resume") return;
     listen.cancel();
     stopSpeaking();
+    setNotice(null);
+    setReplyNote(null);
     const next = applyTurn(convRef.current, fields, control(intent), "", "voice");
     setConv(next.state);
     if (await finishIfComplete(next.state, next.reply)) return;
@@ -191,8 +229,8 @@ export function VoiceConversation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The voice-engine sheet pauses the conversation; closing it asks the current question again
-  // (with the newly chosen engines).
+  // The menu or the voice-engine sheet pauses the conversation; closing it asks the current
+  // question again (with the newly chosen engines).
   const onEngineSheet = (open: boolean) => {
     sheetOpen.current = open;
     if (open) {
@@ -239,57 +277,119 @@ export function VoiceConversation() {
         ? Object.values(optionBoxes).filter((b) => b.page === currentField.box!.page)
         : [currentField.box];
   const isChoice = Boolean(optionBoxes);
-  const lastAnswer = Object.values(conv.answers)
-    .filter((a) => a.status === "answered" || a.status === "confirmed")
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
-  const lastAnswerField = lastAnswer ? fields.find((f) => f.id === lastAnswer.fieldId) : undefined;
 
   const canSpeak = listen.supported;
   const showKeyboard = typing || !canSpeak;
   const liveWords = listen.state !== "idle" && Boolean(listen.partial);
-  const heard = liveWords ? listen.partial : lastHeard;
+
+  // Text tied to a question shows only under that question (or its pending confirmation).
+  const activeFieldId = conv.pending?.fieldId ?? conv.currentFieldId;
+  const heardText = liveWords ? listen.partial : lastHeard && lastHeard.fieldId === activeFieldId ? lastHeard.text : "";
+  const showHeard = conv.phase !== "paused" && Boolean(heardText);
+  const reply = conv.phase === "asking" && replyNote && replyNote.fieldId === activeFieldId ? replyNote : null;
+  // What just happened to the PREVIOUS question: saved, or left empty.
+  const lastEvent = Object.values(conv.answers).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const lastEventField = lastEvent ? fields.find((f) => f.id === lastEvent.fieldId) : undefined;
+  const showSaved = conv.phase === "asking" && lastEvent && lastEventField && lastEvent.fieldId !== currentField?.id;
+  const savedOk = lastEvent?.status === "answered" || lastEvent?.status === "confirmed";
+  const kicker = currentField ? [currentField.group, currentField.labelLocalized].filter(Boolean).join(" · ") : "";
+  // The heading is stable: the question, "Is this right?" or "Paused" — never the last spoken reply.
+  const heading = conv.phase === "confirming" ? t("confirmQ") : currentField ? questionFor(currentField, lang) : t("convAllDone");
+  const mode: "paused" | "yesno" | "typing" | "voice" =
+    conv.phase === "paused"
+      ? "paused"
+      : conv.phase === "confirming" || (conv.phase === "asking" && currentField?.type === "checkbox")
+        ? "yesno"
+        : showKeyboard
+          ? "typing"
+          : "voice";
+
+  const menuActions: MenuAction[] = [
+    ...(conv.phase === "asking" || conv.phase === "confirming"
+      ? [{ id: "pause", icon: Pause, label: t("pause"), onSelect: () => void applyControl("pause") }]
+      : []),
+    {
+      id: "answers",
+      icon: ListChecks,
+      label: t("seeAnswers"),
+      leaves: true,
+      onSelect: () => {
+        // Leaving: closing the menu must not ask the question again.
+        alive.current = false;
+        go("review");
+      },
+    },
+  ];
+  const menuSwitches: MenuSwitch[] = canSpeak
+    ? [{ id: "auto", icon: Ear, label: t("auto"), sub: t("handsFree"), checked: handsFree, onChange: setHandsFree }]
+    : [];
+
+  // Not while a spoken answer is being understood: its reply is about to be spoken (and listened for).
+  const repeat = () => {
+    if (busyRef.current) return;
+    void sayThenListen(prompt || currentPrompt(conv), convRef.current);
+  };
+  const skip = () => void applyControl("skip");
+  const statusCls = cn(
+    "flex min-h-7 items-center justify-center gap-2 text-center text-lg font-semibold",
+    micState === "listening" ? "text-red-700" : "text-slate-700",
+  );
 
   return (
     <AppScreen>
       <AppBar
         onBack={() => go("understood")}
-        right={
-          <>
-            <VoiceEngineButton onOpenChange={onEngineSheet} />
-            {canSpeak && (
-              <IconButton icon={handsFree ? Ear : EarOff} label={t("auto")} pressed={handsFree} onClick={() => setHandsFree((v) => !v)} />
-            )}
-            <IconButton icon={ListChecks} label={t("seeAnswers")} onClick={() => go("review")} />
-          </>
-        }
+        title={p.total ? t("questionOf", { n: p.currentNumber, total: p.total }) : undefined}
+        progress={p.total ? p.done / p.total : 0}
+        menu={<AppMenu actions={menuActions} switches={menuSwitches} onOpenChange={onEngineSheet} />}
       />
-      {/* Progress: the count sits beside the bar (the app bar is too narrow for it next to two buttons). */}
-      <div className="mx-auto flex max-w-2xl items-center gap-3 px-4">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden>
-          <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
-        </div>
-        <p className="shrink-0 text-base font-bold tabular-nums text-slate-600">
-          <span aria-hidden>
-            {p.currentNumber} / {p.total}
-          </span>
-          <span className="sr-only">{t("questionOf", { n: p.currentNumber, total: p.total })}</span>
-        </p>
-      </div>
 
-      <Page className={cn("flex flex-col gap-5 pt-6", showKeyboard && "pb-64")}>
-        <section aria-live="polite" className="flex flex-col items-start gap-3">
-          {currentField && conv.phase !== "paused" && (
-            <Chip tone="blue" className="max-w-full rounded-2xl text-base">
-              <span className="min-w-0 break-words">{currentField.labelLocalized}</span>
-            </Chip>
-          )}
-          <p className="text-2xl font-bold leading-snug text-slate-900">
-            {conv.phase === "paused" ? t("pausedTitle") : prompt || currentPrompt(conv)}
+      <Page className="flex flex-col gap-4 pt-4 pb-64">
+        {/* 1. What just happened to the previous question. */}
+        {showSaved && (
+          <p className={cn("flex items-start gap-2 px-1 text-base", savedOk ? "text-green-800" : "text-slate-600")}>
+            {savedOk ? <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden /> : <CircleDashed className="mt-0.5 size-5 shrink-0" aria-hidden />}
+            {/* Wraps (never cut off): for answers that are not read back, this is the only record of what was saved. */}
+            <span className="min-w-0 break-words">
+              {savedOk
+                ? t("savedPrev", { label: lastEventField.labelLocalized, value: lastEventField.sensitive ? "••••" : lastEvent.display })
+                : t("leftEmpty", { label: lastEventField.labelLocalized })}
+            </span>
           </p>
-          {currentField?.hint && conv.phase === "asking" && <p className="text-lg text-slate-500">{currentField.hint}</p>}
+        )}
+
+        {/* 2. The question and where on the form its answer goes, as one card. */}
+        <Card className="overflow-hidden p-0">
+          <div className="p-4">
+            {conv.phase === "paused" ? (
+              <>
+                <h2 aria-live="polite" className="flex items-center gap-3 text-2xl font-bold text-slate-900">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <Pause className="size-6" aria-hidden />
+                  </span>
+                  {t("pausedTitle")}
+                </h2>
+                <p className="mt-3 text-lg text-slate-600">{t("convPaused")}</p>
+              </>
+            ) : (
+              <>
+                {kicker && <p className="break-words text-base font-semibold text-slate-600">{kicker}</p>}
+                <h2 aria-live="polite" className="mt-1 text-2xl font-bold leading-snug text-slate-900">
+                  {heading}
+                </h2>
+                {conv.phase === "asking" && currentField?.hint && <p className="mt-2 text-lg text-slate-600">{currentField.hint}</p>}
+                {conv.phase === "confirming" && conv.pending && (
+                  <p className="mt-3 break-words rounded-2xl bg-blue-50 px-4 py-3 text-2xl font-bold text-blue-950">
+                    {currentField?.sensitive ? "••••" : conv.pending.display}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
           {/* Where on the form this answer goes: a zoomed crop of the page with the spot outlined. */}
           {snippetPage && snippetBoxes.length > 0 && (conv.phase === "asking" || conv.phase === "confirming") && (
             <FieldSnippet
+              variant="inset"
               page={snippetPage}
               boxes={snippetBoxes}
               caption={
@@ -299,98 +399,137 @@ export function VoiceConversation() {
               }
             />
           )}
-        </section>
+        </Card>
 
-        {heard && (
-          <div
-            className={cn(
-              "ml-auto max-w-[85%] rounded-3xl rounded-br-lg px-4 py-3 text-lg shadow-sm",
-              // Live words are provisional until the final transcript arrives.
-              liveWords ? "bg-blue-50 italic text-blue-900" : "bg-blue-600 text-white",
-            )}
-            aria-label={t("youSaid")}
-          >
-            {heard}
+        {/* 3. What the person said — only for the current question. Live words are provisional. */}
+        {showHeard && (
+          <div className={cn("rounded-2xl border px-4 py-3", liveWords ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white")}>
+            <p className="flex items-center gap-1.5 text-base text-slate-500">
+              <Mic className="size-4" aria-hidden />
+              {t("youSaid")}
+            </p>
+            <p className={cn("mt-0.5 break-words text-lg", liveWords ? "italic text-blue-900" : "text-slate-900")}>{heardText}</p>
           </div>
         )}
-
-        {lastAnswer && lastAnswerField && conv.phase === "asking" && (
-          <Chip tone="green" icon={CheckCircle2} className="max-w-full rounded-2xl text-base">
-            <span className="min-w-0 break-words">
-              {lastAnswerField.labelLocalized}: {lastAnswerField.sensitive ? "••••" : lastAnswer.display}
-            </span>
-          </Chip>
-        )}
+        {/* 4. The extra part of the reply ("Sorry, I didn't understand…"). */}
+        {reply && <Notice tone={reply.tone}>{reply.text}</Notice>}
+        {/* 5. Heard nothing / microphone unavailable. */}
         {notice && <Notice tone="warning">{notice}</Notice>}
       </Page>
 
-      <Dock className="gap-3 pt-2">
-        {/* Status line with the two less-used toggles either side, so the main row fits a 375px phone. */}
-        <div className="flex items-center gap-2">
-          {canSpeak ? (
-            <IconButton
-              icon={Keyboard}
-              label={t("type")}
-              pressed={typing}
-              className={typing ? undefined : "bg-slate-100"}
+      <Dock className="gap-2 pt-3">
+        {mode === "voice" && (
+          <>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center">
+              <IconAction icon={Repeat2} label={t("repeat")} onClick={repeat} disabled={busy} />
+              <MicButton size="lg" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
+              <IconAction icon={SkipForward} label={t("skip")} onClick={skip} disabled={busy} />
+            </div>
+            <p aria-live="polite" className={statusCls}>
+              {micState === "listening" && <span className="inline-block size-2.5 rounded-full bg-red-600" aria-hidden />}
+              {micLabel}
+            </p>
+            <Button
+              variant="ghost"
+              size="md"
+              className="self-center"
               onClick={() => {
                 listen.cancel();
-                setTyping((v) => !v);
+                setTyping(true);
               }}
-            />
-          ) : (
-            <span className="size-12 shrink-0" aria-hidden />
-          )}
-          <p
-            className={cn("min-w-0 flex-1 text-center text-base font-semibold", micState === "listening" ? "text-red-700" : "text-slate-500")}
-            aria-live="polite"
-          >
-            {canSpeak ? micLabel : null}
-          </p>
-          {conv.phase === "paused" ? (
-            <IconButton icon={Play} label={t("resume")} pressed onClick={() => void applyControl("resume")} />
-          ) : (
-            <IconButton icon={Pause} label={t("pause")} className="bg-slate-100" onClick={() => void applyControl("pause")} />
-          )}
-        </div>
-        {showKeyboard && (
-          <form
-            className="flex w-full gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const v = typed.trim();
-              if (!v || busy) return;
-              setTyped("");
-              void processUtterance(v, "typed");
-            }}
-          >
-            <input
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={t("typePlaceholder")}
-              aria-label={t("typePlaceholder")}
-              autoFocus
-              className="min-h-14 min-w-0 flex-1 rounded-full border-2 border-slate-200 bg-slate-50 px-5 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={busy || !typed.trim()}
-              aria-label={t("send")}
-              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
             >
-              {busy ? <Loader2 className="size-6 animate-spin" aria-hidden /> : <Send className="size-6" aria-hidden />}
-            </button>
-          </form>
+              <Keyboard aria-hidden /> {t("typeInstead")}
+            </Button>
+          </>
         )}
-        <div className="grid grid-cols-3 items-center justify-items-center">
-          <IconAction icon={Repeat2} label={t("repeat")} onClick={() => void sayThenListen(prompt || currentPrompt(conv), convRef.current)} />
-          {canSpeak && !typing ? (
-            <MicButton size="md" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
-          ) : (
-            <span className="size-16" aria-hidden />
-          )}
-          <IconAction icon={SkipForward} label={t("skip")} onClick={() => void applyControl("skip")} disabled={conv.phase === "paused"} />
-        </div>
+
+        {mode === "yesno" && (
+          <>
+            {/* Disabled while a spoken reply is being understood: its result decides this question. */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="success" size="lg" className="min-h-16 text-xl" disabled={busy} onClick={() => void applyControl("yes")}>
+                <Check aria-hidden /> {t("yes")}
+              </Button>
+              <Button variant="secondary" size="lg" className="min-h-16 text-xl" disabled={busy} onClick={() => void applyControl("no")}>
+                <X aria-hidden /> {t("no")}
+              </Button>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center">
+              <IconAction icon={Repeat2} label={t("repeat")} onClick={repeat} disabled={busy} />
+              {canSpeak ? (
+                <MicButton size="md" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
+              ) : (
+                <span aria-hidden />
+              )}
+              {/* No Skip while confirming: the engine only answers "Please say yes or no" there. */}
+              {conv.phase === "asking" ? <IconAction icon={SkipForward} label={t("skip")} onClick={skip} disabled={busy} /> : <span aria-hidden />}
+            </div>
+            {canSpeak && (
+              <p aria-live="polite" className={statusCls}>
+                {micState === "listening" && <span className="inline-block size-2.5 rounded-full bg-red-600" aria-hidden />}
+                {micState === "idle" ? t("orSayYesNo") : micLabel}
+              </p>
+            )}
+          </>
+        )}
+
+        {mode === "typing" && (
+          <>
+            <form
+              className="flex w-full gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = typed.trim();
+                if (!v || busy) return;
+                setTyped("");
+                void processUtterance(v, "typed");
+              }}
+            >
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={t("typePlaceholder")}
+                aria-label={t("typePlaceholder")}
+                autoFocus
+                inputMode={
+                  currentField?.type === "phone" || currentField?.type === "number" ? "numeric" : currentField?.type === "email" ? "email" : "text"
+                }
+                className="min-h-14 min-w-0 flex-1 rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={busy || !typed.trim()}
+                aria-label={t("send")}
+                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+              >
+                {busy ? <Loader2 className="size-6 animate-spin" aria-hidden /> : <Send className="size-6" aria-hidden />}
+              </button>
+            </form>
+            <div className={cn("grid items-start justify-items-center", canSpeak ? "grid-cols-3" : "grid-cols-2")}>
+              <IconAction icon={Repeat2} label={t("repeat")} onClick={repeat} disabled={busy} />
+              {canSpeak && (
+                <IconAction
+                  icon={Mic}
+                  label={t("speakInstead")}
+                  onClick={() => {
+                    setTyping(false);
+                    if (!busy) {
+                      stopSpeaking();
+                      void hear();
+                    }
+                  }}
+                />
+              )}
+              <IconAction icon={SkipForward} label={t("skip")} onClick={skip} disabled={busy} />
+            </div>
+          </>
+        )}
+
+        {mode === "paused" && (
+          <Button block size="lg" className="min-h-16 text-xl" onClick={() => void applyControl("resume")}>
+            <Play aria-hidden /> {t("resume")}
+          </Button>
+        )}
       </Dock>
     </AppScreen>
   );
