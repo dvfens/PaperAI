@@ -143,6 +143,37 @@ function toPdfRect(page: PDFPage, box: Box) {
   return { x: box.x * width, y: height - (box.y + box.h) * height, w: box.w * width, h: box.h * height };
 }
 
+/**
+ * Start the answer after something printed at the start of its box, so it is not written on top:
+ * - a currency sign ("₹ ____", read as format "₹"), which would hide the amount's first digit;
+ * - a date pattern shown inside the box as a hint ("DD / MM / YYYY" in the box, not in the label).
+ * Only when enough of the box is left for the answer.
+ */
+export function afterPrintedHint(
+  page: { getSize(): { width: number; height: number } },
+  box: Box,
+  field: { type: string; format?: string; label: string },
+  textWidth: (text: string, size: number) => number,
+): Box {
+  const format = (field.format ?? "").trim();
+  if (!format) return box;
+  const { width, height } = page.getSize();
+  let indentPt = 0;
+  if (/^(₹|rs\.?|inr|\$|€|£)$/i.test(format)) {
+    // The printed sign is about as wide as the box is tall (plus a little gap).
+    indentPt = box.h * height * 0.9;
+  } else if (field.type === "date" && /d\s*d|m\s*m|y\s*y/i.test(format)) {
+    const squash = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+    if (squash(field.label).includes(squash(format))) return box; // the pattern is in the label, not the box
+    // Printed hints are usually set a little larger than the answer and start after a small inset.
+    const size = Math.max(6, Math.min(13, box.h * height * 0.62));
+    indentPt = textWidth(format, size) * 1.35 + size * 1.2;
+  }
+  const indent = indentPt / width;
+  if (!indent || box.w - indent < box.w * 0.4) return box;
+  return { ...box, x: box.x + indent, w: box.w - indent };
+}
+
 function drawText(page: PDFPage, box: Box, text: string, multiline: boolean, fonts: Fonts) {
   const r = toPdfRect(page, box);
   const pad = Math.min(3, r.w * 0.04);
@@ -359,7 +390,8 @@ export async function generateCompletedPdf(input: {
     if (field.type === "checkbox") {
       if (value === "true") drawTick(page, box);
     } else {
-      drawText(page, box, value, field.type === "multiline", fonts);
+      const place = afterPrintedHint(page, box, field, (t, size) => widthOf(t, size, fonts));
+      drawText(page, place, value, field.type === "multiline", fonts);
     }
     written++;
   }
