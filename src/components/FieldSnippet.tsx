@@ -84,11 +84,11 @@ export function FieldSnippet({
       <figcaption
         className={
           variant === "inset"
-            ? "flex items-start gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-700"
-            : "mt-2 flex items-start gap-2 text-base text-slate-700"
+            ? "flex items-start gap-2 border-t border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-600"
+            : "mt-1.5 flex items-start gap-2 text-[13px] text-slate-600"
         }
       >
-        <span aria-hidden className="mt-1 inline-block size-4 shrink-0 rounded border-2 border-blue-600 bg-blue-500/15" />
+        <span aria-hidden className="mt-0.5 inline-block size-3 shrink-0 rounded-sm border-2 border-blue-600 bg-blue-500/15" />
         <span className="min-w-0">{caption}</span>
       </figcaption>
     </figure>

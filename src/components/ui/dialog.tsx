@@ -42,18 +42,18 @@ export function Dialog({
             className,
           )}
         >
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 sm:hidden" aria-hidden />
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300 sm:hidden" aria-hidden />
           <div className="mb-3 flex items-start justify-between gap-3">
-            <DialogPrimitive.Title className="pt-1 text-2xl font-bold text-slate-900">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="pt-1 text-lg font-semibold text-slate-900">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close
-              className="-mr-1 flex size-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+              className="-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
               aria-label={closeLabel}
             >
-              <X className="size-6" />
+              <X className="size-5" />
             </DialogPrimitive.Close>
           </div>
           {description ? (
-            <DialogPrimitive.Description className="mb-4 text-lg text-slate-600">{description}</DialogPrimitive.Description>
+            <DialogPrimitive.Description className="mb-4 text-[15px] text-slate-600">{description}</DialogPrimitive.Description>
           ) : (
             <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
           )}

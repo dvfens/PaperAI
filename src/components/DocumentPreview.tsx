@@ -39,9 +39,9 @@ export function DocumentPreview({
 }) {
   const shown = maxPages ? pages.slice(0, maxPages) : pages;
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("flex flex-col gap-3", className)}>
       {shown.map((page, i) => (
-        <figure key={i} className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm">
+        <figure key={i} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={page.dataUrl} alt={`${alt} — ${i + 1}`} className="block h-auto w-full" draggable={false} />
           {highlights
@@ -49,7 +49,7 @@ export function DocumentPreview({
             .map((h, j) => (
               <div
                 key={j}
-                className={cn("pointer-events-none absolute rounded border-2", TONES[h.tone])}
+                className={cn("pointer-events-none absolute rounded-sm border-[1.5px]", TONES[h.tone])}
                 style={{
                   left: `${h.box.x * 100}%`,
                   top: `${h.box.y * 100}%`,
@@ -61,7 +61,7 @@ export function DocumentPreview({
                   <span
                     className={cn(
                       // Boxes in the right half anchor their label to the right so it stays on the page.
-                      "absolute -top-7 max-w-[60vw] truncate whitespace-nowrap rounded-md px-2 py-0.5 text-sm font-semibold",
+                      "absolute -top-[15px] max-w-[45vw] truncate whitespace-nowrap rounded px-1 text-[10px] font-semibold leading-[14px]",
                       h.box.x + h.box.w / 2 > 0.5 ? "right-0" : "left-0",
                       LABEL_TONES[h.tone],
                     )}

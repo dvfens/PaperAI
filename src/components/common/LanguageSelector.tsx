@@ -30,7 +30,7 @@ export function LanguageSelector({ tone = "light" }: { tone?: "light" | "dark" }
             lang={l.code}
             onClick={() => setLang(l.code)}
             className={cn(
-              "flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-base font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+              "flex h-9 min-w-9 items-center justify-center rounded-full px-2.5 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
               active
                 ? tone === "dark"
                   ? "bg-white text-slate-900"

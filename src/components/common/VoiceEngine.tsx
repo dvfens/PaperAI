@@ -69,15 +69,15 @@ function MicCheck() {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4">
-      <p className="text-base font-bold text-slate-600">{t("micCheck")}</p>
-      <p className="text-base text-slate-600">{t("micCheckHint")}</p>
+    <div className="flex flex-col gap-2.5 rounded-xl bg-slate-50 p-3">
+      <p className="text-[13px] font-semibold text-slate-500">{t("micCheck")}</p>
+      <p className="text-sm text-slate-600">{t("micCheckHint")}</p>
       {phase === "listening" ? (
         <>
           <div className="h-2 overflow-hidden rounded-full bg-slate-200" aria-hidden>
             <div className="h-2 rounded-full bg-green-600 transition-[width]" style={{ width: `${Math.round(level * 100)}%` }} />
           </div>
-          <p className="min-h-6 text-base italic text-blue-900" aria-live="polite">{live || t("micCheckListening")}</p>
+          <p className="min-h-5 text-sm italic text-blue-900" aria-live="polite">{live || t("micCheckListening")}</p>
           <Button size="md" block onClick={() => session.current?.stop()}>
             {t("micCheckDone")}
           </Button>
@@ -92,8 +92,8 @@ function MicCheck() {
         <ul className="flex flex-col gap-2" aria-live="polite">
           {heard.map((h) => (
             <li key={h.label} className="rounded-xl bg-white px-3 py-2">
-              <p className="text-base font-semibold text-slate-600">{h.label}</p>
-              <p className="text-base text-slate-900">{h.text || t("micCheckNothing")}</p>
+              <p className="text-xs font-semibold text-slate-500">{h.label}</p>
+              <p className="text-sm text-slate-900">{h.text || t("micCheckNothing")}</p>
             </li>
           ))}
         </ul>
@@ -132,15 +132,15 @@ export function VoiceEngineSheet({
       description={t("voiceEngineSub")}
       closeLabel={t("close")}
     >
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         {both && (
           <>
             <div className="flex flex-col gap-2">
-              <p className="text-base font-bold text-slate-600">{t("engineListen")}</p>
+              <p className="text-[13px] font-semibold text-slate-500">{t("engineListen")}</p>
               <Segmented options={ENGINES} value={voice.stt} onChange={voice.setStt} label={t("engineListen")} />
             </div>
             <div className="flex flex-col gap-2">
-              <p className="text-base font-bold text-slate-600">{t("engineVoice")}</p>
+              <p className="text-[13px] font-semibold text-slate-500">{t("engineVoice")}</p>
               <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
               {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
             </div>
@@ -148,7 +148,7 @@ export function VoiceEngineSheet({
         )}
         {voice.available.elevenlabs && (voice.tts === "elevenlabs" || !voice.available.openai) && (
           <div className="flex flex-col gap-2">
-            <p className="text-base font-bold text-slate-600">{t("voiceChoice")}</p>
+            <p className="text-[13px] font-semibold text-slate-500">{t("voiceChoice")}</p>
             <Segmented
               options={[
                 { value: "young-woman", label: t("voiceYoungWoman") },

@@ -19,13 +19,13 @@ export function MenuRow({ icon: I, label, onClick }: { icon: LucideIcon; label: 
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100"
+      className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100"
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-        <I className="size-5" aria-hidden />
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+        <I className="size-4" aria-hidden />
       </span>
-      <span className="min-w-0 flex-1 break-words text-lg font-semibold text-slate-900">{label}</span>
-      <ChevronRight className="size-5 shrink-0 text-slate-400" aria-hidden />
+      <span className="min-w-0 flex-1 break-words text-[15px] font-medium text-slate-900">{label}</span>
+      <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
     </button>
   );
 }
@@ -39,19 +39,19 @@ export function SwitchRow({ icon: I, label, sub, checked, onChange }: Omit<MenuS
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100"
+      className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100"
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-        <I className="size-5" aria-hidden />
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+        <I className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-lg font-semibold text-slate-900">{label}</span>
-        {sub && <span className="block text-base text-slate-600">{sub}</span>}
+        <span className="block text-[15px] font-medium text-slate-900">{label}</span>
+        {sub && <span className="block text-[13px] text-slate-500">{sub}</span>}
       </span>
       <span className="flex shrink-0 items-center gap-2" aria-hidden>
-        <span className="text-base font-semibold text-slate-700">{checked ? t("on") : t("off")}</span>
-        <span className={cn("relative h-8 w-14 rounded-full transition-colors", checked ? "bg-blue-600" : "bg-slate-300")}>
-          <span className={cn("absolute left-1 top-1 size-6 rounded-full bg-white shadow transition-transform", checked && "translate-x-6")} />
+        <span className="text-[13px] font-medium text-slate-500">{checked ? t("on") : t("off")}</span>
+        <span className={cn("relative h-7 w-12 rounded-full transition-colors", checked ? "bg-blue-600" : "bg-slate-300")}>
+          <span className={cn("absolute left-1 top-1 size-5 rounded-full bg-white shadow transition-transform", checked && "translate-x-5")} />
         </span>
       </span>
     </button>
@@ -108,9 +108,9 @@ export function AppMenu({
         aria-haspopup="dialog"
         aria-expanded={sheet === "menu"}
         onClick={() => setSheet("menu")}
-        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-slate-200/70 pl-2.5 pr-4 text-base font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+        className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-slate-200/70 pl-2 pr-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
       >
-        <EllipsisVertical className="size-5" aria-hidden />
+        <EllipsisVertical className="size-4" aria-hidden />
         {t("menu")}
       </button>
       <Dialog
@@ -120,7 +120,7 @@ export function AppMenu({
         title={t("menu")}
         closeLabel={t("close")}
       >
-        <div className="flex flex-col gap-5 pb-2">
+        <div className="flex flex-col gap-4 pb-2">
           {actions.length > 0 && (
             <ListGroup>
               {actions.map((a) => (
@@ -138,7 +138,7 @@ export function AppMenu({
             </ListGroup>
           )}
           <div className="flex flex-col gap-2">
-            <p className="px-1 text-base font-bold text-slate-600">{t("language")}</p>
+            <p className="px-1 text-[13px] font-semibold text-slate-500">{t("language")}</p>
             <Segmented<LanguageCode>
               label={t("language")}
               value={lang}
