@@ -50,11 +50,11 @@ export function AppBar({
   const BackIcon = back === "close" ? X : ChevronLeft;
   return (
     <header className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur">
-      <div className="mx-auto grid h-12 max-w-2xl grid-cols-[2.75rem_1fr_auto] items-center gap-2 px-3">
+      <div className="mx-auto grid h-12 max-w-2xl grid-cols-[minmax(2.75rem,auto)_1fr_auto] items-center gap-2 px-3">
         {onBack ? (
           <IconButton icon={BackIcon} label={t(back === "close" ? "close" : "back")} onClick={onBack} />
         ) : (
-          <span className="pl-2 text-[17px] font-extrabold tracking-tight text-blue-700">{t("appName")}</span>
+          <span className="whitespace-nowrap pl-2 text-[17px] font-extrabold tracking-tight text-blue-700">{t("appName")}</span>
         )}
         {title ? <h1 className="min-w-0 truncate text-left text-[17px] font-semibold text-slate-900">{title}</h1> : <span aria-hidden />}
         <div className="flex items-center justify-end gap-1">
