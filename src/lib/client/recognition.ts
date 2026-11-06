@@ -1,9 +1,10 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
-import type { SpeechHint } from "@/lib/types";
+import type { SpeechHint, SpeechProvider } from "@/lib/types";
 import { api } from "./api";
 import { canCapturePcm, MicError, primeAudioOnTap } from "./audioCapture";
+import { OpenAIRealtimeSpeechInput } from "./openaiRecognition";
 import { RealtimeSpeechInput } from "./realtimeRecognition";
 
 export { MicError };
@@ -40,14 +41,15 @@ export interface ListenOptions {
 }
 
 export interface SpeechInput {
-  readonly kind: "elevenlabs" | "browser";
+  readonly kind: SpeechProvider | "browser";
   listen(opts: ListenOptions): ListenSession;
 }
 
 // ---------------------------------------------------------------------------------------------
 
-class ElevenLabsSpeechInput implements SpeechInput {
-  readonly kind = "elevenlabs" as const;
+/** Records with MediaRecorder and transcribes the recording (ElevenLabs or OpenAI) via our server. */
+class RecorderSpeechInput implements SpeechInput {
+  constructor(readonly kind: SpeechProvider) {}
 
   listen(opts: ListenOptions): ListenSession {
     let stopFn: () => void = () => {};
@@ -112,7 +114,7 @@ class ElevenLabsSpeechInput implements SpeechInput {
           noise.push(rms);
           if (noise.length >= 5) {
             const sorted = [...noise].sort((a, b) => a - b);
-            threshold = Math.min(0.06, Math.max(0.008, sorted[Math.floor(sorted.length / 2)] * 3));
+            threshold = Math.max(0.005, Math.min(0.06, sorted[Math.floor(sorted.length / 5)] * 2.5));
           }
         }
         opts.onLevel?.(Math.min(1, rms / (threshold * 4)));
@@ -140,12 +142,12 @@ class ElevenLabsSpeechInput implements SpeechInput {
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();
       const duration = performance.now() - started;
-      // Transcribe whenever speech may have happened: detected speech, the person tapped stop, or the
-      // meter could not hear anything at all (then silence proves nothing).
-      if (cancelled || duration < 400 || !(heardSpeech || manualStop || !vadWorking)) return "";
+      // Always let the recogniser decide: a soft voice may never trip the loudness meter, and making
+      // people shout to be heard is exactly what must not happen.
+      if (cancelled || duration < 400) return "";
       opts.onProcessing?.();
       const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-      const { text } = await api.stt(blob, opts.lang, opts.hint, opts.via ?? "recorder");
+      const { text } = await api.stt(blob, opts.lang, opts.hint, opts.via ?? "recorder", this.kind);
       return text;
     })();
 
@@ -217,14 +219,25 @@ class BrowserSpeechInput implements SpeechInput {
   }
 }
 
-export function createSpeechInput(elevenLabsAvailable: boolean): SpeechInput | null {
+/** The cloud engine to use: the person's choice when it is configured, else whichever is. */
+export function pickProvider(cloud: Record<SpeechProvider, boolean>, preferred: SpeechProvider): SpeechProvider | null {
+  if (cloud[preferred]) return preferred;
+  if (cloud.elevenlabs) return "elevenlabs";
+  if (cloud.openai) return "openai";
+  return null;
+}
+
+export function createSpeechInput(cloud: Record<SpeechProvider, boolean>, preferred: SpeechProvider = "elevenlabs"): SpeechInput | null {
   if (typeof window === "undefined") return null;
   const canRecord = typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
-  if (elevenLabsAvailable && canRecord && canCapturePcm()) {
+  const provider = pickProvider(cloud, preferred);
+  if (provider && canRecord && canCapturePcm()) {
     primeAudioOnTap();
-    return new RealtimeSpeechInput(new ElevenLabsSpeechInput());
+    return provider === "openai"
+      ? new OpenAIRealtimeSpeechInput(new RecorderSpeechInput("openai"))
+      : new RealtimeSpeechInput(new RecorderSpeechInput("elevenlabs"));
   }
-  if (elevenLabsAvailable && canRecord) return new ElevenLabsSpeechInput();
+  if (provider && canRecord) return new RecorderSpeechInput(provider);
   if (recognitionCtor()) return new BrowserSpeechInput();
   return null;
 }

@@ -5,8 +5,6 @@
  * Audio stays in memory only for the length of one answer and is never stored.
  */
 export const PCM_RATE = 16_000;
-/** 100 ms per frame — inside the 0.1–1 s chunk size ElevenLabs recommends for realtime audio. */
-const FRAME = PCM_RATE / 10;
 
 export class MicError extends Error {
   constructor(readonly code: "denied" | "unavailable") {
@@ -89,7 +87,9 @@ export interface PcmCapture {
  * Opens the microphone and calls `onFrame` with every 100 ms of 16-bit PCM and its loudness (RMS).
  * Throws MicError when permission is refused or there is no microphone.
  */
-export async function startPcmCapture(onFrame: (pcm: Int16Array, rms: number) => void): Promise<PcmCapture> {
+export async function startPcmCapture(onFrame: (pcm: Int16Array, rms: number) => void, rate = PCM_RATE): Promise<PcmCapture> {
+  /** 100 ms per frame — inside the chunk sizes both realtime APIs recommend. */
+  const FRAME = Math.round(rate / 10);
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -107,7 +107,7 @@ export async function startPcmCapture(onFrame: (pcm: Int16Array, rms: number) =>
     sink.gain.value = 0; // keep the graph running without playing the microphone back
     sink.connect(ctx.destination);
 
-    const down = new Downsampler(ctx.sampleRate / PCM_RATE);
+    const down = new Downsampler(ctx.sampleRate / rate);
     let frame = new Int16Array(FRAME);
     let n = 0;
     let sq = 0;
@@ -210,7 +210,9 @@ export function encodeWav(frames: Int16Array[], rate = PCM_RATE): Blob {
 }
 
 /**
- * Loudness-based voice activity, calibrated to the room: the first half second sets the noise floor.
+ * Loudness-based voice activity, calibrated to the room: the quietest part of the first half second
+ * sets the noise floor (so someone who starts talking at once does not raise it), and the threshold
+ * stays low enough for a normal or soft voice — nobody should have to shout.
  * Used for the level meter, to notice when someone starts talking again, and as a safety net.
  */
 export class VoiceActivity {
@@ -229,7 +231,7 @@ export class VoiceActivity {
       this.noise.push(rms);
       if (this.noise.length >= 3) {
         const sorted = [...this.noise].sort((a, b) => a - b);
-        this.threshold = Math.min(0.06, Math.max(0.008, sorted[Math.floor(sorted.length / 2)] * 3));
+        this.threshold = Math.max(0.005, Math.min(0.06, sorted[Math.floor(sorted.length / 5)] * 2.5));
       }
     }
     if (rms > this.threshold) {

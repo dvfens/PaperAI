@@ -4,10 +4,11 @@ import { CheckCircle2, Ear, EarOff, Keyboard, ListChecks, Loader2, Pause, Play, 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { applyTurn, introFor, progress, questionFor } from "@/lib/conversation/engine";
-import { interpretWithRules } from "@/lib/conversation/rules";
+import { interpretWithRules, plainYesNo } from "@/lib/conversation/rules";
 import type { AnswerSource, ConversationState, Interpretation, SpeechHint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { compactHint } from "@/lib/speechHints";
+import { VoiceEngineButton } from "@/components/common/VoiceEngine";
 import { AppBar, AppScreen, Chip, Dock, IconAction, IconButton, Notice, Page } from "@/components/common/Chrome";
 import { MicButton, type MicState } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
@@ -42,6 +43,7 @@ export function VoiceConversation() {
   const convRef = useRef<ConversationState>(conv);
   const alive = useRef(true);
   const emptyStreak = useRef(0);
+  const sheetOpen = useRef(false);
   const handsFreeRef = useRef(handsFree);
   const typingRef = useRef(typing);
   handsFreeRef.current = handsFree;
@@ -77,7 +79,8 @@ export function VoiceConversation() {
       if (!alive.current) return;
       // Not if the person already tapped the mic while this was being spoken: that tap started
       // listening, and a second session here would replace it and lose their first words.
-      if (handsFreeRef.current && listen.supported && !typingRef.current && !listen.active() && (c.phase === "asking" || c.phase === "confirming")) {
+      // Not while the voice-engine sheet is open either.
+      if (handsFreeRef.current && listen.supported && !typingRef.current && !sheetOpen.current && !listen.active() && (c.phase === "asking" || c.phase === "confirming")) {
         void hearRef.current();
       }
     },
@@ -101,8 +104,13 @@ export function VoiceConversation() {
       setNotice(null);
       setBusy(true);
       let next: { state: ConversationState; reply: string };
+      // A reply that is only "yes" or only "no" to "Is that correct?" needs no AI: apply it on the
+      // phone, instantly. Anything with more words (a correction, "not correct") goes to the interpreter.
+      const plain = convRef.current.phase === "confirming" ? plainYesNo(utterance) : null;
       try {
-        next = await api.turn(convRef.current, fields, utterance, analysis.documentLanguage, source);
+        next = plain
+          ? applyTurn(convRef.current, fields, { intent: plain, targetFieldId: null, value: null, display: null, valid: true, problem: null, helpText: null }, utterance, source)
+          : await api.turn(convRef.current, fields, utterance, analysis.documentLanguage, source);
       } catch {
         // Server unreachable: keep going with the on-device interpreter.
         next = applyTurn(convRef.current, fields, interpretWithRules(utterance, convRef.current, fields), utterance, source);
@@ -179,6 +187,19 @@ export function VoiceConversation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The voice-engine sheet pauses the conversation; closing it asks the current question again
+  // (with the newly chosen engines).
+  const onEngineSheet = (open: boolean) => {
+    sheetOpen.current = open;
+    if (open) {
+      listen.cancel();
+      stopSpeaking();
+      return;
+    }
+    const c = convRef.current;
+    if (alive.current && (c.phase === "asking" || c.phase === "confirming")) void sayThenListen(currentPrompt(c), c);
+  };
+
   const onMic = () => {
     emptyStreak.current = 0;
     if (listen.state === "listening") return listen.stop();
@@ -217,6 +238,7 @@ export function VoiceConversation() {
         onBack={() => go("understood")}
         right={
           <>
+            <VoiceEngineButton onOpenChange={onEngineSheet} />
             {canSpeak && (
               <IconButton icon={handsFree ? Ear : EarOff} label={t("auto")} pressed={handsFree} onClick={() => setHandsFree((v) => !v)} />
             )}

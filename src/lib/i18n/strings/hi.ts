@@ -245,4 +245,11 @@ export const hi: Strings = {
   pagesCount: "{n} पन्ने",
   questionsCount: "{n} सवाल",
   confirmQ: "क्या यह सही है?",
+  voiceEngine: "आवाज़ इंजन",
+  voiceEngineSub: "चुनें कि कौन आपकी बात सुने और कौन बोले। आपकी पसंद इसी फ़ोन पर याद रहेगी।",
+  engineListen: "सुनना",
+  engineVoice: "बोलने वाली आवाज़",
+  engineSlowNote: "OpenAI की आवाज़ बोलना शुरू करने में लगभग 2 सेकंड ज़्यादा लेती है।",
+  hearSample: "यह आवाज़ सुनें",
+  voiceSample: "नमस्ते! मैं एक-एक सवाल पूछकर आपका फ़ॉर्म भरने में मदद करूँगा।",
 };

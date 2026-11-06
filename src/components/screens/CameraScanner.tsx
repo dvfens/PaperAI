@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { captureVideoFrame, imageFileToPage, MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
 import { IconAction } from "@/components/common/Chrome";
 import { LanguageSelector } from "@/components/common/LanguageSelector";
+import { VoiceEngineButton } from "@/components/common/VoiceEngine";
 import { useApp, type SourceDocument } from "@/components/app/AppContext";
 
 type CameraState = "starting" | "live" | "unavailable";
@@ -151,7 +152,10 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
       {/* Top bar */}
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-8">
         <span className="text-lg font-extrabold tracking-tight">{t("appName")}</span>
-        <LanguageSelector tone="dark" />
+        <div className="flex items-center gap-2">
+          <VoiceEngineButton tone="dark" />
+          <LanguageSelector tone="dark" />
+        </div>
       </div>
 
       {/* Frame guide */}

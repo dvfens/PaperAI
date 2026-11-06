@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, type DocumentPreviewInfo } from "@/lib/client/api";
 import type { PreparedPage } from "@/lib/client/media";
 import { clearSession, loadSession, saveSession } from "@/lib/client/persist";
-import { createSpeechInput, type SpeechInput } from "@/lib/client/recognition";
+import { createSpeechInput, pickProvider, type SpeechInput } from "@/lib/client/recognition";
 import { createSpeechOutput, type SpeechOutput } from "@/lib/client/speech";
 import { t as translate, type StringKey } from "@/lib/i18n";
 import { DEFAULT_LANGUAGE, isEnabledLanguage, type LanguageCode } from "@/lib/i18n/languages";
@@ -14,6 +14,7 @@ import type {
   DocumentAnalysis,
   NextStepsGuide,
   ServiceStatus,
+  SpeechProvider,
 } from "@/lib/types";
 
 export type Step = "scan" | "analyzing" | "understood" | "explain" | "conversation" | "review" | "final" | "done";
@@ -79,11 +80,22 @@ interface Ctx {
   speaking: boolean;
   speak: (text: string) => Promise<void>;
   stopSpeaking: () => void;
+  /** Which cloud engine listens and which speaks; switchable when both are configured. */
+  voice: {
+    stt: SpeechProvider;
+    tts: SpeechProvider;
+    setStt: (p: SpeechProvider) => void;
+    setTts: (p: SpeechProvider) => void;
+    available: Record<SpeechProvider, boolean>;
+  };
 }
 
 const AppContext = createContext<Ctx | null>(null);
 
 const LANG_KEY = "saathi.lang";
+const STT_KEY = "saathi.stt";
+const TTS_KEY = "saathi.tts";
+const isProvider = (v: unknown): v is SpeechProvider => v === "elevenlabs" || v === "openai";
 
 /** `persist` resumes an interrupted form-filling session from this device (main flow only). */
 export function AppProvider({ children, persist = false }: { children: ReactNode; persist?: boolean }) {
@@ -92,7 +104,12 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
   const [status, setStatus] = useState<ServiceStatus | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [hydrated, setHydrated] = useState(!persist);
-  const speakerRef = useRef<SpeechOutput>(createSpeechOutput(false));
+  const speakerRef = useRef<SpeechOutput>(createSpeechOutput(null));
+  // Listening defaults to OpenAI (measured best for normal and distant voices), the voice to
+  // ElevenLabs (about 2 s faster to start speaking). Either falls back to whichever is configured.
+  const [stt, setSttState] = useState<SpeechProvider>("openai");
+  const [tts, setTtsState] = useState<SpeechProvider>("elevenlabs");
+  const [engines, setEngines] = useState(0); // bumps when the speech engines are rebuilt
   const inputRef = useRef<SpeechInput | null>(null);
   const speakSeq = useRef(0);
 
@@ -120,19 +137,52 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
     try {
       const saved = localStorage.getItem(LANG_KEY);
       if (isEnabledLanguage(saved)) setLangState(saved);
+      const savedStt = localStorage.getItem(STT_KEY);
+      if (isProvider(savedStt)) setSttState(savedStt);
+      const savedTts = localStorage.getItem(TTS_KEY);
+      if (isProvider(savedTts)) setTtsState(savedTts);
     } catch {
       // storage unavailable
     }
     api
       .health()
-      .then((s) => {
-        setStatus(s);
-        speakerRef.current = createSpeechOutput(s.elevenlabs);
-        inputRef.current = createSpeechInput(s.elevenlabs);
-      })
+      .then(setStatus)
       .catch(() => {
-        inputRef.current = createSpeechInput(false);
+        inputRef.current = createSpeechInput({ elevenlabs: false, openai: false });
+        setEngines((n) => n + 1);
       });
+  }, []);
+
+  // (Re)build each speech engine when the service status is known or the person switches it —
+  // the voice only when the voice changes, the listener only when the listener changes.
+  useEffect(() => {
+    if (!status) return;
+    const cloud = { elevenlabs: status.elevenlabs, openai: Boolean(status.openai) };
+    speakerRef.current.stop();
+    speakerRef.current = createSpeechOutput(pickProvider(cloud, tts));
+    setEngines((n) => n + 1);
+  }, [status, tts]);
+  useEffect(() => {
+    if (!status) return;
+    inputRef.current = createSpeechInput({ elevenlabs: status.elevenlabs, openai: Boolean(status.openai) }, stt);
+    setEngines((n) => n + 1);
+  }, [status, stt]);
+
+  const setStt = useCallback((p: SpeechProvider) => {
+    setSttState(p);
+    try {
+      localStorage.setItem(STT_KEY, p);
+    } catch {
+      // ignore
+    }
+  }, []);
+  const setTts = useCallback((p: SpeechProvider) => {
+    setTtsState(p);
+    try {
+      localStorage.setItem(TTS_KEY, p);
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -197,8 +247,16 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
       speaking,
       speak,
       stopSpeaking,
+      voice: {
+        stt,
+        tts,
+        setStt,
+        setTts,
+        available: { elevenlabs: Boolean(status?.elevenlabs), openai: Boolean(status?.openai) },
+      },
     }),
-    [state, update, go, goFrom, reset, lang, setLang, status, speaking, speak, stopSpeaking],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `engines` marks rebuilt speech engines
+    [state, update, go, goFrom, reset, lang, setLang, status, speaking, speak, stopSpeaking, stt, tts, setStt, setTts, engines],
   );
 
   return <AppContext.Provider value={value}>{hydrated ? children : null}</AppContext.Provider>;

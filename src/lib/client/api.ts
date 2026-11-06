@@ -12,6 +12,7 @@ import type {
   ServiceStatus,
   TurnResult,
   SpeechHint,
+  SpeechProvider,
   VerificationResult,
 } from "@/lib/types";
 import type { LanguageCode } from "@/lib/i18n/languages";
@@ -161,13 +162,14 @@ export const api = {
 
   verify: (sha256: string) => json<VerificationResult>("/api/verify", post({ sha256 })),
 
-  tts: async (text: string, lang: LanguageCode): Promise<Blob> => {
-    const res = await check(await fetch("/api/speech/tts", post({ text, lang })));
+  tts: async (text: string, lang: LanguageCode, provider: SpeechProvider = "elevenlabs"): Promise<Blob> => {
+    const res = await check(await fetch("/api/speech/tts", post({ text, lang, provider })));
     return res.blob();
   },
 
-  stt: (audio: Blob, lang: LanguageCode, hint?: SpeechHint, via = "unknown") => {
+  stt: (audio: Blob, lang: LanguageCode, hint?: SpeechHint, via = "unknown", provider: SpeechProvider = "elevenlabs") => {
     const form = new FormData();
+    form.set("provider", provider);
     if (hint) form.set("hint", JSON.stringify(hint));
     form.set("via", via);
     const ext = /wav/.test(audio.type) ? "wav" : /mp4|aac/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : "webm";
@@ -177,7 +179,8 @@ export const api = {
   },
 
   /** Single-use token for one realtime transcription socket (the API key stays on the server). */
-  sttToken: () => json<{ token: string; model: string }>("/api/speech/token", { method: "POST" }),
+  sttToken: (provider: SpeechProvider, lang: LanguageCode) =>
+    json<{ token: string; model: string; expiresAt: number | null }>("/api/speech/token", post({ provider, lang })),
 };
 
 export function errorKey(err: unknown): "errorNetwork" | "errorBusy" | "errorTooBig" | "errorFileType" | "errorGeneric" {

@@ -257,6 +257,13 @@ export const en = {
   pagesCount: "{n} pages",
   questionsCount: "{n} questions",
   confirmQ: "Is this right?",
+  voiceEngine: "Voice engine",
+  voiceEngineSub: "Choose who listens to you and who speaks. Your choice is kept on this phone.",
+  engineListen: "Listening",
+  engineVoice: "Speaking voice",
+  engineSlowNote: "The OpenAI voice takes about 2 seconds longer to start speaking.",
+  hearSample: "Hear this voice",
+  voiceSample: "Hello! I will help you fill your form, one question at a time.",
 } as const;
 
 export type StringKey = keyof typeof en;

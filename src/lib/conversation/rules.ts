@@ -161,6 +161,30 @@ export function normaliseAnswer(field: FormField, raw: string, lang: LanguageCod
 }
 
 /** Plain yes/no detection for confirmation prompts outside the form conversation. */
+/** Whole replies that are nothing but a yes or a no (after normalising punctuation and case). */
+const PLAIN_YES = new Set([
+  "yes", "yes yes", "yes correct", "yes it is correct", "yes that is correct", "yes that's correct", "yes right",
+  "that is correct", "that's correct", "correct", "right", "ok", "okay", "yeah", "haan", "haan ji", "ji haan", "han",
+  "bilkul", "sahi hai", "haan sahi hai", "theek hai", "हाँ", "हां", "हाँ हाँ", "हाँ जी", "हां जी", "जी हाँ", "जी हां", "जी",
+  "सही है", "हाँ सही है", "हां सही है", "हाँ जी सही है", "हाँ बिल्कुल", "बिल्कुल", "ठीक है", "हाँ ठीक है", "हां ठीक है",
+]);
+const PLAIN_NO = new Set([
+  "no", "no no", "nope", "wrong", "that is wrong", "that's wrong", "no that is wrong", "no it is wrong", "not correct",
+  "incorrect", "nahi", "nahin", "galat", "galat hai", "नहीं", "नही", "ना", "नहीं नहीं", "गलत", "ग़लत", "गलत है", "ग़लत है",
+  "नहीं गलत है", "नहीं यह गलत है", "यह गलत है", "सही नहीं है", "नहीं सही नहीं है",
+]);
+
+/**
+ * A reply that is only "yes" or only "no" — no correction, no extra words. Safe to apply without
+ * the AI interpreter; anything else (e.g. "no, it's Sharma", "सही नहीं") must go to the interpreter.
+ */
+export function plainYesNo(text: string): "yes" | "no" | null {
+  const u = normaliseText(text);
+  if (PLAIN_NO.has(u)) return "no";
+  if (PLAIN_YES.has(u)) return "yes";
+  return null;
+}
+
 export function detectYesNo(text: string): "yes" | "no" | null {
   if (matchesAny(text, KEYWORDS.no, 6)) return "no";
   if (matchesAny(text, KEYWORDS.yes, 6)) return "yes";
@@ -209,8 +233,8 @@ export function interpretWithRules(
   }
 
   if (state.phase === "confirming") {
-    if (matchesAny(utterance, KEYWORDS.yes)) return { ...none, intent: "yes" };
     if (matchesAny(utterance, KEYWORDS.no, 2)) return { ...none, intent: "no" };
+    if (matchesAny(utterance, KEYWORDS.yes) && !matchesAny(utterance, KEYWORDS.no, 6)) return { ...none, intent: "yes" };
     // Anything longer is treated as a corrected answer for the pending field.
     if (current) return normaliseAnswer(current, utterance, lang);
     return none;

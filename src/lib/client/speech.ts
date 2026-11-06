@@ -1,14 +1,15 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
+import type { SpeechProvider } from "@/lib/types";
 import { api } from "./api";
 
 /**
- * Speech OUTPUT. ElevenLabs (natural multilingual voice, proxied through our server) when
- * configured, otherwise the browser's built-in speechSynthesis. Swappable behind this interface.
+ * Speech OUTPUT. A cloud voice (ElevenLabs or OpenAI, proxied through our server) when configured,
+ * otherwise the browser's built-in speechSynthesis. Swappable behind this interface.
  */
 export interface SpeechOutput {
-  readonly kind: "elevenlabs" | "browser" | "none";
+  readonly kind: SpeechProvider | "browser" | "none";
   /** Resolves when speech has finished or was stopped. */
   speak(text: string, lang: LanguageCode): Promise<void>;
   stop(): void;
@@ -53,14 +54,16 @@ class BrowserSpeechOutput implements SpeechOutput {
   }
 }
 
-class ElevenLabsSpeechOutput implements SpeechOutput {
-  readonly kind = "elevenlabs" as const;
+class CloudSpeechOutput implements SpeechOutput {
   private audio: HTMLAudioElement | null = null;
   private resolveCurrent: (() => void) | null = null;
   private cache = new Map<string, string>();
   private generation = 0;
 
-  constructor(private readonly fallback: SpeechOutput | null) {}
+  constructor(
+    readonly kind: SpeechProvider,
+    private readonly fallback: SpeechOutput | null,
+  ) {}
 
   async speak(text: string, lang: LanguageCode) {
     this.stop();
@@ -69,7 +72,7 @@ class ElevenLabsSpeechOutput implements SpeechOutput {
     let url = this.cache.get(key);
     try {
       if (!url) {
-        const blob = await api.tts(text, lang);
+        const blob = await api.tts(text, lang, this.kind);
         url = URL.createObjectURL(blob);
         this.cache.set(key, url);
         if (this.cache.size > 40) {
@@ -120,8 +123,8 @@ class SilentOutput implements SpeechOutput {
   stop() {}
 }
 
-export function createSpeechOutput(elevenLabsAvailable: boolean): SpeechOutput {
+export function createSpeechOutput(provider: SpeechProvider | null): SpeechOutput {
   const browser = typeof window !== "undefined" && "speechSynthesis" in window ? new BrowserSpeechOutput() : null;
-  if (elevenLabsAvailable) return new ElevenLabsSpeechOutput(browser);
+  if (provider) return new CloudSpeechOutput(provider, browser);
   return browser ?? new SilentOutput();
 }

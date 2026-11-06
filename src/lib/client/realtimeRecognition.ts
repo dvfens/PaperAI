@@ -4,6 +4,7 @@ import { LANGUAGES } from "@/lib/i18n/languages";
 import { api } from "./api";
 import { encodeWav, MicError, PCM_RATE, pcmToBase64, startPcmCapture, VoiceActivity, type PcmCapture } from "./audioCapture";
 import type { ListenOptions, ListenSession, SpeechInput } from "./recognition";
+import { prefetchToken, takeToken } from "./sttTokens";
 
 /**
  * Live speech recognition with ElevenLabs Scribe realtime (scribe_v2_realtime).
@@ -19,12 +20,13 @@ import type { ListenOptions, ListenSession, SpeechInput } from "./recognition";
  */
 const WS_URL = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
 /**
- * Pause that ends an answer. Older speakers pause mid-sentence, so this is generous, and speaking
- * again within the grace period below keeps the answer open (1.5 s measured as accurate as 1.2 s).
+ * Pause that ends an answer. Speaking again within the grace period below keeps the answer open,
+ * so a mid-sentence pause is not cut off. (1.2 s and 1.5 s measured equally accurate; 1.2 s answers
+ * sooner.)
  */
-const VAD_SILENCE_SECS = 1.5;
+const VAD_SILENCE_SECS = 1.2;
 /** After a final transcript, wait this long for the person to carry on before accepting it. */
-const GRACE_MS = 600;
+const GRACE_MS = 400;
 const CONNECT_TIMEOUT_MS = 5000;
 const NO_AUDIO_MS = 1500;
 const NO_SPEECH_MS = 12_000;
@@ -48,21 +50,6 @@ const ERRORS = new Set([
   "transcriber_error",
 ]);
 
-// Each token opens exactly one socket and lasts 15 minutes; fetch the next one in the background so
-// the following question starts listening without waiting for our server.
-let nextToken: { p: Promise<{ token: string; model: string }>; at: number } | null = null;
-function takeToken() {
-  const ready = nextToken && Date.now() - nextToken.at < 10 * 60_000 ? nextToken.p : null;
-  nextToken = null;
-  return ready ? ready.catch(() => api.sttToken()) : api.sttToken();
-}
-function prefetchToken() {
-  const p = api.sttToken();
-  p.catch(() => {
-    if (nextToken?.p === p) nextToken = null;
-  });
-  nextToken = { p, at: Date.now() };
-}
 
 export class RealtimeSpeechInput implements SpeechInput {
   readonly kind = "elevenlabs" as const;
@@ -137,8 +124,10 @@ export class RealtimeSpeechInput implements SpeechInput {
     };
 
     /** Streaming is unavailable: transcribe the whole recording in one request instead. */
+    let batching = false;
     const transcribeBatch = async (reason?: string) => {
-      if (done) return;
+      if (done || batching) return; // never upload the same recording twice
+      batching = true;
       if (reason) fallbackReason = reason;
       mode = "batch";
       finishing = true;
@@ -146,10 +135,11 @@ export class RealtimeSpeechInput implements SpeechInput {
       capture = null;
       closeSocket();
       const recorded = frames.slice();
-      if (cancelled || recorded.length < 4 || !(vad.heardSpeech || stopRequested || !vad.working)) return finish("");
+      // Do not judge by loudness: a soft voice may never trip the meter. Let the recogniser decide.
+      if (cancelled || recorded.length < 4) return finish("");
       opts.onProcessing?.();
       try {
-        const { text: heard } = await api.stt(encodeWav(recorded), opts.lang, opts.hint, `stream-backup:${fallbackReason}`);
+        const { text: heard } = await api.stt(encodeWav(recorded), opts.lang, opts.hint, `stream-backup:${fallbackReason}`, "elevenlabs");
         finish(heard);
       } catch (err) {
         fail(err);
@@ -164,7 +154,7 @@ export class RealtimeSpeechInput implements SpeechInput {
       capture = null;
       opts.onProcessing?.();
       send("", true);
-      later(FINAL_WAIT_MS, () => (text() ? finish(text()) : void transcribeBatch("no-final-text")));
+      later(FINAL_WAIT_MS, () => (text() ? finish(text()) : stopRequested ? void transcribeBatch("no-final-text") : finish("")));
     };
 
     const socketFailed = (reason: string) => {
@@ -192,7 +182,7 @@ export class RealtimeSpeechInput implements SpeechInput {
         case "session_started":
           mode = "live";
           for (const chunk of queued.splice(0)) send(chunk);
-          prefetchToken();
+          prefetchToken("elevenlabs", opts.lang);
           if (stopRequested) requestFinal();
           return;
         case "partial_transcript": {
@@ -213,7 +203,7 @@ export class RealtimeSpeechInput implements SpeechInput {
             lastCommitAt = now;
             opts.onPartial?.(text());
           }
-          if (finishing) return finish(text());
+          if (finishing) return text() ? finish(text()) : stopRequested ? void transcribeBatch("empty-final") : finish("");
           if (t && !vad.speaking(now)) {
             window.clearTimeout(graceTimer);
             graceTimer = window.setTimeout(() => finish(text()), GRACE_MS);
@@ -238,7 +228,7 @@ export class RealtimeSpeechInput implements SpeechInput {
       else if (mode === "connecting") queued.push(pcmToBase64(pcm));
 
       // They started talking again after a pause: keep listening for the rest of the answer.
-      if (graceTimer && vad.speaking(now)) {
+      if (graceTimer && rms > vad.threshold) {
         window.clearTimeout(graceTimer);
         graceTimer = 0;
       }
@@ -271,8 +261,7 @@ export class RealtimeSpeechInput implements SpeechInput {
     };
 
     // Token and microphone in parallel; audio captured before the socket is ready is queued.
-    const token = takeToken();
-    token.then(
+    takeToken("elevenlabs", opts.lang).then(
       ({ token: tok, model }) => {
         if (done || mode !== "connecting") return;
         const q = new URLSearchParams({
