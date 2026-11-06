@@ -14,6 +14,7 @@ import type {
   SpeechHint,
   SpeechProvider,
   VerificationResult,
+  VoiceStyle,
 } from "@/lib/types";
 import type { LanguageCode } from "@/lib/i18n/languages";
 
@@ -162,8 +163,8 @@ export const api = {
 
   verify: (sha256: string) => json<VerificationResult>("/api/verify", post({ sha256 })),
 
-  tts: async (text: string, lang: LanguageCode, provider: SpeechProvider = "elevenlabs"): Promise<Blob> => {
-    const res = await check(await fetch("/api/speech/tts", post({ text, lang, provider })));
+  tts: async (text: string, lang: LanguageCode, provider: SpeechProvider = "elevenlabs", voice?: VoiceStyle): Promise<Blob> => {
+    const res = await check(await fetch("/api/speech/tts", post({ text, lang, provider, voice })));
     return res.blob();
   },
 

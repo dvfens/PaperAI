@@ -1,7 +1,7 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
-import type { SpeechProvider } from "@/lib/types";
+import type { SpeechProvider, VoiceStyle } from "@/lib/types";
 import { api } from "./api";
 
 /**
@@ -63,6 +63,7 @@ class CloudSpeechOutput implements SpeechOutput {
   constructor(
     readonly kind: SpeechProvider,
     private readonly fallback: SpeechOutput | null,
+    private readonly voice?: VoiceStyle,
   ) {}
 
   async speak(text: string, lang: LanguageCode) {
@@ -72,7 +73,7 @@ class CloudSpeechOutput implements SpeechOutput {
     let url = this.cache.get(key);
     try {
       if (!url) {
-        const blob = await api.tts(text, lang, this.kind);
+        const blob = await api.tts(text, lang, this.kind, this.kind === "elevenlabs" ? this.voice : undefined);
         url = URL.createObjectURL(blob);
         this.cache.set(key, url);
         if (this.cache.size > 40) {
@@ -123,8 +124,8 @@ class SilentOutput implements SpeechOutput {
   stop() {}
 }
 
-export function createSpeechOutput(provider: SpeechProvider | null): SpeechOutput {
+export function createSpeechOutput(provider: SpeechProvider | null, voice?: VoiceStyle): SpeechOutput {
   const browser = typeof window !== "undefined" && "speechSynthesis" in window ? new BrowserSpeechOutput() : null;
-  if (provider) return new CloudSpeechOutput(provider, browser);
+  if (provider) return new CloudSpeechOutput(provider, browser, voice);
   return browser ?? new SilentOutput();
 }

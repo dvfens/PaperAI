@@ -144,11 +144,28 @@ export function VoiceEngineSheet({
               <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
               {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
             </div>
-            <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
-              <Volume2 aria-hidden />
-              {t("hearSample")}
-            </Button>
           </>
+        )}
+        {voice.available.elevenlabs && (voice.tts === "elevenlabs" || !voice.available.openai) && (
+          <div className="flex flex-col gap-2">
+            <p className="text-base font-bold text-slate-600">{t("voiceChoice")}</p>
+            <Segmented
+              options={[
+                { value: "young-woman", label: t("voiceYoungWoman") },
+                { value: "young-man", label: t("voiceYoungMan") },
+                { value: "calm", label: t("voiceCalm") },
+              ]}
+              value={voice.style}
+              onChange={voice.setStyle}
+              label={t("voiceChoice")}
+            />
+          </div>
+        )}
+        {(both || voice.available.elevenlabs) && (
+          <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
+            <Volume2 aria-hidden />
+            {t("hearSample")}
+          </Button>
         )}
         <MicCheck />
       </div>

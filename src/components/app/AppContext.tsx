@@ -15,7 +15,9 @@ import type {
   NextStepsGuide,
   ServiceStatus,
   SpeechProvider,
+  VoiceStyle,
 } from "@/lib/types";
+import { VOICE_STYLES } from "@/lib/types";
 
 export type Step = "scan" | "analyzing" | "understood" | "explain" | "conversation" | "review" | "final" | "done";
 
@@ -86,6 +88,9 @@ interface Ctx {
     tts: SpeechProvider;
     setStt: (p: SpeechProvider) => void;
     setTts: (p: SpeechProvider) => void;
+    /** Which ElevenLabs voice speaks (young woman by default). */
+    style: VoiceStyle;
+    setStyle: (s: VoiceStyle) => void;
     available: Record<SpeechProvider, boolean>;
   };
 }
@@ -95,6 +100,7 @@ const AppContext = createContext<Ctx | null>(null);
 const LANG_KEY = "saathi.lang";
 const STT_KEY = "saathi.stt";
 const TTS_KEY = "saathi.tts";
+const VOICE_KEY = "saathi.voice";
 const isProvider = (v: unknown): v is SpeechProvider => v === "elevenlabs" || v === "openai";
 
 /** `persist` resumes an interrupted form-filling session from this device (main flow only). */
@@ -109,6 +115,7 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
   // ElevenLabs (about 2 s faster to start speaking). Either falls back to whichever is configured.
   const [stt, setSttState] = useState<SpeechProvider>("openai");
   const [tts, setTtsState] = useState<SpeechProvider>("elevenlabs");
+  const [style, setStyleState] = useState<VoiceStyle>("young-woman");
   const [engines, setEngines] = useState(0); // bumps when the speech engines are rebuilt
   const inputRef = useRef<SpeechInput | null>(null);
   const speakSeq = useRef(0);
@@ -141,6 +148,8 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
       if (isProvider(savedStt)) setSttState(savedStt);
       const savedTts = localStorage.getItem(TTS_KEY);
       if (isProvider(savedTts)) setTtsState(savedTts);
+      const savedVoice = localStorage.getItem(VOICE_KEY);
+      if (VOICE_STYLES.includes(savedVoice as VoiceStyle)) setStyleState(savedVoice as VoiceStyle);
     } catch {
       // storage unavailable
     }
@@ -159,9 +168,9 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
     if (!status) return;
     const cloud = { elevenlabs: status.elevenlabs, openai: Boolean(status.openai) };
     speakerRef.current.stop();
-    speakerRef.current = createSpeechOutput(pickProvider(cloud, tts));
+    speakerRef.current = createSpeechOutput(pickProvider(cloud, tts), style);
     setEngines((n) => n + 1);
-  }, [status, tts]);
+  }, [status, tts, style]);
   useEffect(() => {
     if (!status) return;
     inputRef.current = createSpeechInput({ elevenlabs: status.elevenlabs, openai: Boolean(status.openai) }, stt);
@@ -172,6 +181,14 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
     setSttState(p);
     try {
       localStorage.setItem(STT_KEY, p);
+    } catch {
+      // ignore
+    }
+  }, []);
+  const setStyle = useCallback((s: VoiceStyle) => {
+    setStyleState(s);
+    try {
+      localStorage.setItem(VOICE_KEY, s);
     } catch {
       // ignore
     }
@@ -252,11 +269,13 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
         tts,
         setStt,
         setTts,
+        style,
+        setStyle,
         available: { elevenlabs: Boolean(status?.elevenlabs), openai: Boolean(status?.openai) },
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `engines` marks rebuilt speech engines
-    [state, update, go, goFrom, reset, lang, setLang, status, speaking, speak, stopSpeaking, stt, tts, setStt, setTts, engines],
+    [state, update, go, goFrom, reset, lang, setLang, status, speaking, speak, stopSpeaking, stt, tts, setStt, setTts, style, setStyle, engines],
   );
 
   return <AppContext.Provider value={value}>{hydrated ? children : null}</AppContext.Provider>;
