@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -28,7 +29,10 @@ import { api } from "@/lib/client/api";
 import { forgetFormTitle } from "@/lib/client/form-titles";
 import { downloadBlob } from "@/lib/client/media";
 import { formatDate, type StringKey } from "@/lib/i18n";
+import { isCosignRole } from "@/lib/signing";
+import type { VerificationSignature } from "@/lib/types";
 import { shortHash } from "@/lib/utils";
+import { ROLE_LABEL } from "@/components/sign/CosignSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -78,9 +82,10 @@ export function DoneScreen() {
     guideRequested.current = true;
     api
       .guide(lang, analysis, state.intent === "sign" ? {} : (state.conversation?.answers ?? {}))
-      .then((guide) => update({ guide }))
+      // Signed in Saathi: the signature is already in the form, so "sign here" is not a next step.
+      .then((guide) => update({ guide: generated.signature ? { ...guide, steps: guide.steps.filter((s) => s.kind !== "sign") } : guide }))
       .catch(() => undefined);
-  }, [state.guide, lang, analysis, state.conversation, state.intent, update]);
+  }, [state.guide, lang, analysis, state.conversation, state.intent, generated.signature, update]);
 
   // Retention date read back from the Arkiv commitment entity.
   useEffect(() => {
@@ -92,6 +97,27 @@ export function DoneScreen() {
   }, [receipt]);
 
   const recorded = receipt?.arkiv.status === "recorded" ? receipt.arkiv : null;
+
+  // Who has signed (the person, and anyone who co-signed through a share link), read back from Arkiv —
+  // again whenever the person comes back to this screen or closes the share sheet.
+  const [signatures, setSignatures] = useState<VerificationSignature[]>([]);
+  const sha = receipt?.sha256;
+  useEffect(() => {
+    if (!recorded || erased || shareOpen || !sha) return;
+    let live = true;
+    const load = () =>
+      api
+        .verify(sha)
+        .then((v) => live && setSignatures(v.signatures ?? []))
+        .catch(() => undefined);
+    void load();
+    const onVisible = () => document.visibilityState === "visible" && void load();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [recorded, erased, shareOpen, sha]);
   const keptUntil = arkivExpiry ?? receipt?.retentionUntil ?? null;
 
   return (
@@ -163,6 +189,27 @@ export function DoneScreen() {
             </Button>
           )}
         </div>
+
+        {signatures.length > 0 && !erased && (
+          <>
+            <SectionTitle icon={Signature}>{t("verifySignatures")}</SectionTitle>
+            <ListGroup>
+              {signatures.map((s) => (
+                <div key={s.entityKey} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700" aria-hidden>
+                    <CheckCircle2 className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-slate-900">
+                      {isCosignRole(s.role) ? t(ROLE_LABEL[s.role]) : t("roleYou")}
+                    </span>
+                    <span className="block text-[13px] text-slate-600">{formatDate(lang, s.signedAt * 1000, true)}</span>
+                  </span>
+                </div>
+              ))}
+            </ListGroup>
+          </>
+        )}
 
         {/* Next steps */}
         {state.guide ? (
@@ -313,7 +360,7 @@ export function ShareSection({ documentId, open, onOpenChange }: { documentId: s
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title={t("shareTitle")} description={t("shareHint")} closeLabel={t("close")}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={t("shareTitle")} description={`${t("shareHint")} ${t("cosignInvite")}`} closeLabel={t("close")}>
       <div className="flex flex-col gap-4 pb-2">
         <div>
           <p className="mb-1.5 px-1 text-[13px] font-semibold text-slate-600" aria-hidden>
