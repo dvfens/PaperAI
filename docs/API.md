@@ -56,6 +56,9 @@ API key never leaves the server. Same-origin only, rate-limited.
 ### `POST /api/speech/stt` — multipart
 `audio` (webm/mp4/wav), `lang` → `{ text, languageCode }` (ElevenLabs Scribe batch). Used when realtime streaming is
 unavailable or fails mid-answer; the client then sends the same recording here, so nothing said is lost.
+Optional `hint` (JSON `{ kind, options? }`: the expected answer type, with options only for choice fields) adds
+Scribe keyterms for yes/no and options. It is best-effort: a malformed or oversized hint is ignored, never rejected.
+Optional `via` names the client path (e.g. `stream-backup:socket-closed`, `recorder:no-audio`) and is logged as metadata only.
 
 ## Documents
 

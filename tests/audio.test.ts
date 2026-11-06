@@ -84,3 +84,35 @@ describe("VoiceActivity", () => {
     assert.equal(vad.heardSpeech, false);
   });
 });
+
+describe("keytermsFor", () => {
+  it("lists yes/no words in both languages when confirming", async () => {
+    const { keytermsFor } = await import("@/lib/speechHints");
+    const terms = keytermsFor({ kind: "yesno" });
+    for (const w of ["yes", "no", "हाँ", "नहीं"]) assert.ok(terms.includes(w));
+  });
+
+  it("uses the options of a choice field, cleaned to the allowed format", async () => {
+    const { keytermsFor } = await import("@/lib/speechHints");
+    const terms = keytermsFor({ kind: "choice", options: ["Male", "Female", "Other [specify]", "x".repeat(60), "one two three four five six"] });
+    assert.deepEqual(terms, ["Male", "Female", "Other specify"]);
+  });
+
+  it("adds nothing for free-text answers or without a hint", async () => {
+    const { keytermsFor } = await import("@/lib/speechHints");
+    assert.deepEqual(keytermsFor({ kind: "text" }), []);
+    assert.deepEqual(keytermsFor(undefined), []);
+  });
+});
+
+describe("compactHint", () => {
+  it("sends options only for choice fields, trimmed to keyterm-sized entries", async () => {
+    const { compactHint } = await import("@/lib/speechHints");
+    assert.deepEqual(compactHint("yesno"), { kind: "yesno" });
+    assert.deepEqual(compactHint("text", ["a", "b"]), { kind: "text" });
+    const many = Array.from({ length: 36 }, (_, i) => `State ${i}`);
+    const hint = compactHint("choice", [...many, "y".repeat(80)]);
+    assert.equal(hint.options?.length, 20);
+    assert.ok(hint.options?.every((o) => o.length <= 50));
+  });
+});

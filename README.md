@@ -9,7 +9,7 @@
 | Frontend | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui-style components (Radix) · Lucide icons |
 | Backend | Next.js route handlers (Node runtime) · PostgreSQL via Drizzle (embedded PGlite when `DATABASE_URL` is unset) |
 | AI | Anthropic Claude (`claude-opus-5-5`) — understanding, classification, field extraction, conversation interpretation, Q&A, guidance |
-| Voice | ElevenLabs TTS (`eleven_multilingual_v2`); live speech recognition with Scribe realtime (`scribe_v2_realtime`, words appear as you speak) and batch Scribe (`scribe_v2`) as fallback; browser speech APIs when ElevenLabs is not configured; typing always available |
+| Voice | ElevenLabs TTS (`eleven_multilingual_v2`); live speech recognition with Scribe realtime (`scribe_v2_realtime`, words appear as you speak) and batch Scribe (`scribe_v2`) as fallback; browser speech APIs when ElevenLabs is not configured; typing always available. Chosen by measurement: [docs/SPEECH-BENCHMARK.md](docs/SPEECH-BENCHMARK.md) |
 | OCR | Tesseract.js (English + Hindi), server-side |
 | PDF | pdf-lib + fontkit (AcroForm filling, Devanagari shaping), pdf.js for previews |
 | Trust layer | **Arkiv** Rabdi testnet (chain id `7794095`) via `@arkiv-network/sdk` 1.0.1 |
