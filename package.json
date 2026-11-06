@@ -1,0 +1,63 @@
+{
+  "name": "saathi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Saathi — a voice-first assistant that helps elderly people and people who cannot comfortably read or write understand and fill in paperwork.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.10.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/copy-assets.mjs",
+    "samples": "node scripts/create-sample-forms.mjs",
+    "arkiv:query": "tsx --env-file-if-exists=.env.local scripts/arkiv-query.ts",
+    "demo:tamper": "node scripts/tamper-pdf.mjs",
+    "cleanup": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cleanup.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "setup": "node scripts/setup.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@arkiv-network/sdk": "^1.0.1",
+    "@electric-sql/pglite": "^0.5.15",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.4",
+    "lucide-react": "^1.69.0",
+    "next": "^16.4.5",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "regenerator-runtime": "^0.14.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.3.1",
+    "tesseract.js": "^7.0.0",
+    "viem": "^2.57.16",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@fontsource/noto-sans": "^5.3.0",
+    "@fontsource/noto-sans-devanagari": "^5.3.0",
+    "@tailwindcss/postcss": "^4.3.4",
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.4",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "tailwindcss": "^4.3.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+# local secrets and runtime data (encrypted vault, PGlite database, OCR language cache)
+.env
+.env.local
+.env.*.local
+.data/
+# generated at install time
+public/pdf.worker.min.mjs
+assets/fonts/
