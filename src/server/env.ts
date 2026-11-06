@@ -31,6 +31,11 @@ export const env = {
   claudeModel: str("CLAUDE_MODEL", "claude-opus-5-5"),
   /** Effort for full document analysis (low | medium | high). Lower is faster. */
   claudeAnalysisEffort: (str("CLAUDE_ANALYSIS_EFFORT", "low") as "low" | "medium" | "high"),
+  /**
+   * Fast mode (Claude API research preview, Opus 5.5/5 and 4.8): the same model at up to 2.5x output
+   * speed for 2x the per-token price. Used for the per-answer interpretation, where people wait.
+   */
+  claudeFastMode: str("CLAUDE_FAST_MODE", "true") === "true",
 
   elevenLabsApiKey: str("ELEVENLABS_API_KEY"),
   /** Default speaking voice: "Anjali", a warm, patient young Indian woman (native Hindi, Indian English). */

@@ -22,6 +22,10 @@ const ALLOWED_KEYS = new Set([
   "txHash",
   "attempt",
   "reason",
+  "inputTokens",
+  "cacheReadTokens",
+  "outputTokens",
+  "speed",
 ]);
 
 type Meta = Record<string, string | number | boolean | null | undefined>;
