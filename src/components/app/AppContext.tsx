@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DocumentPreviewInfo } from "@/lib/client/api";
 import type { PreparedPage } from "@/lib/client/media";
+import type { SignatureProof } from "@/lib/signing";
 import { clearSession, loadSession, saveSession } from "@/lib/client/persist";
 import { createSpeechInput, pickProvider, type SpeechInput } from "@/lib/client/recognition";
 import { createSpeechOutput, type SpeechOutput } from "@/lib/client/speech";
@@ -34,6 +35,8 @@ export interface GeneratedDocument {
   token: string;
   pages: PreparedPage[];
   skipped: string[];
+  /** Set when the person signed this PDF with a finger: the proof made with their phone's key. */
+  signature?: SignatureProof;
 }
 
 export interface AppState {

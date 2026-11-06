@@ -18,6 +18,7 @@ import type {
   VoiceStyle,
 } from "@/lib/types";
 import type { LanguageCode } from "@/lib/i18n/languages";
+import type { SignatureProof, SignMethod } from "@/lib/signing";
 
 export class ApiError extends Error {
   constructor(
@@ -108,12 +109,24 @@ export const api = {
       post({ lang, question, analysis: analysisContext(analysis), fields: analysis.fields }),
     ),
 
-  generate: async (fields: FormField[], answers: Record<string, FieldAnswer>, original: { pdf: Blob | null; pages: Blob[] }) => {
+  generate: async (
+    fields: FormField[],
+    answers: Record<string, FieldAnswer>,
+    original: { pdf: Blob | null; pages: Blob[] },
+    /** The person's finger signature, drawn into the form with a signature record page. */
+    signing?: { png: Blob; signer: string; signedAt: number; method: SignMethod },
+  ) => {
     const form = new FormData();
     form.set("fields", JSON.stringify(fields));
     form.set("answers", JSON.stringify(answers));
     if (original.pdf) form.set("pdf", original.pdf, "original.pdf");
     else original.pages.forEach((p, i) => form.set(`page${i}`, p, `page${i}.jpg`));
+    if (signing) {
+      form.set("signature", signing.png, "signature.png");
+      form.set("signer", signing.signer);
+      form.set("signedAt", String(signing.signedAt));
+      form.set("signMethod", signing.method);
+    }
     let res: Response;
     try {
       res = await fetch("/api/documents/generate", { method: "POST", body: form, credentials: "same-origin" });
@@ -126,6 +139,7 @@ export const api = {
       sha256: res.headers.get("x-document-sha256") ?? "",
       token: res.headers.get("x-generation-token") ?? "",
       skipped: (res.headers.get("x-fields-skipped") ?? "").split(",").filter(Boolean),
+      signedBoxes: Number(res.headers.get("x-signed-boxes") ?? 0),
     };
   },
 
@@ -138,6 +152,7 @@ export const api = {
     meta: { category: string; language: LanguageCode; pageCount: number; fieldCount: number };
     retentionDays: RetentionChoice;
     method: "voice+tap" | "tap";
+    signature?: SignatureProof;
   }) => {
     const form = new FormData();
     form.set("pdf", input.pdf, "completed.pdf");
@@ -146,6 +161,12 @@ export const api = {
     form.set("retentionDays", String(input.retentionDays));
     form.set("method", input.method);
     form.set("consent", "yes");
+    if (input.signature) {
+      form.set("signer", input.signature.signer);
+      form.set("signedAt", String(input.signature.signedAt));
+      form.set("signMethod", input.signature.method);
+      form.set("signature", input.signature.signature);
+    }
     return json<CommitmentReceipt>("/api/documents", { method: "POST", body: form });
   },
 

@@ -18,6 +18,7 @@ import {
   Plus,
   Share2,
   ShieldCheck,
+  Signature,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -130,6 +131,11 @@ export function DoneScreen() {
                     {t("notRecorded")}
                   </Chip>
                 )}
+                {receipt.signature && (
+                  <Chip tone="green" icon={Signature} className={STATUS_CHIP}>
+                    {t("statusSigned")}
+                  </Chip>
+                )}
                 {keptUntil && (
                   <Chip tone={recorded ? "green" : "blue"} icon={Lock} className={STATUS_CHIP}>
                     {t("safeUntil", { date: formatDate(lang, keptUntil) })}
@@ -191,6 +197,12 @@ export function DoneScreen() {
                     <dt className="text-xs font-medium text-slate-500">{t("fingerprint")} (SHA-256)</dt>
                     <dd className="mt-0.5 break-all font-mono text-[13px] text-slate-900">{receipt.sha256}</dd>
                   </div>
+                  {receipt.signature && (
+                    <div>
+                      <dt className="text-xs font-medium text-slate-500">{t("sigKey")}</dt>
+                      <dd className="mt-0.5 break-all font-mono text-[13px] text-slate-900">{receipt.signature.signer}</dd>
+                    </div>
+                  )}
                   {recorded && (
                     <>
                       <div>

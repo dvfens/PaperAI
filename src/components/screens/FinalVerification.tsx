@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, Download, ListChecks, Mic, PenLine, RotateCcw, ShieldCheck, ThumbsUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, Download, ListChecks, Mic, PenLine, RotateCcw, ShieldCheck, Signature, ThumbsUp } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
 import { rememberFormTitle } from "@/lib/client/form-titles";
@@ -15,6 +15,7 @@ import { AppBar, AppScreen, Card, Chip, Dock, IconAction, ListRow, Notice, Page,
 import { AppMenu } from "@/components/common/AppMenu";
 import { useListen } from "@/components/common/useListen";
 import { DocumentPreview, type Highlight } from "@/components/DocumentPreview";
+import { SignSheet } from "@/components/sign/SignSheet";
 import { useApp } from "@/components/app/AppContext";
 import { displayValue, isFilled, spokenValue } from "./FormReview";
 
@@ -34,6 +35,7 @@ export function FinalVerification() {
   const [error, setError] = useState<StringKey | null>(null);
   const [tab, setTab] = useState<"completed" | "original">("completed");
   const [consentOpen, setConsentOpen] = useState(false);
+  const [signOpen, setSignOpen] = useState(false);
   const [saidYes, setSaidYes] = useState(false);
   const started = useRef(false);
 
@@ -73,10 +75,15 @@ export function FinalVerification() {
     })();
   }, [analysis.fields, conv.answers, source, update, speak, readback]);
 
+  const signed = Boolean(generated?.signature);
   const highlights: Highlight[] = [
     ...analysis.fields
       .filter((f) => (f.type === "signature" || f.type === "photo") && f.box)
-      .map((f) => ({ box: f.box!, tone: "sign" as const, label: t(f.type === "photo" ? "statusPhoto" : "statusByHand") })),
+      .map((f) =>
+        f.type === "signature" && signed
+          ? { box: f.box!, tone: "info" as const, label: t("statusSigned") }
+          : { box: f.box!, tone: "sign" as const, label: t(f.type === "photo" ? "statusPhoto" : "statusByHand") },
+      ),
     ...analysis.fields
       .filter((f) => f.aiFillable && f.box && isFilled(conv.answers[f.id]) && f.mappingConfidence === "low")
       .map((f) => ({ box: f.box!, tone: "warning" as const, label: t("statusCheck") })),
@@ -90,9 +97,12 @@ export function FinalVerification() {
     const yn = detectYesNo(text);
     if (yn === "yes") {
       setSaidYes(true);
-      setConsentOpen(true);
+      next();
     } else if (yn === "no") go("review");
   };
+
+  /** After "all correct": sign first (it can be skipped), then save. */
+  const next = () => (signed ? setConsentOpen(true) : setSignOpen(true));
 
   const listening = listen.state === "listening";
 
@@ -213,15 +223,32 @@ export function FinalVerification() {
           <p aria-live="polite" className={cn("text-center text-[15px] font-medium", listening ? "text-red-700" : "text-slate-900")}>
             {listening ? t("listening") : t("readbackAsk")}
           </p>
-          <Button block variant="success" onClick={() => setConsentOpen(true)}>
+          <Button block variant="success" onClick={next}>
             <ThumbsUp aria-hidden /> {t("allCorrect")}
           </Button>
           <div className="flex items-start justify-around gap-2">
             <IconAction icon={PenLine} label={t("edit")} onClick={() => go("review")} />
+            <IconAction icon={Signature} label={signed ? t("statusSigned") : t("signShort")} active={signed} onClick={() => setSignOpen(true)} />
             {listen.supported && <IconAction icon={Mic} label={`${t("yes")} / ${t("no")}`} active={listening} onClick={sayYesNo} />}
             <IconAction icon={Download} label={t("download")} onClick={() => downloadBlob(generated.blob, "completed-form.pdf")} />
           </div>
         </Dock>
+      )}
+
+      {generated && (
+        <SignSheet
+          open={signOpen}
+          onOpenChange={setSignOpen}
+          saidYes={saidYes}
+          onSigned={() => {
+            setSignOpen(false);
+            setConsentOpen(true);
+          }}
+          onSkip={() => {
+            setSignOpen(false);
+            setConsentOpen(true);
+          }}
+        />
       )}
 
       {generated && (
@@ -277,6 +304,7 @@ function ConsentDialog({
         },
         retentionDays: retention,
         method,
+        signature: generated.signature,
       });
       rememberFormTitle(receipt.documentId, analysis.title);
       onDone(receipt);
@@ -300,8 +328,14 @@ function ConsentDialog({
           <p id={lineId} className="min-w-0 flex-1 pt-2 text-[15px] text-slate-700">
             {t("consentLine")}
           </p>
-          <SpeakButton text={`${t("consentBody")} ${t("consentPublic")} ${t("consentAgree")}`} />
+          <SpeakButton text={`${t("consentBody")} ${t("consentPublic")} ${generated.signature ? t("consentSigned") : ""} ${t("consentAgree")}`} />
         </div>
+        {generated.signature && (
+          <p className="-mt-2 flex items-start gap-2 text-[13px] text-slate-600">
+            <Signature className="mt-0.5 size-4 shrink-0 text-blue-700" aria-hidden />
+            <span>{t("consentSigned")}</span>
+          </p>
+        )}
 
         <div>
           <p className="mb-1.5 px-1 text-[13px] font-semibold text-slate-600">{t("keepFor")}</p>
