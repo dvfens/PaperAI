@@ -18,7 +18,7 @@ import type {
   VoiceStyle,
 } from "@/lib/types";
 import type { LanguageCode } from "@/lib/i18n/languages";
-import type { SignatureProof, SignMethod } from "@/lib/signing";
+import type { CosignRole, SignatureProof, SignMethod } from "@/lib/signing";
 
 export class ApiError extends Error {
   constructor(
@@ -186,6 +186,13 @@ export const api = {
     json<{ revoked: boolean }>(`/api/documents/${id}/shares/${shareId}`, { method: "DELETE" }),
 
   verify: (sha256: string) => json<VerificationResult>("/api/verify", post({ sha256 })),
+
+  /** Co-sign a shared document with this phone's key (see src/components/sign/CosignSheet.tsx). */
+  cosign: (token: string, proof: SignatureProof) =>
+    json<{ role: CosignRole; signedAt: string; txHash: string; explorerTxUrl: string }>(
+      `/api/share/${encodeURIComponent(token)}/cosign`,
+      post(proof),
+    ),
 
   tts: async (text: string, lang: LanguageCode, provider: SpeechProvider = "elevenlabs", voice?: VoiceStyle): Promise<Blob> => {
     const res = await check(await fetch("/api/speech/tts", post({ text, lang, provider, voice })));

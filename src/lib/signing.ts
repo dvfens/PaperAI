@@ -25,13 +25,23 @@ export const SIGN_TYPES = {
   ],
 } as const;
 
-/** How the signature was given: drawn with a finger, and also said "yes" aloud. */
-export const SIGN_METHODS = ["finger", "finger+voice"] as const;
+/**
+ * How the signature was given: drawn with a finger (and also said "yes" aloud), or — for a co-signer
+ * on a share link — a deliberate tap on "Co-sign".
+ */
+export const SIGN_METHODS = ["finger", "finger+voice", "tap"] as const;
 export type SignMethod = (typeof SIGN_METHODS)[number];
 
-/** Only the person filling the form signs for now; co-signers would get their own role. */
-export const SIGN_ROLES = ["signer"] as const;
+/** Co-signers, invited through a share link: they sign the same document with their own phone's key. */
+export const COSIGN_ROLES = ["witness", "guarantor", "family", "official"] as const;
+export type CosignRole = (typeof COSIGN_ROLES)[number];
+
+/** "signer": the person whose form it is. The others co-sign. */
+export const SIGN_ROLES = ["signer", ...COSIGN_ROLES] as const;
 export type SignRole = (typeof SIGN_ROLES)[number];
+
+/** At most this many signatures per document (a leaked link cannot flood the record). */
+export const MAX_SIGNATURES = 10;
 
 export interface SignatureProof {
   signer: Hex;
@@ -59,6 +69,7 @@ export const isAddress = (s: unknown): s is Hex => typeof s === "string" && /^0x
 export const isSignatureHex = (s: unknown): s is Hex => typeof s === "string" && /^0x[0-9a-fA-F]{130}$/.test(s);
 export const isSignMethod = (s: unknown): s is SignMethod => SIGN_METHODS.includes(s as SignMethod);
 export const isSignRole = (s: unknown): s is SignRole => SIGN_ROLES.includes(s as SignRole);
+export const isCosignRole = (s: unknown): s is CosignRole => COSIGN_ROLES.includes(s as CosignRole);
 
 /** The EIP-712 payload for one signature over a document fingerprint (lowercase hex SHA-256). */
 export function signaturePayload(docHash: string, signedAt: number, method: SignMethod, role: SignRole) {

@@ -54,6 +54,15 @@ describe("document signatures (EIP-712)", () => {
     assert.equal(await signatureValid(DOC, { ...proof, signature: "0x1234" }), false, "malformed");
   });
 
+  it("a co-signer's role is part of what they sign", async () => {
+    const witness = privateKeyToAccount(generatePrivateKey());
+    const signature = await witness.signTypedData(signaturePayload(DOC, signedAt, "tap", "witness"));
+    const proof = { signer: witness.address, signedAt, method: "tap" as const, role: "witness" as const, signature };
+    assert.equal(await signatureValid(DOC, proof), true);
+    assert.equal(await signatureValid(DOC, { ...proof, role: "guarantor" }), false, "a witness signature cannot pass as a guarantor's");
+    assert.equal(await signatureValid(DOC, { ...proof, role: "signer" }), false, "nor as the owner's");
+  });
+
   it("accepts signature times only within the allowed window", () => {
     const now = 1_800_000_000;
     assert.equal(signedAtOk(now - 60, SIGNATURE_MAX_AGE_S, now), true);

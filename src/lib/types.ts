@@ -275,7 +275,7 @@ export interface SavedForm extends CommitmentReceipt {
 }
 
 export interface VerificationEvent {
-  kind: "approved" | "signed" | "stored" | "shared" | "share_revoked" | "erased" | "other";
+  kind: "approved" | "signed" | "cosigned" | "stored" | "shared" | "share_revoked" | "erased" | "other";
   at: number; // unix seconds
   entityKey: string;
   detail?: string;

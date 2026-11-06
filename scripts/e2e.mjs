@@ -279,6 +279,53 @@ async function main() {
     "sign-only: nothing written into an already-filled form, only the signature",
   );
 
+  // Co-signing: whoever gets a share link (here: a witness on another phone, with no cookie) signs the same document.
+  if (signedReceipt.arkiv?.status === "recorded") {
+    console.log("\n9. Co-sign through a share link");
+    const link = await json(`/api/documents/${signedReceipt.documentId}/shares`, { hours: 1 });
+    const shareToken = link.url?.split("/s/")[1];
+    const ownerCookie = cookie;
+    cookie = "";
+    const witness = privateKeyToAccount(generatePrivateKey());
+    const cosignAs = async (account, role, docHash = signedSha, t = shareToken) => {
+      const at = Math.floor(Date.now() / 1000);
+      const signature = await account.signTypedData({
+        domain: { name: "Saathi", version: "1", chainId: 7794095 },
+        types: {
+          DocumentSignature: [
+            { name: "document", type: "bytes32" },
+            { name: "signedAt", type: "uint64" },
+            { name: "method", type: "string" },
+            { name: "role", type: "string" },
+          ],
+        },
+        primaryType: "DocumentSignature",
+        message: { document: `0x${docHash}`, signedAt: BigInt(at), method: "tap", role },
+      });
+      return call(`/api/share/${t}/cosign`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signer: account.address, signedAt: at, method: "tap", role, signature }),
+      });
+    };
+    ok((await cosignAs(witness, "signer")).status === 400, "a co-signer cannot claim to be the form owner");
+    ok((await cosignAs(witness, "witness", "0".repeat(64))).status === 400, "a co-signature over other bytes is refused");
+    const cs = await cosignAs(witness, "witness");
+    const csBody = await cs.json();
+    ok(cs.status === 201 && csBody.role === "witness" && csBody.txHash, `witness co-signed (tx ${csBody.txHash})`);
+    ok((await cosignAs(witness, "witness")).status === 409, "the same phone cannot co-sign twice");
+    ok((await cosignAs(phone, "family")).status === 409, "the owner's phone cannot co-sign its own document");
+    const both = await json("/api/verify", { sha256: signedSha });
+    const roles = (both.signatures ?? []).map((s) => `${s.role}:${s.valid}`).sort().join(",");
+    ok(roles === "signer:true,witness:true", `Arkiv holds both signatures, both genuine (${roles})`);
+    ok(both.history?.some((e) => e.kind === "cosigned"), "co-signing is in the Arkiv history");
+    cookie = ownerCookie;
+    await call(`/api/documents/${signedReceipt.documentId}/shares/${link.shareId}`, { method: "DELETE" });
+    cookie = "";
+    ok((await cosignAs(privateKeyToAccount(generatePrivateKey()), "guarantor")).status === 410, "a stopped link cannot be used to co-sign");
+    cookie = ownerCookie;
+  }
+
   const er2 = await (await call(`/api/documents/${signedReceipt.documentId}`, { method: "DELETE" })).json();
   ok(er2.erased === true, "signed document erased (its signature entity too)");
   if (signedReceipt.arkiv?.status === "recorded") {

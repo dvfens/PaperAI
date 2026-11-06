@@ -1,5 +1,5 @@
 import "server-only";
-import { SIGNATURE_MAX_AGE_S, signatureValid, signedAtOk, type SignatureProof } from "@/lib/signing";
+import { isCosignRole, SIGN_FRESH_FOR_PDF_S, SIGNATURE_MAX_AGE_S, signatureValid, signedAtOk, type SignatureProof } from "@/lib/signing";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { Hex } from "viem";
@@ -365,4 +365,38 @@ export async function purgeExpired(force = false): Promise<number> {
   for (const row of expired) await destroyDocument(row, "retention_expired");
   if (expired.length) log.info("retention.purged", { status: expired.length });
   return expired.length;
+}
+
+/**
+ * Co-sign a shared document: the person who received the link (a witness, guarantor, family member or
+ * official) signs the same fingerprint with their own phone's key. Saathi checks the link is still
+ * alive on Arkiv and the signature is genuine, then records it next to the owner's.
+ */
+export async function cosignShared(token: string, proof: SignatureProof) {
+  const share = await resolveShare(token, false);
+  if (!share.valid) throw new HttpError(410, "link_expired", "This link has expired or was stopped.");
+  const row = share.row;
+  if (row.arkivStatus !== "recorded" || !row.arkivCommitmentKey) {
+    throw new HttpError(409, "not_recorded", "This document has no Arkiv record to co-sign.");
+  }
+  if (!isCosignRole(proof.role) || proof.method !== "tap") throw new HttpError(400, "bad_signature", "Invalid co-signature.");
+  if (row.signer && row.signer === proof.signer.toLowerCase()) {
+    throw new HttpError(409, "already_signed", "This phone has already signed this document.");
+  }
+  if (!signedAtOk(proof.signedAt, SIGN_FRESH_FOR_PDF_S) || !(await signatureValid(row.sha256, proof))) {
+    throw new HttpError(400, "bad_signature", "The signature does not match this document.");
+  }
+  const rec = await blockchain().recordCosign({
+    commitmentKey: row.arkivCommitmentKey as `0x${string}`,
+    docHash: row.sha256,
+    signature: proof,
+    retentionUntil: row.retentionUntil,
+  });
+  await audit(row.id, "cosigned", { role: proof.role, txHash: rec.txHash });
+  return {
+    role: proof.role,
+    signedAt: new Date(proof.signedAt * 1000).toISOString(),
+    txHash: rec.txHash,
+    explorerTxUrl: blockchain().explorerTxUrl(rec.txHash),
+  };
 }

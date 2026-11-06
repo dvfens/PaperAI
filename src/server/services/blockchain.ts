@@ -12,7 +12,8 @@ import { http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { ARKIV_CHAIN_ID, ARKIV_EXPLORER, commitmentExpiry, findActiveGrant, verifyHashOnArkiv } from "@/lib/arkiv/read";
 import { addr, bytes, Commitment, Consent, ShareGrant, Signature, key, str, u64, type ConsentAction } from "@/lib/arkiv/schemas";
-import type { SignatureProof } from "@/lib/signing";
+import { MAX_SIGNATURES, type SignatureProof } from "@/lib/signing";
+import { HttpError } from "@/server/http";
 import type { VerificationResult } from "@/lib/types";
 import { withAdvisoryLock } from "@/server/db/client";
 import { env, features } from "@/server/env";
@@ -46,6 +47,11 @@ export interface BlockchainVerificationService {
     retentionUntil: Date;
   }): Promise<{ grantKey: Hex; txHash: Hex }>;
   revokeShare(input: { grantKey: Hex | null; commitmentKey: Hex; docHash: string; grantId: string; retentionUntil: Date }): Promise<{ txHash: Hex }>;
+  /**
+   * A co-signature (already checked by the caller) on a recorded document. Refused when this key has
+   * already signed the document, or the document has MAX_SIGNATURES signatures.
+   */
+  recordCosign(input: { commitmentKey: Hex; docHash: string; signature: SignatureProof; retentionUntil: Date }): Promise<{ signatureKey: Hex; txHash: Hex }>;
   /** Owner-requested erasure: deletes every live Saathi entity for this fingerprint. */
   erase(docHash: string): Promise<{ txHash: Hex | null; deleted: number }>;
   verify(docHash: string): Promise<VerificationResult>;
@@ -215,6 +221,48 @@ class ArkivVerificationService implements BlockchainVerificationService {
     });
   }
 
+  recordCosign(input: Parameters<BlockchainVerificationService["recordCosign"]>[0]) {
+    return this.serial(async () => {
+      // Inside the write queue, so two taps on "Co-sign" cannot both pass this check.
+      const existing = await this.reader
+        .select({ signer: true })
+        .from(Signature)
+        .where(eq("docHash", str(input.docHash)))
+        .createdBy(this.writerAddress)
+        .limit(MAX_SIGNATURES + 1)
+        .fetch();
+      const signer = input.signature.signer.toLowerCase();
+      if (existing.entities.some((e) => e.signer.value.toLowerCase() === signer)) {
+        throw new HttpError(409, "already_signed", "This phone has already signed this document.");
+      }
+      if (existing.entities.length >= MAX_SIGNATURES) {
+        throw new HttpError(409, "too_many_signatures", "This document cannot take more signatures.");
+      }
+      const sig = input.signature;
+      const res = await this.wallet.executeBatch({
+        creates: [
+          {
+            schema: Signature,
+            values: {
+              commitment: key(input.commitmentKey),
+              docHash: str(input.docHash),
+              signer: addr(sig.signer),
+              signature: bytes(sig.signature),
+              signedAt: u64(BigInt(sig.signedAt)),
+              method: str(sig.method),
+              role: str(sig.role),
+            },
+            // Lives as long as the document's record; erased with it.
+            expiration: ExpirationTime.atDate(input.retentionUntil, { atLeast: ExpirationTime.fromHours(1) }),
+            flags: { readonly: true },
+          },
+        ],
+      });
+      log.info("arkiv.cosign_recorded", { entityKey: res.createdEntities[0], txHash: res.txHash });
+      return { signatureKey: res.createdEntities[0], txHash: res.txHash };
+    });
+  }
+
   erase(docHash: string) {
     return this.serial(async () => {
       const keys: Hex[] = [];
@@ -265,6 +313,7 @@ class NotConfigured implements BlockchainVerificationService {
   recordApproval = async () => this.fail();
   recordShare = async () => this.fail();
   revokeShare = async () => this.fail();
+  recordCosign = async () => this.fail();
   erase = async () => ({ txHash: null, deleted: 0 });
   verify = async (docHash: string): Promise<VerificationResult> => ({
     sha256: docHash,

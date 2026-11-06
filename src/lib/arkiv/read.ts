@@ -104,7 +104,7 @@ export async function verifyHashOnArkiv(
       return { entityKey: e.$key, signer: e.signer.value, signedAt, method, role, valid };
     }),
   );
-  for (const s of signatures) history.push({ kind: "signed", at: s.signedAt, entityKey: s.entityKey, detail: s.method });
+  for (const s of signatures) history.push({ kind: s.role === "signer" ? "signed" : "cosigned", at: s.signedAt, entityKey: s.entityKey, detail: s.role });
   history.sort((a, b) => a.at - b.at);
 
   return {

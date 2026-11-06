@@ -17,6 +17,7 @@ import {
   Lock,
   Signature,
   Trash2,
+  UserCheck,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +29,9 @@ import { api } from "@/lib/client/api";
 import { downloadBlob, sha256Hex } from "@/lib/client/media";
 import { formatDate, type StringKey } from "@/lib/i18n";
 import type { VerificationEvent, VerificationResult } from "@/lib/types";
+import { isCosignRole } from "@/lib/signing";
 import { cn, shortHash } from "@/lib/utils";
+import { ROLE_LABEL } from "@/components/sign/CosignSheet";
 import { Button } from "@/components/ui/button";
 import { AppBar, AppScreen, Card, Dock, Page, SectionTitle, SpeakButton, Spinner } from "@/components/common/Chrome";
 import { AppMenu } from "@/components/common/AppMenu";
@@ -37,6 +40,7 @@ import { useApp } from "@/components/app/AppContext";
 const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
   approved: "eventApproved",
   signed: "eventSigned",
+  cosigned: "eventCosigned",
   stored: "eventStored",
   shared: "eventShared",
   share_revoked: "eventShareRevoked",
@@ -47,6 +51,7 @@ const EVENT_LABEL: Record<VerificationEvent["kind"], StringKey> = {
 const EVENT_ICON: Record<VerificationEvent["kind"], LucideIcon> = {
   approved: BadgeCheck,
   signed: Signature,
+  cosigned: UserCheck,
   stored: Lock,
   shared: Link2,
   share_revoked: Link2Off,
@@ -234,7 +239,8 @@ export function VerificationScreen() {
                         <div className="min-w-0 flex-1">
                           <p className="text-[15px] font-semibold leading-snug text-slate-900">{s.valid ? t("sigValid") : t("sigInvalid")}</p>
                           <p className="text-[13px] text-slate-600">
-                            {t(s.method === "finger+voice" ? "sigHowVoice" : "sigHow")} · {formatDate(lang, s.signedAt * 1000, true)}
+                            <span className="font-semibold text-slate-800">{isCosignRole(s.role) ? t(ROLE_LABEL[s.role]) : t("roleSigner")}</span> ·{" "}
+                            {t(s.method === "finger+voice" ? "sigHowVoice" : s.method === "tap" ? "sigHowTap" : "sigHow")} · {formatDate(lang, s.signedAt * 1000, true)}
                           </p>
                           <p className="mt-0.5 break-all font-mono text-xs text-slate-500">
                             {t("sigKey")}: {s.signer}
