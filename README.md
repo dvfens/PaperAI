@@ -60,6 +60,24 @@ Open <http://localhost:3000> on a phone-sized window. Tap **"Try a sample form"*
 
 Camera and microphone need a secure context: `localhost` works; to use a real phone on your network, put the dev server behind an HTTPS tunnel. Retention is enforced by `npm run cleanup` (run it from cron; with the embedded PGlite database run it while the server is stopped, since PGlite is single-process — with `DATABASE_URL` any time).
 
+### Deploy on Vercel
+
+The repo is set up for Vercel (Node functions, Fluid compute) with **Postgres as the only external dependency**:
+
+- `DATABASE_URL` (e.g. Neon) holds the metadata **and** the encrypted PDFs (`vault_objects` table) — serverless functions have no persistent disk, so the filesystem vault is never used there. Without `DATABASE_URL` the functions refuse to start rather than lose data in `/tmp`.
+- Also set `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ARKIV_PRIVATE_KEY`, `DOCUMENT_ENCRYPTION_KEY`, `APP_SECRET` (the same values as any other deployment sharing the database) and `CRON_SECRET` (for the daily retention job in `vercel.json`). Leave `APP_URL` unset — links use the request's own address.
+- Fonts, SQL migrations and the OCR worker are bundled explicitly via `outputFileTracingIncludes` in `next.config.ts`; uploads are kept under Vercel's 4.5 MB request limit in the browser.
+
+```bash
+npx vercel link --yes --project <name>
+```
+
+```bash
+npx vercel deploy --prod
+```
+
+With the GitHub integration connected, every push to the default branch deploys automatically.
+
 ### Tests
 
 ```bash

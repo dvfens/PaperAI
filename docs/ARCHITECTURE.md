@@ -59,7 +59,7 @@
 | SpeechService | `speech.ts` | ElevenLabs `POST /v1/text-to-speech/{voice}` and `POST /v1/speech-to-text` (Scribe); keys never reach the browser |
 | FormMappingService | `formMapping.ts` | Placement: AcroForm rects → OCR label anchors (right of / below label) → model estimate; per-option tick boxes; `mappingConfidence` for UI highlighting; basic-mode field detection |
 | PDFGenerationService | `pdfGeneration.ts` | Fills real AcroForm fields (sized to the widget) or draws ink-coloured text on the original page/scan; Devanagari runs via Noto Sans Devanagari + fontkit shaping; signatures/photos left blank; generic metadata only |
-| SecureStorageService | `storage.ts` | Envelope encryption (per-document AES-256-GCM data key wrapped by the master key); destroy = crypto-shred + overwrite + unlink |
+| SecureStorageService | `storage.ts` | Envelope encryption (per-document AES-256-GCM data key wrapped by the master key); local-disk or Postgres (`vault_objects`) backend; destroy = key deleted first, then ciphertext removed |
 | BlockchainVerificationService | `blockchain.ts` + `src/lib/arkiv/*` | Arkiv writer (atomic `executeBatch`, read-only flags, expiries) and reader (`createdBy`-filtered queries) |
 | Documents (orchestration) | `documents.ts` | Approve/store, receipts, share links, revocation, erasure, retention purge |
 
@@ -79,12 +79,12 @@ No names, answers, transcripts or document text are stored in the database.
 |---|---|
 | HTTPS | HSTS in production; deploy behind TLS (Vercel/any reverse proxy). Camera/mic APIs require a secure context anyway |
 | API key management | All keys server-side (`src/server/env.ts`, `server-only` imports). Only `NEXT_PUBLIC_ARKIV_ACCESS_KEY` (not a secret per Arkiv; restrict to origins) reaches the browser |
-| Encryption at rest | Envelope AES-256-GCM per document; AAD binds ciphertext to the document id |
+| Encryption at rest | Envelope AES-256-GCM per document; AAD binds ciphertext to the document id. Ciphertext lives on disk (local) or in the `vault_objects` Postgres table (serverless/Vercel) |
 | Access control | No accounts: an HttpOnly, SameSite=Lax random device cookie; DB stores only its HMAC. Owner routes require it. Recipients use short-lived bearer links |
 | Explicit consent | Storage requires `consent=yes` sent only from the consent dialog (checkbox + button); "download only" stores nothing |
 | No sensitive logs | `src/server/log.ts` allow-lists metadata keys; bodies, transcripts, OCR text are never logged; errors are logged by class name only |
 | No PII on-chain | Arkiv entities hold a SHA-256, coarse category, language, timestamps, consent action, grant id |
-| Secure deletion | Wrapped key deleted (crypto-shredding) + file overwritten + unlinked; Arkiv entities deleted; links revoked |
+| Secure deletion | Wrapped key deleted first (crypto-shredding) and links revoked in one transaction, then the ciphertext is removed (filesystem: overwritten + unlinked; database: row deleted); Arkiv entities deleted. In database mode, the provider's backups / point-in-time-restore history (e.g. Neon) can retain old copies until that window passes — keep it short, or rotate `DOCUMENT_ENCRYPTION_KEY` for a hard guarantee |
 | Short-lived links | 1 h / 1 day / 7 days; enforced in the DB **and** by the Arkiv grant entity's expiry; revocable |
 | Integrity of approvals | `/api/documents/generate` returns an HMAC "generation token" over the PDF hash; storage refuses PDFs Saathi did not produce |
 | CSRF / abuse | Origin check on state-changing routes, per-IP rate limits, bounded upload sizes, magic-byte checks for PDF/JPEG/PNG |

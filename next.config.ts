@@ -25,9 +25,28 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Native/wasm-heavy packages run as plain Node modules on the server.
   serverExternalPackages: ["tesseract.js", "tesseract.js-core", "@electric-sql/pglite", "pg"],
-  experimental: {
-    serverActions: { bodySizeLimit: "20mb" },
+  // Files read through computed paths are invisible to output file tracing; ship them with the
+  // serverless functions that need them (fonts for PDF writing, SQL migrations, OCR worker + wasm).
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./db/migrations/*.sql"],
+    "/api/documents/generate": ["./assets/fonts/**/*"],
+    // The OCR worker runs in a worker thread started from a computed path, so nothing it loads is
+    // traced: tesseract.js itself, its WASM engines and the worker's own dependencies.
+    "/api/documents/analyze": [
+      "./assets/tessdata/*.traineddata.gz",
+      "./node_modules/tesseract.js/package.json",
+      "./node_modules/tesseract.js/src/**/*",
+      "./node_modules/tesseract.js-core/package.json",
+      "./node_modules/tesseract.js-core/*.js",
+      "./node_modules/tesseract.js-core/*.wasm",
+      ...["bmp-js", "idb-keyval", "is-url", "node-fetch", "whatwg-url", "tr46", "webidl-conversions", "regenerator-runtime", "wasm-feature-detect", "zlibjs"].map(
+        (p) => `./node_modules/${p}/**/*`,
+      ),
+    ],
   },
+  // On Vercel the database is always Postgres (DATABASE_URL); keep the ~20 MB embedded PGlite out
+  // of every function bundle there.
+  ...(process.env.VERCEL ? { outputFileTracingExcludes: { "/*": ["./node_modules/@electric-sql/pglite/**/*"] } } : {}),
   async headers() {
     return [
       {

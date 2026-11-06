@@ -1,0 +1,6 @@
+# Never upload local secrets or runtime data with `vercel deploy`
+.data
+.env
+.env.*
+!.env.example
+*.tsbuildinfo

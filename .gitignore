@@ -11,3 +11,10 @@ next-env.d.ts
 # generated at install time
 public/pdf.worker.min.mjs
 assets/fonts/
+assets/tessdata/
+
+# Vercel CLI project link
+.vercel
+
+.vercel
+.env*
