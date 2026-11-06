@@ -33,6 +33,11 @@ import { Button } from "@/components/ui/button";
 import { FieldSnippet } from "@/components/FieldSnippet";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Demo mode pacing: listening shows for this long before the scripted words start (time to speak),
+// then one word every DEMO_WORD_MS.
+const DEMO_LEAD_MS = 1800;
+const DEMO_LEAD_YES_MS = 1200;
+const DEMO_WORD_MS = 300;
 
 const control = (intent: Interpretation["intent"]): Interpretation => ({
   intent,
@@ -220,29 +225,31 @@ export function VoiceConversation() {
     } else {
       const f = fields.find((x) => x.id === c.currentFieldId);
       const a = f ? demoAnswer(f, lang) : null;
-      // Not in the script: listen for a real answer.
-      if (!a) {
-        if (listen.supported && !listen.active()) void hearRef.current();
-        return;
+      if (a) {
+        heard = a.heard;
+        local = { ...control("answer"), value: a.value, display: a.display };
+      } else {
+        // Not in the script: leave it empty and carry on (never wait on a real microphone in a demo).
+        heard = "";
+        local = control("skip");
       }
-      heard = a.heard;
-      local = { ...control("answer"), value: a.value, display: a.display };
     }
     const run = ++demoRun.current;
     const still = () => alive.current && demoRun.current === run;
     const words = heard.split(/\s+/).filter(Boolean);
+    // "Listening" first, with no words yet: time for the presenter to start speaking over the video.
     setDemoWords("");
-    await wait(600);
+    await wait(c.phase === "confirming" ? DEMO_LEAD_YES_MS : DEMO_LEAD_MS);
     for (let i = 1; i <= words.length; i++) {
       if (!still()) return;
       setDemoWords(words.slice(0, i).join(" "));
-      await wait(280);
+      await wait(DEMO_WORD_MS);
     }
     await wait(450);
     if (!still()) return;
     setDemoWords(null);
     await processUtterance(heard, "voice", local);
-  }, [fields, lang, listen, processUtterance]);
+  }, [fields, lang, processUtterance]);
   simulateRef.current = simulate;
 
   // A moving level on the mic while a demo answer is "being said".

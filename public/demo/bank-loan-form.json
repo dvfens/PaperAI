@@ -1,0 +1,602 @@
+{
+ "form": "Acme Bank loan form (venngage template), read by Paper AI from a phone photo of it on a laptop screen",
+ "en": {
+  "preview": {
+   "title": "Bank loan form",
+   "summary": "A blank Acme Bank form to ask for a loan.",
+   "explanation": [
+    "This form is used to ask the bank for a loan.",
+    "It asks your name, birth date, phone, email and address.",
+    "You choose the loan type, amount, and reason for the loan.",
+    "It also asks about your job and monthly income, then your signature."
+   ],
+   "category": "bank",
+   "kind": "blank_form"
+  },
+  "analysis": {
+   "analysisId": "860a387f-be10-4ce8-b3ed-696d934fa862",
+   "language": "en",
+   "pageCount": 1,
+   "fillable": false,
+   "ocrText": "C\n~\nACM\nACN\nBank Loan Form A SAGE हा\nek th\nFull Name Date of Birth (\nmm/dd/yyyy [m] |\nPhone Number Email Address\nResidential Address\nLoan Type\nPersonal Mortgage Auto Business\nLoan Amount Requested Loan Purpose\nEmployer Name\nJob Title Monthly Income\n| hereby confirm that the provided information is accurate and respectfully request the bank\nto proceed with the processing of my loan application.\nSignature Date\nmm/dd/yyyy [=]\nJE RR RR RRR RRR RRR RRR RRR RRR RRR RRR RRR,",
+   "category": "bank",
+   "kind": "blank_form",
+   "documentLanguage": "en",
+   "title": "Bank Loan Form",
+   "summary": "A bank form to ask for a loan, with your personal and job details.",
+   "explanation": [
+    "This form is for asking Acme Bank for a loan.",
+    "It asks your name, birth date, phone, email and address.",
+    "It asks the loan type, amount and reason.",
+    "It also asks about your job and monthly income."
+   ],
+   "instructions": [
+    "Fill in all the boxes.",
+    "Choose one loan type.",
+    "Sign and write the date at the bottom."
+   ],
+   "requiredDocuments": [],
+   "ambiguities": [],
+   "source": "claude",
+   "fields": [
+    {
+     "id": "full_name",
+     "label": "Full Name",
+     "labelLocalized": "Full Name",
+     "type": "text",
+     "required": true,
+     "question": "What is your full name?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.181,
+      "w": 0.381,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "date_of_birth",
+     "label": "Date of Birth",
+     "labelLocalized": "Date of Birth",
+     "type": "date",
+     "required": true,
+     "question": "What is your date of birth? Please say the day, month and year.",
+     "format": "mm/dd/yyyy",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.515,
+      "y": 0.18,
+      "w": 0.382,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "phone",
+     "label": "Phone Number",
+     "labelLocalized": "Phone Number",
+     "type": "phone",
+     "required": true,
+     "question": "What is your phone number?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.263,
+      "w": 0.381,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "email",
+     "label": "Email Address",
+     "labelLocalized": "Email Address",
+     "type": "email",
+     "required": false,
+     "question": "What is your email address?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.514,
+      "y": 0.262,
+      "w": 0.382,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "address",
+     "label": "Residential Address",
+     "labelLocalized": "Home Address",
+     "type": "multiline",
+     "required": true,
+     "question": "What is your home address?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.343,
+      "w": 0.809,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_type",
+     "label": "Loan Type",
+     "labelLocalized": "Loan Type",
+     "type": "choice",
+     "required": true,
+     "question": "What kind of loan do you want: personal, mortgage, auto or business?",
+     "hint": "Mortgage is a home loan. Auto is a vehicle loan.",
+     "options": [
+      "Personal",
+      "Mortgage",
+      "Auto",
+      "Business"
+     ],
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.428,
+      "w": 0.47,
+      "h": 0.022
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_amount",
+     "label": "Loan Amount Requested",
+     "labelLocalized": "Loan Amount",
+     "type": "number",
+     "required": true,
+     "question": "How much money do you want to borrow?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.083,
+      "y": 0.5,
+      "w": 0.38,
+      "h": 0.036
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_purpose",
+     "label": "Loan Purpose",
+     "labelLocalized": "Reason for Loan",
+     "type": "text",
+     "required": true,
+     "question": "What do you need the loan for?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.514,
+      "y": 0.5,
+      "w": 0.38,
+      "h": 0.036
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "employer",
+     "label": "Employer Name",
+     "labelLocalized": "Employer Name",
+     "type": "text",
+     "required": false,
+     "question": "What is the name of the place you work for?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.083,
+      "y": 0.615,
+      "w": 0.808,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "job_title",
+     "label": "Job Title",
+     "labelLocalized": "Job Title",
+     "type": "text",
+     "required": false,
+     "question": "What is your job or position?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.701,
+      "w": 0.381,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "monthly_income",
+     "label": "Monthly Income",
+     "labelLocalized": "Monthly Income",
+     "type": "number",
+     "required": true,
+     "question": "How much money do you earn each month?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.514,
+      "y": 0.702,
+      "w": 0.382,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "signature",
+     "label": "Signature",
+     "labelLocalized": "Signature",
+     "type": "signature",
+     "required": true,
+     "question": "Please sign here to say the details are true.",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": false,
+     "box": {
+      "page": 0,
+      "x": 0.082,
+      "y": 0.856,
+      "w": 0.379,
+      "h": 0.099
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "sign_date",
+     "label": "Date",
+     "labelLocalized": "Date",
+     "type": "date",
+     "required": true,
+     "question": "What is today's date? Please say the day, month and year.",
+     "format": "mm/dd/yyyy",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.518,
+      "y": 0.852,
+      "w": 0.379,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    }
+   ],
+   "warnings": []
+  }
+ },
+ "hi": {
+  "preview": {
+   "title": "बैंक लोन (कर्ज़) का फ़ॉर्म",
+   "summary": "ACME बैंक से कर्ज़ लेने के लिए खाली फ़ॉर्म है।",
+   "explanation": [
+    "यह फ़ॉर्म बैंक से कर्ज़ माँगने के लिए भरा जाता है।",
+    "इसमें आपका नाम, जन्म तारीख, फ़ोन और पता पूछा गया है।",
+    "कर्ज़ किस काम के लिए, कितना चाहिए, और आपकी कमाई भी लिखनी है।",
+    "आखिर में दस्तख़त करके लिखते हैं कि सारी जानकारी सही है।"
+   ],
+   "category": "bank",
+   "kind": "blank_form"
+  },
+  "analysis": {
+   "analysisId": "d7f6cd31-bd7e-4cc7-b7ac-5db41350fede",
+   "language": "hi",
+   "pageCount": 1,
+   "fillable": false,
+   "ocrText": "C\n~\nACM\nBank Loan Form (A JSR हो\nam OMAN 1}\nFull Name Date of Birth (\nmm/dd/yyyy [=]\nPhone Number Email Address\nResidential Address\nLoan Type\nPersonal Mortgage Auto Business\nLoan Amount Requested Loan Purpose\nEmployer Name\nJob Title Monthly Income\n| hereby confirm that the provided information is accurate and respectfully request the bank\nto proceed with the processing of my loan application.\nSignature Date\nmm/dd/yyyy 0\nJ RRR RRR RRR RRR RR RRR ROR RRR RRR RRR RRR,",
+   "category": "bank",
+   "kind": "blank_form",
+   "documentLanguage": "en",
+   "title": "बैंक लोन फॉर्म (ACME बैंक)",
+   "summary": "बैंक से कर्ज़ लेने के लिए आवेदन का फॉर्म।",
+   "explanation": [
+    "यह फॉर्म बैंक से लोन माँगने के लिए है।",
+    "इसमें आपका नाम, पता, फ़ोन और जन्म तारीख पूछी गई है।",
+    "लोन कितना और किस काम के लिए चाहिए, यह भी लिखना है।",
+    "आपकी नौकरी और महीने की कमाई भी पूछी गई है।"
+   ],
+   "instructions": [
+    "सारी जानकारी सही-सही भरें।",
+    "नीचे दस्तख़त करें और तारीख लिखें।"
+   ],
+   "requiredDocuments": [],
+   "ambiguities": [
+    "फॉर्म के दाहिने किनारे पर कुछ कटा हुआ लिखा है, जो पढ़ा नहीं जा रहा।"
+   ],
+   "source": "claude",
+   "fields": [
+    {
+     "id": "full_name",
+     "label": "Full Name",
+     "labelLocalized": "पूरा नाम",
+     "type": "text",
+     "required": true,
+     "question": "आपका पूरा नाम क्या है?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0817,
+      "y": 0.168775,
+      "w": 0.38130000000000003,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "date_of_birth",
+     "label": "Date of Birth",
+     "labelLocalized": "जन्म की तारीख",
+     "type": "date",
+     "required": true,
+     "question": "आपकी जन्म तारीख क्या है? दिन, महीना और साल बताइए।",
+     "hint": "पहले महीना, फिर दिन, फिर साल लिखा जाता है।",
+     "format": "mm/dd/yyyy",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.5142,
+      "y": 0.168775,
+      "w": 0.38280000000000003,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "phone",
+     "label": "Phone Number",
+     "labelLocalized": "फ़ोन नंबर",
+     "type": "phone",
+     "required": true,
+     "question": "आपका फ़ोन नंबर क्या है?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0825,
+      "y": 0.25067500000000004,
+      "w": 0.3805,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "email",
+     "label": "Email Address",
+     "labelLocalized": "ईमेल पता",
+     "type": "email",
+     "required": false,
+     "question": "आपका ईमेल पता क्या है? न हो तो बता दीजिए।",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.5142,
+      "y": 0.251785,
+      "w": 0.38180000000000003,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "address",
+     "label": "Residential Address",
+     "labelLocalized": "घर का पता",
+     "type": "multiline",
+     "required": true,
+     "question": "आपके घर का पूरा पता क्या है?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0825,
+      "y": 0.332565,
+      "w": 0.8085,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_type",
+     "label": "Loan Type",
+     "labelLocalized": "लोन का प्रकार",
+     "type": "choice",
+     "required": true,
+     "question": "कौन सा लोन चाहिए? पर्सनल, मकान वाला (मॉर्गेज), गाड़ी (ऑटो), या कारोबार (बिज़नेस)?",
+     "options": [
+      "Personal",
+      "Mortgage",
+      "Auto",
+      "Business"
+     ],
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.12569999999999998,
+      "y": 0.42219,
+      "w": 0.42629999999999996,
+      "h": 0.0309
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_amount",
+     "label": "Loan Amount Requested",
+     "labelLocalized": "कितना लोन चाहिए",
+     "type": "number",
+     "required": true,
+     "question": "आपको कितने रुपये का लोन चाहिए?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0833,
+      "y": 0.49156,
+      "w": 0.37970000000000004,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "loan_purpose",
+     "label": "Loan Purpose",
+     "labelLocalized": "लोन किस काम के लिए",
+     "type": "text",
+     "required": true,
+     "question": "लोन किस काम के लिए चाहिए?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.5133,
+      "y": 0.49216000000000004,
+      "w": 0.38170000000000004,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "employer_name",
+     "label": "Employer Name",
+     "labelLocalized": "जहाँ काम करते हैं, उसका नाम",
+     "type": "text",
+     "required": false,
+     "question": "आप कहाँ काम करते हैं? उस जगह या मालिक का नाम बताइए।",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0833,
+      "y": 0.60665,
+      "w": 0.8077,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "job_title",
+     "label": "Job Title",
+     "labelLocalized": "आपका पद / काम",
+     "type": "text",
+     "required": false,
+     "question": "आप वहाँ क्या काम करते हैं, आपका पद क्या है?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.0825,
+      "y": 0.691185,
+      "w": 0.3805,
+      "h": 0.038
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "monthly_income",
+     "label": "Monthly Income",
+     "labelLocalized": "महीने की कमाई",
+     "type": "number",
+     "required": true,
+     "question": "आपकी महीने की कमाई कितनी है?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.5142,
+      "y": 0.69285,
+      "w": 0.38180000000000003,
+      "h": 0.038
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "signature",
+     "label": "Signature",
+     "labelLocalized": "दस्तख़त",
+     "type": "signature",
+     "required": true,
+     "question": "क्या आप यहाँ दस्तख़त या अँगूठा लगाएँगे? इससे आप मानते हैं कि जानकारी सही है।",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": false,
+     "box": {
+      "page": 0,
+      "x": 0.0775,
+      "y": 0.8486899999999999,
+      "w": 0.3835,
+      "h": 0.098
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "sign_date",
+     "label": "Date",
+     "labelLocalized": "तारीख",
+     "type": "date",
+     "required": true,
+     "question": "आज की तारीख क्या है? दिन, महीना और साल बताइए।",
+     "format": "mm/dd/yyyy",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.5183,
+      "y": 0.8381749999999999,
+      "w": 0.37870000000000004,
+      "h": 0.037
+     },
+     "mappingConfidence": "medium"
+    }
+   ],
+   "warnings": []
+  }
+ }
+}

@@ -1,18 +1,22 @@
 /**
  * Demo mode, for recording a demonstration video: open the app with ?demo=1 (?demo=0 turns it off;
- * it lasts for this browser tab). Everything works as usual — the form is really read, every
- * question is really spoken, the PDF is really made, signed and recorded on Arkiv — except the
- * person's spoken answers: each one appears word by word as if it were being said, and is applied
- * on the device at once, with no listening and no AI round trip. The presenter records their own
- * voice over those moments afterwards.
+ * it lasts for this browser tab). Every question is really spoken, and the PDF is really made,
+ * signed and recorded on Arkiv. Two things are instant instead of waiting on the AI:
+ * - Reading the form: a scanned photo is understood at once with a ready-made reading of the demo's
+ *   bank loan form (public/demo/bank-loan-form.json). The real reading still runs in the
+ *   background, only to place the answers exactly on this photo (withRealPlacement).
+ * - The person's answers: each one appears word by word as if it were being said, and is applied
+ *   on the device at once, with no listening and no AI round trip.
+ * The presenter records their own voice over it afterwards.
  *
  * Answers are scripted for one fictional person (Ram Kumar Sharma, a retired railway station
  * master in Pune), matched to questions by the field's label. That covers the bank loan form used
  * in the demo and the app's own sample form. A question with no scripted answer is listened to
  * as usual.
  */
+import type { DocumentPreviewInfo } from "@/lib/client/api";
 import type { LanguageCode } from "@/lib/i18n/languages";
-import type { FormField } from "@/lib/types";
+import type { DocumentAnalysis, FormField } from "@/lib/types";
 
 const KEY = "paperai.demo";
 
@@ -140,4 +144,44 @@ export function demoAnswer(field: FormField, lang: LanguageCode): DemoAnswer | n
 /** The reply to "Is that right?". */
 export function demoYes(lang: LanguageCode): string {
   return lang === "hi" ? "हाँ" : "Yes";
+}
+
+// --- Instant reading of the demo form ------------------------------------------------------------
+
+export interface DemoReading {
+  preview: DocumentPreviewInfo;
+  analysis: DocumentAnalysis;
+}
+
+/** The ready-made reading of the demo's bank loan form, in Hindi or (any other language) English. */
+export async function demoReading(lang: LanguageCode): Promise<DemoReading | null> {
+  try {
+    const res = await fetch("/demo/bank-loan-form.json");
+    if (!res.ok) return null;
+    const all = (await res.json()) as Record<"en" | "hi", DemoReading>;
+    const r = lang === "hi" ? all.hi : all.en;
+    // A fresh id, so a late background result can tell this document apart from an earlier one.
+    return { ...r, analysis: { ...r.analysis, analysisId: `demo-${Date.now()}` } };
+  } catch {
+    return null;
+  }
+}
+
+const labelKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * The ready-made reading with each answer's place taken from the real reading of THIS photo, matched
+ * by the label printed on the form (the questions, their ids and the answers given stay the same).
+ * A field the real reading did not find keeps its ready-made place.
+ */
+export function withRealPlacement(ready: DocumentAnalysis, real: DocumentAnalysis): DocumentAnalysis {
+  const found = new Map(real.fields.map((f) => [labelKey(f.label), f]));
+  return {
+    ...ready,
+    fields: ready.fields.map((f) => {
+      const r = found.get(labelKey(f.label));
+      if (!r || r.type !== f.type || !r.box) return f;
+      return { ...f, box: r.box, optionBoxes: r.optionBoxes ?? f.optionBoxes, mappingConfidence: r.mappingConfidence };
+    }),
+  };
 }

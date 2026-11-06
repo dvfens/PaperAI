@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { demoAnswer } from "@/lib/client/demo";
+import { demoAnswer, withRealPlacement, type DemoReading } from "@/lib/client/demo";
 import { applyTurn, initialState } from "@/lib/conversation/engine";
-import type { FormField, Interpretation } from "@/lib/types";
+import type { DocumentAnalysis, FormField, Interpretation } from "@/lib/types";
 
 const field = (over: Partial<FormField>): FormField => ({
   id: "f",
@@ -80,5 +81,35 @@ describe("demo answers", () => {
     assert.equal(Object.keys(state.answers).length, 12);
     assert.equal(state.answers.dob.status, "confirmed");
     assert.equal(state.answers.income.value, "Rs. 35,000 (pension)");
+  });
+});
+
+describe("instant demo reading", () => {
+  const ready = JSON.parse(readFileSync("public/demo/bank-loan-form.json", "utf8")) as Record<"en" | "hi", DemoReading>;
+
+  for (const lang of ["en", "hi"] as const) {
+    it(`has a scripted answer for every question it asks (${lang})`, () => {
+      const asked = ready[lang].analysis.fields.filter((f) => f.aiFillable);
+      assert.equal(asked.length, 12);
+      for (const f of asked) assert.ok(demoAnswer(f, lang), `no demo answer for "${f.label}" (${lang})`);
+      assert.ok(ready[lang].preview.title && ready[lang].analysis.fields.every((f) => f.box));
+    });
+  }
+
+  it("takes each answer's place from the real reading of the photo, matched by printed label", () => {
+    const base = ready.en.analysis;
+    const real: DocumentAnalysis = {
+      ...base,
+      // Another read of a slightly different photo: other ids, shifted boxes, one field missing.
+      fields: base.fields
+        .filter((f) => f.label !== "Loan Purpose")
+        .map((f) => ({ ...f, id: `x_${f.id}`, box: f.box && { ...f.box, y: f.box.y + 0.02 } })),
+    };
+    const out = withRealPlacement(base, real);
+    assert.deepEqual(out.fields.map((f) => f.id), base.fields.map((f) => f.id)); // same questions and answers
+    const name = out.fields.find((f) => f.label === "Full Name")!;
+    assert.equal(name.box!.y, base.fields.find((f) => f.label === "Full Name")!.box!.y + 0.02);
+    const purpose = out.fields.find((f) => f.label === "Loan Purpose")!;
+    assert.deepEqual(purpose.box, base.fields.find((f) => f.label === "Loan Purpose")!.box); // kept
   });
 });

@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, Circle, Loader2, RotateCcw, ScanLine, ScanText, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
+import { demoEnabled, demoReading, withRealPlacement } from "@/lib/client/demo";
 import { MAX_REQUEST_BYTES, pagesWithinBudget } from "@/lib/client/media";
 import { initialState } from "@/lib/conversation/engine";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ import type { StringKey } from "@/lib/i18n";
 
 /** Screen 2a — OCR + understanding in progress. */
 export function AnalyzingScreen() {
-  const { state, update, goFrom, reset, lang, t } = useApp();
+  const { state, update, updateIf, goFrom, reset, lang, t } = useApp();
   const [phase, setPhase] = useState<"read" | "understand">("read");
   const [slow, setSlow] = useState(false);
   const [error, setError] = useState<StringKey | null>(null);
@@ -40,6 +41,40 @@ export function AnalyzingScreen() {
       withPdf.length === source.pages.length && pdfBytes + withPdf.reduce((n, p) => n + p.blob.size, 0) <= MAX_REQUEST_BYTES;
     const analyzeBlobs = source.pdf && !allFit ? [] : withPdf.map((p) => p.blob);
     let previewShown = false;
+
+    // Demo mode (?demo=1) with a scanned photo: understood at once with the ready-made reading of the
+    // demo form. The real reading still runs, quietly, only to place the answers on this exact photo.
+    if (demoEnabled() && source.kind === "image") {
+      // Every update below applies only while this same photo is still being read (the person may
+      // close the screen or scan another form meanwhile).
+      const same = (st: { source: unknown }) => st.source === source;
+      void (async () => {
+        const ready = await demoReading(lang);
+        if (!ready) {
+          setError("errorNetwork");
+          return;
+        }
+        // A short moment on "Reading the words", as a real read would show.
+        await new Promise((r) => setTimeout(r, 1200));
+        clearTimeout(toUnderstand);
+        clearTimeout(toSlow);
+        updateIf(
+          (st) => same(st) && st.step === "analyzing",
+          () => ({ preview: ready.preview, analysis: ready.analysis, analysisError: null, conversation: initialState(lang, ready.analysis.fields) }),
+        );
+        goFrom("analyzing", "understood");
+        api
+          .analyze(lang, analyzeBlobs, source.pdf)
+          .then((real) =>
+            updateIf(
+              (st) => same(st) && st.analysis?.analysisId === ready.analysis.analysisId,
+              (st) => ({ analysis: withRealPlacement(st.analysis!, real) }),
+            ),
+          )
+          .catch(() => undefined); // keep the ready-made places
+      })();
+      return;
+    }
 
     // Stage 1: a quick "what is this" so the person hears an explanation within seconds.
     api
@@ -69,7 +104,7 @@ export function AnalyzingScreen() {
         clearTimeout(toSlow);
       });
     // Timers only update display state; they are cleared when the requests settle.
-  }, [source, attempt, lang, update, goFrom]);
+  }, [source, attempt, lang, update, updateIf, goFrom]);
 
   const steps: { key: "read" | "understand"; label: StringKey; icon: typeof ScanText }[] = [
     { key: "read", label: "analyzingStepRead", icon: ScanText },

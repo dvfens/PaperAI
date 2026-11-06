@@ -77,6 +77,8 @@ interface Ctx {
   go: (step: Step) => void;
   /** Move to `to` only if the flow is still at `from` (for results that arrive late). */
   goFrom: (from: Step, to: Step) => void;
+  /** Apply `patch` only if `when` still holds for the current state (for results that arrive late). */
+  updateIf: (when: (s: AppState) => boolean, patch: (s: AppState) => Partial<AppState>) => void;
   reset: () => void;
   lang: LanguageCode;
   setLang: (lang: LanguageCode) => void;
@@ -244,6 +246,9 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
   const goFrom = useCallback((from: Step, to: Step) => {
     setState((s) => (s.step === from ? { ...s, step: to } : s));
   }, []);
+  const updateIf = useCallback((when: (s: AppState) => boolean, patch: (s: AppState) => Partial<AppState>) => {
+    setState((s) => (when(s) ? { ...s, ...patch(s) } : s));
+  }, []);
   const reset = useCallback(() => {
     speakerRef.current.stop();
     void clearSession();
@@ -274,6 +279,7 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
       update,
       go,
       goFrom,
+      updateIf,
       reset,
       lang,
       setLang,
@@ -295,7 +301,7 @@ export function AppProvider({ children, persist = false }: { children: ReactNode
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `engines` marks rebuilt speech engines
-    [state, update, go, goFrom, reset, lang, setLang, status, speaking, speak, stopSpeaking, stt, tts, setStt, setTts, style, setStyle, engines],
+    [state, update, go, goFrom, updateIf, reset, lang, setLang, status, speaking, speak, stopSpeaking, stt, tts, setStt, setTts, style, setStyle, engines],
   );
 
   return <AppContext.Provider value={value}>{hydrated ? children : null}</AppContext.Provider>;
