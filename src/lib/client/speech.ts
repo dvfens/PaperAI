@@ -54,8 +54,76 @@ class BrowserSpeechOutput implements SpeechOutput {
   }
 }
 
+// --- One audio player for the whole visit ---------------------------------------------------------
+// Phone browsers (iPhone above all) only let a page start sound during a tap, or while the microphone
+// is on. A reply is spoken after its audio has been fetched, so the tap is long over by then. But an
+// audio element that has played once during a tap may play again later without one. So the first
+// tap anywhere plays a moment of silence on this one element, and every reply reuses it. This is
+// what lets the voice speak in demo mode (no microphone running) and right after typing an answer.
+let player: HTMLAudioElement | null = null;
+let unlocked = false;
+let unlockInstalled = false;
+
+function sharedPlayer(): HTMLAudioElement {
+  player ??= new Audio();
+  return player;
+}
+
+/** 0.05 s of silence as a WAV blob (blob: is allowed by the page's media-src; data: is not). */
+function silenceUrl(): string {
+  const n = 400;
+  const v = new DataView(new ArrayBuffer(44 + n));
+  const ascii = (at: number, text: string) => [...text].forEach((c, i) => v.setUint8(at + i, c.charCodeAt(0)));
+  ascii(0, "RIFF");
+  v.setUint32(4, 36 + n, true);
+  ascii(8, "WAVE");
+  ascii(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, 1, true); // mono
+  v.setUint32(24, 8000, true);
+  v.setUint32(28, 8000, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true);
+  ascii(36, "data");
+  v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([v.buffer], { type: "audio/wav" }));
+}
+
+function unlockAudioOnFirstTap() {
+  if (unlockInstalled || typeof window === "undefined") return;
+  unlockInstalled = true;
+  const events = ["touchend", "click", "keydown"] as const;
+  const unlock = () => {
+    if (unlocked) return;
+    const p = sharedPlayer();
+    // Never interrupt a reply that is already playing.
+    if (!p.paused) return;
+    const url = silenceUrl();
+    p.src = url;
+    p.play()
+      .then(() => {
+        unlocked = true;
+        events.forEach((e) => window.removeEventListener(e, unlock, true));
+      })
+      .catch(() => undefined)
+      .finally(() => setTimeout(() => URL.revokeObjectURL(url), 1000));
+    // The browser's own voice (the fallback) has the same rule on iPhone: start it once, silently.
+    try {
+      if ("speechSynthesis" in window) {
+        const u = new SpeechSynthesisUtterance(" ");
+        u.volume = 0;
+        window.speechSynthesis.speak(u);
+      }
+    } catch {
+      // no browser voice
+    }
+  };
+  events.forEach((e) => window.addEventListener(e, unlock, { capture: true, passive: true }));
+}
+
 class CloudSpeechOutput implements SpeechOutput {
-  private audio: HTMLAudioElement | null = null;
   private resolveCurrent: (() => void) | null = null;
   private cache = new Map<string, string>();
   private generation = 0;
@@ -87,16 +155,18 @@ class CloudSpeechOutput implements SpeechOutput {
       return this.fallback?.speak(text, lang);
     }
     if (gen !== this.generation) return; // stopped while fetching
-    const audio = new Audio(url);
-    this.audio = audio;
+    const audio = sharedPlayer();
     await new Promise<void>((resolve) => {
       const done = () => {
+        audio.onended = null;
+        audio.onerror = null;
         if (this.resolveCurrent === done) this.resolveCurrent = null;
         resolve();
       };
       this.resolveCurrent = done;
       audio.onended = done;
       audio.onerror = done;
+      audio.src = url!;
       audio.play().catch(() => {
         // Autoplay blocked (no user gesture yet): use the browser voice instead.
         done();
@@ -108,11 +178,8 @@ class CloudSpeechOutput implements SpeechOutput {
   stop() {
     this.generation++;
     this.fallback?.stop();
-    if (this.audio) {
-      this.audio.pause();
-      this.audio.src = "";
-      this.audio = null;
-    }
+    // Only pause: the shared element keeps its permission to play.
+    if (player && !player.paused) player.pause();
     this.resolveCurrent?.();
     this.resolveCurrent = null;
   }
@@ -125,6 +192,7 @@ class SilentOutput implements SpeechOutput {
 }
 
 export function createSpeechOutput(provider: SpeechProvider | null, voice?: VoiceStyle): SpeechOutput {
+  unlockAudioOnFirstTap();
   const browser = typeof window !== "undefined" && "speechSynthesis" in window ? new BrowserSpeechOutput() : null;
   if (provider) return new CloudSpeechOutput(provider, browser, voice);
   return browser ?? new SilentOutput();
