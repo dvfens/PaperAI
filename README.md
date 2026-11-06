@@ -22,7 +22,7 @@
 
 ## What the person experiences
 
-1. **Camera first** — the app opens on the camera (big shutter button, upload, light toggle, language switch). No dashboard.
+1. **Camera first** — the app opens on the camera (big shutter button, upload, light toggle, language switch). No dashboard. It works like a scanner app: it outlines the page, takes the photo by itself when the page is still, and straightens and cleans it (crop, rotate, filters and extra pages are optional).
 2. **"This appears to be a library membership form…"** — spoken within ~8 s (a quick first-impression call), while the full field analysis continues in the background.
 3. **Explain** — 3–6 simple sentences, the instructions printed on the form, the papers to bring; ask questions by voice.
 4. **Fill by voice** — one question at a time; big microphone; listens again automatically after each question; "repeat", "pause", "skip", "change my name…" all work; important answers are read back ("Let me confirm. Date of birth: 12 March 1960. Is that correct?"). Nothing is ever written that the person did not say.

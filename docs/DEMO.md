@@ -11,7 +11,7 @@ Prerequisites: `npm run setup`, keys in `.env.local` (Claude, ElevenLabs, funded
 |---|---|---|
 | 1 | Open the app | It opens straight on the camera. Language switch top-right (हिन्दी / English). |
 | 2 | Camera appears | Big shutter button, "Choose photo or PDF", light toggle on Android. |
-| 3 | Scan the printed sample | Take the photo → "Use this photo". (Or tap "Try a sample form".) |
+| 3 | Scan the printed sample | A blue outline finds the page; hold still and the photo is taken by itself (or tap the shutter). It comes back cut out, straight and white → "Use photo". (Or tap "Try a sample form".) |
 | 4 | AI identifies and explains | Within ~8 s Saathi says: "This appears to be: Library membership form. This is the form to become a member of the library…". Tap **Explain this document** to hear the instructions and papers to bring; ask "फ़ीस कितनी है?" by voice. |
 | 5 | AI asks for the name | Tap **Help me fill this document**. "I will ask you 8 questions… What is your full name?" |
 | 6 | Answer by voice | Say "मेरा नाम राम कुमार शर्मा है". Saathi confirms the name (written as RAM KUMAR SHARMA — the form asks for BLOCK LETTERS). Say "हाँ". |

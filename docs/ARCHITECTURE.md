@@ -40,7 +40,8 @@
 
 | Module | Role |
 |---|---|
-| `CameraScanner` | Opens straight into the rear camera; capture, upload (image/PDF), torch where supported, sample forms, language switch |
+| `CameraScanner` | Opens straight into the rear camera, with a document scanner: a live blue outline follows the page and the photo is taken automatically once it is still (or with the shutter). Each photo (camera or gallery) is cut out, straightened and cleaned (shadows removed, paper white) on the phone; crop, rotate, filter and up to 4 pages are optional. Upload (image/PDF), torch where supported, sample forms, language switch |
+| `ScanReview`, `CropEditor`, `LiveOutline` | The scanner UI. The image work is plain TypeScript in `src/lib/scan` (edge finding by Hough lines scored against the page outline, perspective warp, shadow removal), no OpenCV download |
 | `DocumentPreview` | Page images with highlighted regions (sign here, uncertain placement, missing) |
 | `DocumentExplanation` | "This appears to be…", simple explanation, instructions, required papers, voice Q&A |
 | `VoiceConversation` | One question at a time; big mic with listening/processing/speaking states; hands-free re-listen; repeat/pause/skip; type instead |
