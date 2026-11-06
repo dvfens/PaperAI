@@ -113,3 +113,25 @@ describe("instant demo reading", () => {
     assert.deepEqual(purpose.box, base.fields.find((f) => f.label === "Loan Purpose")!.box); // kept
   });
 });
+
+describe("demo 2: the National Bank loan application form", () => {
+  const ready = JSON.parse(readFileSync("public/demo/national-bank-loan-form.json", "utf8")) as Record<"en" | "hi", DemoReading>;
+
+  for (const lang of ["en", "hi"] as const) {
+    it(`has a scripted answer for every question it asks (${lang})`, () => {
+      const asked = ready[lang].analysis.fields.filter((f) => f.aiFillable);
+      assert.equal(asked.length, 7);
+      for (const f of asked) assert.ok(demoAnswer(f, lang), `no demo answer for "${f.label}" (${lang})`);
+      assert.ok(ready[lang].analysis.fields.every((f) => f.box));
+    });
+  }
+
+  it("writes amounts without 'Rs.' where ₹ is printed in the box, and dates as DD/MM/YYYY", () => {
+    const byLabel = (re: RegExp) => ready.en.analysis.fields.find((f) => re.test(f.label))!;
+    assert.equal(demoAnswer(byLabel(/income/i), "en")?.value, "35,000 (pension)");
+    assert.equal(demoAnswer(byLabel(/amount/i), "en")?.value, "2,00,000");
+    assert.equal(demoAnswer(byLabel(/birth/i), "en")?.value, "13/03/1960");
+    // Without a printed ₹, the currency is written.
+    assert.equal(demoAnswer(field({ label: "Monthly Income", type: "number" }), "en")?.value, "Rs. 35,000 (pension)");
+  });
+});

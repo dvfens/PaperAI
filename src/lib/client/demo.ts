@@ -1,18 +1,18 @@
 /**
- * Demo mode, for recording a demonstration video: open the app with ?demo=1 (?demo=0 turns it off;
- * it lasts for this browser tab). Every question is really spoken, and the PDF is really made,
- * signed and recorded on Arkiv. Two things are instant instead of waiting on the AI:
- * - Reading the form: a scanned photo is understood at once with a ready-made reading of the demo's
- *   bank loan form (public/demo/bank-loan-form.json). The real reading still runs in the
- *   background, only to place the answers exactly on this photo (withRealPlacement).
+ * Demo mode, for recording a demonstration video: open the app with ?demo=1 (the Acme bank loan
+ * form) or ?demo=2 (the National Bank loan application form); ?demo=0 turns it off. It lasts for
+ * this browser tab. Every question is really spoken, and the PDF is really made, signed and
+ * recorded on Arkiv. Two things are instant instead of waiting on the AI:
+ * - Reading the form: a scanned photo is understood at once with a ready-made reading of the chosen
+ *   demo form (public/demo/*.json). The real reading still runs in the background, only to place
+ *   the answers exactly on this photo (withRealPlacement).
  * - The person's answers: each one appears word by word as if it were being said, and is applied
  *   on the device at once, with no listening and no AI round trip.
  * The presenter records their own voice over it afterwards.
  *
  * Answers are scripted for one fictional person (Ram Kumar Sharma, a retired railway station
- * master in Pune), matched to questions by the field's label. That covers the bank loan form used
- * in the demo and the app's own sample form. A question with no scripted answer is listened to
- * as usual.
+ * master in Pune), matched to questions by the field's label. That covers both demo forms and the
+ * app's own sample form. A question with no scripted answer is left empty.
  */
 import type { DocumentPreviewInfo } from "@/lib/client/api";
 import type { LanguageCode } from "@/lib/i18n/languages";
@@ -28,7 +28,7 @@ if (typeof window !== "undefined") {
     const v = url.searchParams.get("demo");
     if (v !== null) {
       if (v === "0" || v === "off") sessionStorage.removeItem(KEY);
-      else sessionStorage.setItem(KEY, "1");
+      else sessionStorage.setItem(KEY, v === "2" ? "2" : "1");
       url.searchParams.delete("demo");
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     }
@@ -37,13 +37,27 @@ if (typeof window !== "undefined") {
   }
 }
 
-export function demoEnabled(): boolean {
-  if (typeof window === "undefined") return false;
+export type DemoForm = "1" | "2";
+
+/** The ready-made reading of each demo form. */
+export const DEMO_READINGS: Record<DemoForm, string> = {
+  "1": "/demo/bank-loan-form.json",
+  "2": "/demo/national-bank-loan-form.json",
+};
+
+/** Which demo is on: "1" the Acme bank loan form, "2" the National Bank form; null when off. */
+export function demoForm(): DemoForm | null {
+  if (typeof window === "undefined") return null;
   try {
-    return sessionStorage.getItem(KEY) === "1";
+    const v = sessionStorage.getItem(KEY);
+    return v === "1" || v === "2" ? v : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function demoEnabled(): boolean {
+  return demoForm() !== null;
 }
 
 export interface DemoAnswer {
@@ -136,7 +150,10 @@ export function demoAnswer(field: FormField, lang: LanguageCode): DemoAnswer | n
     if (!a) return null;
     // The form asks for capitals ("BLOCK LETTERS"): write it that way, as the AI would.
     const caps = /block\s*letters|capital/i.test(`${field.format ?? ""} ${field.label}`);
-    return caps ? { ...a, value: a.value.toUpperCase(), display: a.display.toUpperCase() } : a;
+    // "₹" is already printed in the box: write only the amount.
+    const rupeePrinted = /₹|\brs\b|rupee/i.test(field.format ?? "");
+    const value = rupeePrinted ? a.value.replace(/^Rs\.?\s*/i, "") : a.value;
+    return caps ? { ...a, value: value.toUpperCase(), display: a.display.toUpperCase() } : { ...a, value };
   }
   return null;
 }
@@ -153,10 +170,12 @@ export interface DemoReading {
   analysis: DocumentAnalysis;
 }
 
-/** The ready-made reading of the demo's bank loan form, in Hindi or (any other language) English. */
+/** The ready-made reading of the chosen demo form, in Hindi or (any other language) English. */
 export async function demoReading(lang: LanguageCode): Promise<DemoReading | null> {
+  const form = demoForm();
+  if (!form) return null;
   try {
-    const res = await fetch("/demo/bank-loan-form.json");
+    const res = await fetch(DEMO_READINGS[form]);
     if (!res.ok) return null;
     const all = (await res.json()) as Record<"en" | "hi", DemoReading>;
     const r = lang === "hi" ? all.hi : all.en;

@@ -1,0 +1,404 @@
+{
+ "form": "National Bank loan application form, read by Paper AI from a phone photo of it on a phone screen",
+ "en": {
+  "preview": {
+   "title": "Bank loan application form",
+   "summary": "A National Bank form to ask for a loan.",
+   "explanation": [
+    "This form is for asking the bank for a loan.",
+    "It asks your name, birth date and home address.",
+    "It also asks your monthly income, loan amount and reason.",
+    "You sign and date it, promising everything is true."
+   ],
+   "category": "bank",
+   "kind": "blank_form"
+  },
+  "analysis": {
+   "analysisId": "cd5b65c7-92dc-45bb-8a67-9e70ccfa477d",
+   "language": "en",
+   "pageCount": 1,
+   "fillable": false,
+   "ocrText": "iil | National Bank | Loan Application Form\n== Full Name :\n“पा Sade oo |\nBowers:\nED Residential Address:\n16 Loan Purpose : ae नननननण |\n| hereby confirm that the information provided above is true and correct.\nApplicant’s Signature : Date: / /",
+   "category": "bank",
+   "kind": "blank_form",
+   "documentLanguage": "en",
+   "title": "National Bank Loan Application Form",
+   "summary": "A bank form to ask for a loan.",
+   "explanation": [
+    "This form is for asking the bank for a loan.",
+    "It asks your name, birth date and address.",
+    "It also asks your income, loan amount and reason.",
+    "You sign to say everything is true."
+   ],
+   "instructions": [
+    "Fill in all six boxes.",
+    "Sign at the bottom.",
+    "Write today's date."
+   ],
+   "requiredDocuments": [],
+   "ambiguities": [],
+   "source": "claude",
+   "fields": [
+    {
+     "id": "full_name",
+     "label": "Full Name :",
+     "labelLocalized": "Full name",
+     "type": "text",
+     "required": true,
+     "question": "What is your full name?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.38,
+      "y": 0.155,
+      "w": 0.587,
+      "h": 0.048
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "date_of_birth",
+     "label": "Date of Birth :",
+     "labelLocalized": "Date of birth",
+     "type": "date",
+     "required": true,
+     "question": "What is your date of birth? Please tell the day, month and year.",
+     "format": "DD / MM / YYYY",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.38,
+      "y": 0.253,
+      "w": 0.587,
+      "h": 0.05
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "residential_address",
+     "label": "Residential Address :",
+     "labelLocalized": "Home address",
+     "type": "multiline",
+     "required": true,
+     "question": "What is your full home address?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.382,
+      "y": 0.353,
+      "w": 0.585,
+      "h": 0.112
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "monthly_income",
+     "label": "Monthly Income :",
+     "labelLocalized": "Monthly income",
+     "type": "number",
+     "required": true,
+     "question": "How much money do you earn each month, in rupees?",
+     "format": "₹",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.42,
+      "y": 0.517,
+      "w": 0.548,
+      "h": 0.048
+     },
+     "mappingConfidence": "low"
+    },
+    {
+     "id": "loan_amount",
+     "label": "Loan Amount Required :",
+     "labelLocalized": "Loan amount needed",
+     "type": "number",
+     "required": true,
+     "question": "How much loan do you need, in rupees?",
+     "format": "₹",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.42,
+      "y": 0.612,
+      "w": 0.548,
+      "h": 0.047
+     },
+     "mappingConfidence": "low"
+    },
+    {
+     "id": "loan_purpose",
+     "label": "Loan Purpose :",
+     "labelLocalized": "Reason for the loan",
+     "type": "text",
+     "required": true,
+     "question": "Why do you need this loan?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.382,
+      "y": 0.715,
+      "w": 0.59,
+      "h": 0.048
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "signature",
+     "label": "Applicant’s Signature :",
+     "labelLocalized": "Your signature",
+     "type": "signature",
+     "required": true,
+     "question": "Please sign here to say all details are true.",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": false,
+     "box": {
+      "page": 0,
+      "x": 0.2939,
+      "y": 0.909625,
+      "w": 0.25610000000000005,
+      "h": 0.03374999999999995
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "sign_date",
+     "label": "Date :",
+     "labelLocalized": "Today's date",
+     "type": "date",
+     "required": true,
+     "question": "What is today's date? Please tell the day, month and year.",
+     "format": "__ / __ / __",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.7735,
+      "y": 0.9122199999999999,
+      "w": 0.1765,
+      "h": 0.02820000000000006
+     },
+     "mappingConfidence": "medium"
+    }
+   ],
+   "warnings": []
+  }
+ },
+ "hi": {
+  "preview": {
+   "title": "बैंक से कर्ज़ (लोन) लेने का फ़ॉर्म",
+   "summary": "नेशनल बैंक से कर्ज़ माँगने का खाली फ़ॉर्म है।",
+   "explanation": [
+    "यह फ़ॉर्म बैंक से कर्ज़ लेने के लिए भरा जाता है।",
+    "इसमें आपका नाम, जन्म तारीख और घर का पता पूछा है।",
+    "महीने की कमाई, कितना कर्ज़ चाहिए और किस काम के लिए, यह भी लिखना है।",
+    "नीचे दस्तख़त करके तारीख डालनी है, सब बातें सच लिखें।"
+   ],
+   "category": "bank",
+   "kind": "blank_form"
+  },
+  "analysis": {
+   "analysisId": "feb767b8-29a3-427c-9e03-f8285a9d752d",
+   "language": "hi",
+   "pageCount": 1,
+   "fillable": false,
+   "ocrText": "o | National Bank | Loan Application Form\n= Full Name :\nIE सिवा\nBoneoromn:\n[ED Residential Address ae\n16 Loan Purpose : Ee |\n| hereby confirm that the information provided above is true and correct.\nApplicant’s Signature : Date: / /",
+   "category": "bank",
+   "kind": "blank_form",
+   "documentLanguage": "en",
+   "title": "नेशनल बैंक – लोन (कर्ज़) आवेदन फ़ॉर्म",
+   "summary": "यह बैंक से कर्ज़ लेने का फ़ॉर्म है।",
+   "explanation": [
+    "यह फ़ॉर्म बैंक से कर्ज़ माँगने के लिए है।",
+    "इसमें नाम, जन्म तारीख और पता पूछा गया है।",
+    "महीने की कमाई और कितना कर्ज़ चाहिए, यह भी लिखना है।",
+    "आख़िर में दस्तख़त और तारीख डालनी है।"
+   ],
+   "instructions": [
+    "सारी जानकारी सही-सही भरें।",
+    "नीचे अपने दस्तख़त करें।",
+    "दस्तख़त के पास तारीख लिखें।"
+   ],
+   "requiredDocuments": [],
+   "ambiguities": [],
+   "source": "claude",
+   "fields": [
+    {
+     "id": "full_name",
+     "label": "Full Name :",
+     "labelLocalized": "पूरा नाम",
+     "type": "text",
+     "required": true,
+     "question": "आपका पूरा नाम क्या है?",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.38,
+      "y": 0.155,
+      "w": 0.587,
+      "h": 0.048
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "date_of_birth",
+     "label": "Date of Birth :",
+     "labelLocalized": "जन्म तारीख",
+     "type": "date",
+     "required": true,
+     "question": "आपका जन्म किस दिन, किस महीने और किस साल हुआ?",
+     "hint": "दिन / महीना / साल",
+     "format": "DD / MM / YYYY",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.381,
+      "y": 0.253,
+      "w": 0.586,
+      "h": 0.049
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "residential_address",
+     "label": "Residential Address :",
+     "labelLocalized": "घर का पता",
+     "type": "multiline",
+     "required": true,
+     "question": "आप कहाँ रहते हैं? अपना पूरा पता बताइए।",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.383,
+      "y": 0.353,
+      "w": 0.585,
+      "h": 0.112
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "monthly_income",
+     "label": "Monthly Income :",
+     "labelLocalized": "महीने की कमाई",
+     "type": "number",
+     "required": true,
+     "question": "आपकी हर महीने की कमाई कितने रुपये है?",
+     "hint": "रुपये में",
+     "format": "₹",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.402,
+      "y": 0.516,
+      "w": 0.567,
+      "h": 0.048
+     },
+     "mappingConfidence": "low"
+    },
+    {
+     "id": "loan_amount",
+     "label": "Loan Amount Required :",
+     "labelLocalized": "कितना कर्ज़ चाहिए",
+     "type": "number",
+     "required": true,
+     "question": "आपको कितने रुपये का कर्ज़ चाहिए?",
+     "hint": "रुपये में",
+     "format": "₹",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.401,
+      "y": 0.611,
+      "w": 0.568,
+      "h": 0.048
+     },
+     "mappingConfidence": "low"
+    },
+    {
+     "id": "loan_purpose",
+     "label": "Loan Purpose :",
+     "labelLocalized": "कर्ज़ किस काम के लिए",
+     "type": "text",
+     "required": true,
+     "question": "यह कर्ज़ आपको किस काम के लिए चाहिए?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.382,
+      "y": 0.714,
+      "w": 0.591,
+      "h": 0.048
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "applicant_signature",
+     "label": "Applicant’s Signature :",
+     "labelLocalized": "आवेदक के दस्तख़त",
+     "type": "signature",
+     "required": true,
+     "question": "यहाँ आपको दस्तख़त या अँगूठा लगाना है। क्या आप तैयार हैं?",
+     "sensitive": false,
+     "confirm": false,
+     "aiFillable": false,
+     "box": {
+      "page": 0,
+      "x": 0.29669999999999996,
+      "y": 0.90281,
+      "w": 0.2533000000000001,
+      "h": 0.04409999999999997
+     },
+     "mappingConfidence": "medium"
+    },
+    {
+     "id": "signature_date",
+     "label": "Date :",
+     "labelLocalized": "तारीख",
+     "type": "date",
+     "required": true,
+     "question": "आज की तारीख बताइए – दिन, महीना और साल।",
+     "format": "__/__/____",
+     "sensitive": false,
+     "confirm": true,
+     "aiFillable": true,
+     "box": {
+      "page": 0,
+      "x": 0.7777999999999999,
+      "y": 0.9122199999999999,
+      "w": 0.17220000000000002,
+      "h": 0.02820000000000006
+     },
+     "mappingConfidence": "medium"
+    }
+   ],
+   "warnings": []
+  }
+ }
+}
