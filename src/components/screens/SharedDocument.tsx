@@ -3,7 +3,7 @@
 import { CheckCircle2, Clock, Download, ExternalLink, FileText, Info, Link2Off, ShieldCheck, Signature } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { pdfToPages, sha256Hex, type PreparedPage } from "@/lib/client/media";
+import { pdfToPages, PREVIEW_WIDTH, sha256Hex, type PreparedPage } from "@/lib/client/media";
 import { formatDate } from "@/lib/i18n";
 import { shortHash } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export function SharedDocument({ token }: { token: string }) {
         if (!res.ok) return;
         const bytes = await res.arrayBuffer();
         const sha256 = await sha256Hex(bytes);
-        const { pages } = await pdfToPages(bytes);
+        const { pages } = await pdfToPages(bytes, 4, PREVIEW_WIDTH);
         if (live) setDoc({ pages, sha256 });
       } catch {
         // Preview is a convenience; Download still works.

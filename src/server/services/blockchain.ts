@@ -65,6 +65,8 @@ const ARKIV_WRITE_LOCK = 727_274_002;
 
 const nowSeconds = (d = new Date()) => BigInt(Math.floor(d.getTime() / 1000));
 
+const RECEIPT_POLL_MS = 500;
+
 class ArkivVerificationService implements BlockchainVerificationService {
   readonly configured = true;
   readonly writerAddress: Hex;
@@ -77,8 +79,11 @@ class ArkivVerificationService implements BlockchainVerificationService {
     const chain = rabdi({ accessKey });
     const account = privateKeyToAccount(privateKey);
     this.writerAddress = account.address;
-    this.wallet = createWalletClient({ chain, transport: http(), account });
-    this.reader = createPublicClient({ chain, transport: http() });
+    // Rabdi makes a block every 2 s, but the chain definition gives no block time, so viem would look
+    // for a transaction's receipt only every 4 s — up to 4 s of pure waiting on every save. Check
+    // every half second instead.
+    this.wallet = createWalletClient({ chain, transport: http(), account, pollingInterval: RECEIPT_POLL_MS });
+    this.reader = createPublicClient({ chain, transport: http(), pollingInterval: RECEIPT_POLL_MS });
   }
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -113,6 +118,7 @@ class ArkivVerificationService implements BlockchainVerificationService {
     return this.serial(async () => {
       // Commitment + consent (+ signature) land atomically in one transaction; the others reference
       // the commitment's key, which is predicted before sending.
+      const started = Date.now();
       const [c, k, s] = await this.reader.predictEntityKeys({ owner: this.writerAddress, count: 3 });
       const sig = input.signature;
       const expiration = ExpirationTime.atDate(input.retentionUntil, { atLeast: ExpirationTime.fromHours(1) });
@@ -164,10 +170,11 @@ class ArkivVerificationService implements BlockchainVerificationService {
             : []),
         ],
       });
+      const writtenMs = Date.now() - started;
       const [commitmentKey, consentKey, signatureKey = null] = res.createdEntities;
       if (commitmentKey !== c.key) log.warn("arkiv.key_prediction_mismatch", { txHash: res.txHash });
       const expiry = await commitmentExpiry(this.reader, commitmentKey).catch(() => null);
-      log.info("arkiv.approval_recorded", { entityKey: commitmentKey, txHash: res.txHash });
+      log.info("arkiv.approval_recorded", { entityKey: commitmentKey, txHash: res.txHash, writtenMs, durationMs: Date.now() - started });
       return {
         commitmentKey,
         consentKey,

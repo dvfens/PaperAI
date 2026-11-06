@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronDown, Download, ListChecks, Mic, PenLine, RotateC
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
 import { rememberFormTitle } from "@/lib/client/form-titles";
-import { downloadBlob, pagesWithinBudget, pdfToPages } from "@/lib/client/media";
+import { downloadBlob, pagesWithinBudget, pdfToPages, PREVIEW_WIDTH } from "@/lib/client/media";
 import { detectYesNo } from "@/lib/conversation/rules";
 import type { StringKey } from "@/lib/i18n";
 import type { RetentionChoice } from "@/lib/types";
@@ -70,7 +70,7 @@ export function FinalVerification() {
           pages: pagesWithinBudget(source.pages).map((p) => p.blob),
         });
         const blob = new Blob([res.bytes], { type: "application/pdf" });
-        const { pages } = await pdfToPages(res.bytes);
+        const { pages } = await pdfToPages(res.bytes, 4, PREVIEW_WIDTH);
         update({ generated: { blob, sha256: res.sha256, token: res.token, pages, skipped: res.skipped } });
         void speak(readback);
       } catch (err) {

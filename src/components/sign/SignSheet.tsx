@@ -3,7 +3,7 @@
 import { Eraser, Signature } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, errorKey } from "@/lib/client/api";
-import { pagesWithinBudget, pdfToPages } from "@/lib/client/media";
+import { pagesWithinBudget, pdfToPages, PREVIEW_WIDTH, stampSignature } from "@/lib/client/media";
 import { signDocument, signerAddress } from "@/lib/client/signer";
 import type { StringKey } from "@/lib/i18n";
 import type { SignMethod } from "@/lib/signing";
@@ -36,7 +36,7 @@ export function SignSheet({
   onSigned: () => void;
   onSkip: () => void;
 }) {
-  const { state, update, t, speak, stopSpeaking } = useApp();
+  const { state, update, updateIf, t, speak, stopSpeaking } = useApp();
   const pad = useRef<SignaturePadHandle>(null);
   const [hasInk, setHasInk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -71,18 +71,34 @@ export function SignSheet({
       );
       // The phone's key signs the exact bytes of the finished PDF.
       const proof = await signDocument(res.sha256, signedAt, method);
-      const { pages } = await pdfToPages(res.bytes);
+      // Move on at once: the signature is drawn onto the pages already on screen. Redrawing the whole
+      // signed PDF took several seconds on a phone; it now happens in the background and replaces
+      // these pages (adding the signature record page) when it is ready.
+      const shown = state.generated?.pages ?? [];
+      const sigBoxes = analysis.fields.filter((f) => f.type === "signature" && f.box).map((f) => f.box!);
+      const quick = shown.length ? await stampSignature(shown, sigBoxes, png).catch(() => null) : null;
+      const exact = quick ? null : (await pdfToPages(res.bytes, 4, PREVIEW_WIDTH)).pages;
       update({
         generated: {
           blob: new Blob([res.bytes], { type: "application/pdf" }),
           sha256: res.sha256,
           token: res.token,
-          pages,
+          pages: quick ?? exact!,
           skipped: res.skipped,
           signature: proof,
         },
       });
       onSigned();
+      if (quick) {
+        void pdfToPages(res.bytes, 4, PREVIEW_WIDTH)
+          .then(({ pages }) =>
+            updateIf(
+              (st) => st.generated?.sha256 === res.sha256,
+              (st) => ({ generated: { ...st.generated!, pages } }),
+            ),
+          )
+          .catch(() => undefined); // keep the quick pages
+      }
     } catch (err) {
       setError(errorKey(err));
     } finally {
