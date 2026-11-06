@@ -67,8 +67,8 @@ type Status = { label: string; cls: string; Icon: ComponentType<{ className?: st
  */
 function StatusDot({ status }: { status: Status }) {
   return (
-    <span aria-hidden className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", status.cls)}>
-      <status.Icon className="size-5" />
+    <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", status.cls)}>
+      <status.Icon className="size-4" />
     </span>
   );
 }
@@ -133,26 +133,26 @@ export function FormReview() {
       />
       <Page className="pt-2">
         <Card className="flex flex-col gap-3">
-          <p className="text-xl font-bold text-slate-900">{t("answeredOf", { n: filledCount, total: fillable.length })}</p>
+          <p className="text-[17px] font-semibold text-slate-900">{t("answeredOf", { n: filledCount, total: fillable.length })}</p>
           <ProgressBar value={fillable.length ? filledCount / fillable.length : 0} />
           {missingRequired.length > 0 ? (
-            <p className="flex items-start gap-2 text-base font-semibold text-amber-800">
-              <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <p className="flex items-start gap-2 text-sm font-semibold text-amber-800">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
               {missingRequired.length === 1 ? t("requiredMissingOne") : t("requiredMissing", { n: missingRequired.length })}
             </p>
           ) : unanswered.length > 0 ? (
-            <p className="flex items-start gap-2 text-base font-semibold text-slate-600">
-              <CircleDashed className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <p className="flex items-start gap-2 text-sm font-semibold text-slate-600">
+              <CircleDashed className="mt-0.5 size-4 shrink-0" aria-hidden />
               {t("emptyCount", { n: unanswered.length })}
             </p>
           ) : (
-            <p className="flex items-start gap-2 text-base font-semibold text-green-800">
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <p className="flex items-start gap-2 text-sm font-semibold text-green-800">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden />
               {t("allAnswered")}
             </p>
           )}
-          <p className="flex items-start gap-2 text-base text-slate-700">
-            <PenLine className="mt-0.5 size-5 shrink-0 text-slate-500" aria-hidden />
+          <p className="flex items-start gap-2 text-sm text-slate-700">
+            <PenLine className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden />
             {t("reviewHint")}
           </p>
         </Card>
@@ -171,7 +171,7 @@ export function FormReview() {
                   {section.group}
                 </SectionTitle>
               ) : (
-                <div className={i === 0 ? "mt-4" : "mt-6"} />
+                <div className={i === 0 ? "mt-3" : "mt-4"} />
               )}
               <ListGroup>
                 {section.fields.map((f) => {
@@ -188,9 +188,9 @@ export function FormReview() {
                       label={f.labelLocalized}
                       value={
                         byHand ? (
-                          <span className="font-medium text-blue-800">{status.label}</span>
+                          <span className="text-[13px] font-medium text-blue-800">{status.label}</span>
                         ) : (
-                          value ?? <span className={f.required ? "font-semibold text-amber-800" : "font-normal text-slate-500"}>{status.label}</span>
+                          value ?? <span className={cn("text-[13px]", f.required ? "font-semibold text-amber-800" : "font-normal text-slate-500")}>{status.label}</span>
                         )
                       }
                       sub={
@@ -201,7 +201,7 @@ export function FormReview() {
                             {spoken && <span className="block">{spoken}</span>}
                             {lowConf && (
                               <span className="flex items-center gap-1.5 font-semibold text-amber-800">
-                                <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                                <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
                                 {t("statusCheck")}
                               </span>
                             )}
@@ -314,8 +314,8 @@ function EditAnswerDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={t("changeTitle")} description={field.labelLocalized} closeLabel={t("close")}>
-      <div className="flex flex-col gap-4">
-        {showPrinted && <p className="-mt-2 break-words text-base text-slate-600">{field.label}</p>}
+      <div className="flex flex-col gap-3">
+        {showPrinted && <p className="-mt-1 break-words text-sm text-slate-600">{field.label}</p>}
         {page && field.box && (
           <FieldSnippet
             page={page}
@@ -330,7 +330,7 @@ function EditAnswerDialog({
         {uncertain && <Notice tone="warning">{t("uncertainPlacement")}</Notice>}
 
         {choiceButtons ? (
-          <div role="group" aria-label={field.labelLocalized} className="flex flex-col gap-3">
+          <div role="group" aria-label={field.labelLocalized} className="flex flex-col gap-2">
             {choiceButtons.map((c) => (
               <button
                 key={c.label}
@@ -338,22 +338,22 @@ function EditAnswerDialog({
                 aria-pressed={c.selected}
                 onClick={() => commit(c.raw)}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-5 py-3 text-left text-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+                  "flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
                   c.selected ? "border-blue-600 bg-blue-50 text-blue-900" : "border-slate-200 bg-white text-slate-900 hover:border-blue-300 active:bg-slate-50",
                 )}
               >
                 <span className="min-w-0 break-words">{c.label}</span>
                 {c.selected ? (
-                  <CheckCircle2 className="size-7 shrink-0 text-blue-700" aria-hidden />
+                  <CheckCircle2 className="size-5 shrink-0 text-blue-700" aria-hidden />
                 ) : (
-                  <Circle className="size-7 shrink-0 text-slate-300" aria-hidden />
+                  <Circle className="size-5 shrink-0 text-slate-300" aria-hidden />
                 )}
               </button>
             ))}
           </div>
         ) : (
           <form
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault();
               commit(value);
@@ -365,7 +365,7 @@ function EditAnswerDialog({
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   rows={4}
-                  className="min-w-0 flex-1 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                  className="min-w-0 flex-1 rounded-xl border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-base focus:border-blue-600 focus:bg-white focus:outline-none"
                   aria-label={field.labelLocalized}
                 />
               ) : (
@@ -373,7 +373,7 @@ function EditAnswerDialog({
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   inputMode={field.type === "phone" || field.type === "number" ? "numeric" : field.type === "email" ? "email" : "text"}
-                  className="min-h-14 min-w-0 flex-1 rounded-2xl border-2 border-slate-300 bg-slate-50 px-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border-2 border-slate-300 bg-slate-50 px-3 text-base focus:border-blue-600 focus:bg-white focus:outline-none"
                   aria-label={field.labelLocalized}
                   autoFocus
                 />
@@ -386,15 +386,15 @@ function EditAnswerDialog({
                   aria-pressed={listening}
                   title={listening ? t("listening") : t("speakAnswer")}
                   className={cn(
-                    "flex size-14 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+                    "flex size-12 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
                     listening ? "bg-red-600 text-white hover:bg-red-700" : "bg-blue-50 text-blue-700 hover:bg-blue-100",
                   )}
                 >
-                  {listen.state === "processing" ? <Loader2 className="size-7 animate-spin" aria-hidden /> : <Mic className="size-7" aria-hidden />}
+                  {listen.state === "processing" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Mic className="size-5" aria-hidden />}
                 </button>
               )}
             </div>
-            <p aria-live="polite" className={cn("px-1 text-base", listening ? "font-semibold text-red-700" : "text-slate-500", !listening && !field.hint && "sr-only")}>
+            <p aria-live="polite" className={cn("px-1 text-sm", listening ? "font-semibold text-red-700" : "text-slate-500", !listening && !field.hint && "sr-only")}>
               {listening ? (listen.partial ? `“${listen.partial}”` : t("listening")) : field.hint}
             </p>
             {problem && <Notice tone="warning">{problem}</Notice>}

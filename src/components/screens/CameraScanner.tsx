@@ -150,8 +150,8 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
       )}
 
       {/* Top bar */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-8">
-        <span className="text-lg font-extrabold tracking-tight">{t("appName")}</span>
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6">
+        <span className="text-[17px] font-bold tracking-tight">{t("appName")}</span>
         <div className="flex items-center gap-2">
           <VoiceEngineButton tone="dark" />
           <LanguageSelector tone="dark" />
@@ -160,12 +160,12 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
 
       {/* Frame guide */}
       {!captured && camera === "live" && (
-        <div className="pointer-events-none absolute inset-x-8 top-24 bottom-56" aria-hidden>
-          <span className="absolute left-0 top-0 size-12 rounded-tl-3xl border-l-4 border-t-4 border-white/90" />
-          <span className="absolute right-0 top-0 size-12 rounded-tr-3xl border-r-4 border-t-4 border-white/90" />
-          <span className="absolute bottom-0 left-0 size-12 rounded-bl-3xl border-b-4 border-l-4 border-white/90" />
-          <span className="absolute bottom-0 right-0 size-12 rounded-br-3xl border-b-4 border-r-4 border-white/90" />
-          <span className="absolute inset-x-0 top-4 mx-auto w-fit rounded-full bg-black/55 px-4 py-1.5 text-base font-semibold backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-8 top-20 bottom-52" aria-hidden>
+          <span className="absolute left-0 top-0 size-10 rounded-tl-2xl border-l-[3px] border-t-[3px] border-white/90" />
+          <span className="absolute right-0 top-0 size-10 rounded-tr-2xl border-r-[3px] border-t-[3px] border-white/90" />
+          <span className="absolute bottom-0 left-0 size-10 rounded-bl-2xl border-b-[3px] border-l-[3px] border-white/90" />
+          <span className="absolute bottom-0 right-0 size-10 rounded-br-2xl border-b-[3px] border-r-[3px] border-white/90" />
+          <span className="absolute inset-x-0 top-4 mx-auto w-fit rounded-full bg-black/55 px-3 py-1 text-[13px] font-medium backdrop-blur">
             {t("cam_hint")}
           </span>
         </div>
@@ -175,13 +175,13 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
       {!captured && camera !== "live" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-10 pb-40 text-center">
           {camera === "starting" ? (
-            <Loader2 className="size-12 animate-spin text-white/70" aria-hidden />
+            <Loader2 className="size-8 animate-spin text-white/70" aria-hidden />
           ) : (
             <>
-              <span className="flex size-16 items-center justify-center rounded-full bg-white/10">
-                <CameraOff className="size-10 text-white/80" aria-hidden />
+              <span className="flex size-14 items-center justify-center rounded-full bg-white/10">
+                <CameraOff className="size-7 text-white/80" aria-hidden />
               </span>
-              <p className="text-lg font-semibold">{t("cam_noCamera")}</p>
+              <p className="text-[15px] font-semibold">{t("cam_noCamera")}</p>
             </>
           )}
         </div>
@@ -190,14 +190,14 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
       {/* Busy overlay (reading a file) */}
       {busy && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60" role="status" aria-label={t("loading")}>
-          <Loader2 className="size-14 animate-spin" aria-hidden />
+          <Loader2 className="size-8 animate-spin" aria-hidden />
         </div>
       )}
 
       {/* Bottom controls */}
-      <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-10 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {error && (
-          <p role="alert" className="mx-auto mb-3 w-fit rounded-full bg-red-600 px-4 py-1.5 text-base font-semibold">
+          <p role="alert" className="mx-auto mb-3 w-fit rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold">
             {error}
           </p>
         )}
@@ -206,30 +206,30 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
           <div className="mx-auto grid max-w-md grid-cols-2 gap-3">
             <button
               onClick={() => setCaptured(null)}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-white/15 text-lg font-bold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white/15 text-[15px] font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
             >
-              <RotateCcw className="size-6" aria-hidden /> {t("cam_retake")}
+              <RotateCcw className="size-5" aria-hidden /> {t("cam_retake")}
             </button>
             <button
               onClick={useCaptured}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-blue-600 text-lg font-bold hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 text-[15px] font-semibold hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
             >
-              <Check className="size-6" aria-hidden /> {t("cam_use")}
+              <Check className="size-5" aria-hidden /> {t("cam_use")}
             </button>
           </div>
         ) : (
           <>
-            <div className="mb-5 flex justify-center gap-2">
+            <div className="mb-4 flex justify-center gap-2">
               <button
                 onClick={() => void trySample()}
                 disabled={busy}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <Sparkles className="size-4" aria-hidden /> {t("cam_sample")}
               </button>
               <Link
                 href="/verify"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 text-base font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
                 <ShieldCheck className="size-4" aria-hidden /> {t("cam_check")}
               </Link>
@@ -243,7 +243,7 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
                   onClick={capture}
                   disabled={camera !== "live" || busy}
                   aria-label={t("takePhoto")}
-                  className="flex size-20 items-center justify-center rounded-full border-4 border-white p-1.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+                  className="flex size-[4.5rem] items-center justify-center rounded-full border-4 border-white p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
                 >
                   <span className="block size-full rounded-full bg-white transition-transform active:scale-90" />
                 </button>
@@ -252,7 +252,7 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
                 {torchSupported ? (
                   <IconAction tone="dark" icon={torchOn ? FlashlightOff : Flashlight} label={t("cam_light")} active={torchOn} onClick={toggleTorch} />
                 ) : (
-                  <span className="size-14" aria-hidden />
+                  <span className="size-11" aria-hidden />
                 )}
               </div>
             </div>

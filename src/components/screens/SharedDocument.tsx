@@ -33,23 +33,23 @@ export function SharedDocument({ token }: { token: string }) {
       <AppBar menu={<AppMenu />} />
       <Page dock={Boolean(valid)}>
         {!meta && (
-          <div className="flex justify-center py-16">
+          <div className="flex justify-center py-12">
             <Spinner label={t("loading")} />
           </div>
         )}
 
         {meta && !meta.valid && (
-          <Card className="mt-4 flex flex-col items-center gap-3 bg-slate-100/70 px-5 py-10 text-center">
-            <span className="flex size-16 items-center justify-center rounded-full bg-white text-slate-500">
-              <Link2Off className="size-10" aria-hidden />
+          <Card className="mt-4 flex flex-col items-center gap-3 bg-slate-100/70 px-4 py-8 text-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-white text-slate-500">
+              <Link2Off className="size-7" aria-hidden />
             </span>
-            <h1 className="max-w-md text-xl font-bold leading-snug text-slate-700">{t("sharedExpired")}</h1>
+            <h1 className="max-w-md text-[17px] font-semibold leading-snug text-slate-700">{t("sharedExpired")}</h1>
           </Card>
         )}
 
         {valid && (
           <>
-            <Card className="relative mt-4 flex flex-col items-center gap-3 px-5 pb-6 pt-8 text-center">
+            <Card className="relative mt-4 flex flex-col items-center gap-3 px-4 pb-4 pt-6 text-center">
               <SpeakButton
                 text={[
                   t("sharedTitle"),
@@ -61,25 +61,25 @@ export function SharedDocument({ token }: { token: string }) {
                   .join(" ")}
                 className="absolute right-3 top-3"
               />
-              <span className="flex size-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                <FileText className="size-10" aria-hidden />
+              <span className="flex size-14 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                <FileText className="size-7" aria-hidden />
               </span>
-              <h1 className="max-w-md text-xl font-bold leading-snug text-slate-900">{t("sharedTitle")}</h1>
+              <h1 className="max-w-md text-[17px] font-semibold leading-snug text-slate-900">{t("sharedTitle")}</h1>
               <div className="flex flex-wrap justify-center gap-2">
-                {/* Dates with a time wrap at 375px, so these chips use the wrapping (rounded-2xl) shape. */}
-                <Chip tone="blue" icon={Clock} className="max-w-full rounded-2xl px-4 py-1.5 text-base">
+                {/* Dates with a time wrap at 375px, so these chips use the wrapping (rounded-xl) shape. */}
+                <Chip tone="blue" icon={Clock} className="max-w-full rounded-xl px-2.5 py-1 text-[13px]">
                   {t("linkActiveUntil", { date: formatDate(lang, valid.expiresAt, true) })}
                 </Chip>
                 {valid.arkivChecked && (
-                  <Chip tone="green" icon={CheckCircle2} className="max-w-full rounded-2xl px-4 py-1.5 text-base">
+                  <Chip tone="green" icon={CheckCircle2} className="max-w-full rounded-xl px-2.5 py-1 text-[13px]">
                     {t("approvedOn", { date: formatDate(lang, valid.approvedAt, true) })}
                   </Chip>
                 )}
               </div>
             </Card>
 
-            <p className="mt-4 flex items-start gap-2 px-1 text-base text-slate-500">
-              <Info className="mt-1 size-4 shrink-0" aria-hidden />
+            <p className="mt-4 flex items-start gap-2 px-1 text-[13px] text-slate-500">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>{t("verifyDisclaimer")}</span>
             </p>
           </>

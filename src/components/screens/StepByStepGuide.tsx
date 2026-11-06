@@ -56,26 +56,26 @@ export function StepByStepGuide({ guide, pages }: { guide: NextStepsGuide; pages
         <span id="next-steps">{t("nextSteps")}</span>
       </SectionTitle>
 
-      <Card className="p-5">
+      <Card className="p-4">
         {/* Progress dots */}
-        <div className="flex flex-wrap items-center justify-center gap-2" aria-hidden>
+        <div className="flex flex-wrap items-center justify-center gap-1.5" aria-hidden>
           {guide.steps.map((_, k) => (
             <span
               key={k}
               className={cn(
-                "h-2.5 rounded-full transition-all",
-                k === i ? "w-8 bg-blue-600" : k < i ? "w-2.5 bg-blue-300" : "w-2.5 bg-slate-200",
+                "h-2 rounded-full transition-all",
+                k === i ? "w-6 bg-blue-600" : k < i ? "w-2 bg-blue-300" : "w-2 bg-slate-200",
               )}
             />
           ))}
         </div>
 
-        <div className="mt-5 flex flex-col items-center text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-            <Icon className="size-8" aria-hidden />
+        <div className="mt-4 flex flex-col items-center text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+            <Icon className="size-6" aria-hidden />
           </span>
-          <h3 className="mt-3 text-xl font-bold text-pretty text-slate-900">{step.title}</h3>
-          <p className="mt-1 text-lg text-pretty text-slate-700">{step.detail}</p>
+          <h3 className="mt-2.5 text-[17px] font-semibold text-pretty text-slate-900">{step.title}</h3>
+          <p className="mt-1 text-[15px] leading-relaxed text-pretty text-slate-700">{step.detail}</p>
         </div>
 
         {step.kind === "sign" && step.box && pages[step.box.page] && (
@@ -83,21 +83,21 @@ export function StepByStepGuide({ guide, pages }: { guide: NextStepsGuide; pages
             pages={pages}
             highlights={[{ box: step.box, tone: "sign", label: t("statusByHand") }]}
             alt={t("completed")}
-            className="mt-5"
+            className="mt-4"
             maxPages={step.box.page + 1}
           />
         )}
 
-        <div className="mt-5 flex items-center justify-between gap-3">
+        <div className="mt-4 flex items-center justify-between gap-3">
           <IconButton
             icon={ChevronLeft}
             label={t("previousStep")}
             tone="soft"
-            className="size-14"
+            className="size-11"
             disabled={i === 0}
             onClick={() => setI(i - 1)}
           />
-          <p className="text-lg font-bold text-slate-700" aria-live="polite">
+          <p className="text-sm font-semibold tabular-nums text-slate-700" aria-live="polite">
             <span aria-hidden>
               {i + 1} / {total}
             </span>
@@ -107,7 +107,7 @@ export function StepByStepGuide({ guide, pages }: { guide: NextStepsGuide; pages
             icon={ChevronRight}
             label={t("nextStep")}
             tone="soft"
-            className="size-14 bg-blue-600 text-white hover:bg-blue-700"
+            className="size-11 bg-blue-600 text-white hover:bg-blue-700"
             disabled={i >= total - 1}
             onClick={() => setI(i + 1)}
           />

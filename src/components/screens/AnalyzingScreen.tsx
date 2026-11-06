@@ -83,31 +83,31 @@ export function AnalyzingScreen() {
         {/* Page thumbnail with a live status badge */}
         <Card className="relative w-fit p-3">
           {source ? (
-            <DocumentPreview pages={source.pages} alt={t("original")} maxPages={1} className="w-36 sm:w-44" />
+            <DocumentPreview pages={source.pages} alt={t("original")} maxPages={1} className="w-32 sm:w-36" />
           ) : (
-            <span className="flex h-48 w-36 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-              <ScanText className="size-12" aria-hidden />
+            <span className="flex h-44 w-32 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+              <ScanText className="size-8" aria-hidden />
             </span>
           )}
           <span
             className={cn(
-              "absolute -bottom-3 -right-3 flex size-12 items-center justify-center rounded-full text-white shadow-md ring-4 ring-slate-50",
+              "absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-full text-white shadow-md ring-[3px] ring-slate-50",
               error ? "bg-red-600" : "bg-blue-600",
             )}
             aria-hidden
           >
-            {error ? <AlertTriangle className="size-6" /> : <Loader2 className="size-6 animate-spin" />}
+            {error ? <AlertTriangle className="size-5" /> : <Loader2 className="size-5 animate-spin" />}
           </span>
         </Card>
 
-        <h1 className="mt-8 text-center text-xl font-bold text-slate-900">{t("reading")}</h1>
+        <h1 className="mt-5 text-center text-[17px] font-semibold text-slate-900">{t("reading")}</h1>
 
         {error ? (
-          <div className="mt-6 w-full">
+          <div className="mt-4 w-full">
             <Notice tone="error">{t(error)}</Notice>
           </div>
         ) : (
-          <div className="mt-6 w-full" aria-live="polite">
+          <div className="mt-4 w-full" aria-live="polite">
             <ListGroup>
               {steps.map((s) => {
                 const done = phase === "understand" && s.key === "read";
@@ -119,18 +119,18 @@ export function AnalyzingScreen() {
                     value={<span className={done || active ? undefined : "font-normal text-slate-500"}>{t(s.label)}</span>}
                     right={
                       done ? (
-                        <CheckCircle2 className="size-7 shrink-0 text-green-700" aria-hidden />
+                        <CheckCircle2 className="size-5 shrink-0 text-green-700" aria-hidden />
                       ) : active ? (
-                        <Loader2 className="size-7 shrink-0 animate-spin text-blue-700" aria-hidden />
+                        <Loader2 className="size-5 shrink-0 animate-spin text-blue-700" aria-hidden />
                       ) : (
-                        <Circle className="size-7 shrink-0 text-slate-300" aria-hidden />
+                        <Circle className="size-5 shrink-0 text-slate-300" aria-hidden />
                       )
                     }
                   />
                 );
               })}
             </ListGroup>
-            {slow && <p className="mt-4 text-center text-base text-slate-500">{t("analyzingSlow")}</p>}
+            {slow && <p className="mt-3 text-center text-sm text-slate-500">{t("analyzingSlow")}</p>}
           </div>
         )}
       </Page>

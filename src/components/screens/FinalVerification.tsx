@@ -112,14 +112,14 @@ export function FinalVerification() {
           />
         }
       />
-      <Page className={generated ? "pb-64" : undefined}>
+      <Page className={generated ? "pb-56" : undefined}>
         {!generated && !error && (
           <div className="flex min-h-[50dvh] items-center justify-center">
             <Spinner label={t("generating")} />
           </div>
         )}
         {error && (
-          <div className="mt-6">
+          <div className="mt-4">
             <Notice tone="error">{t(error)}</Notice>
           </div>
         )}
@@ -127,13 +127,13 @@ export function FinalVerification() {
         {generated && (
           <>
             {missing.length > 0 && (
-              <section aria-label={t("missingInfo")} className="mb-4 rounded-3xl bg-amber-50 p-3">
-                <p className="flex items-center gap-2 px-1 text-base font-bold text-amber-900">
-                  <AlertTriangle className="size-5 shrink-0" aria-hidden /> {t("missingInfo")}
+              <section aria-label={t("missingInfo")} className="mb-4 rounded-2xl bg-amber-50 p-3">
+                <p className="flex items-center gap-1.5 px-1 text-sm font-semibold text-amber-900">
+                  <AlertTriangle className="size-4 shrink-0" aria-hidden /> {t("missingInfo")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {missing.map((f) => (
-                    <Chip key={f.id} tone="amber" className="max-w-full rounded-2xl bg-white text-base">
+                    <Chip key={f.id} tone="amber" className="max-w-full rounded-xl bg-white px-2.5 py-1 text-[13px]">
                       <span className="min-w-0 break-words">{f.labelLocalized}</span>
                     </Chip>
                   ))}
@@ -160,15 +160,15 @@ export function FinalVerification() {
             </Card>
 
             {/* Answers: collapsed by default; the speaker reads the important ones aloud. */}
-            <div className="relative mt-6">
-              <details className="group rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-3xl py-3 pr-[4.25rem] pl-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                    <ListChecks className="size-5" aria-hidden />
+            <div className="relative mt-4">
+              <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-2xl py-2 pr-14 pl-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <ListChecks className="size-4" aria-hidden />
                   </span>
-                  <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("approvedFields")}</span>
-                  <Chip className="text-base">{filled.length}</Chip>
-                  <ChevronDown className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                  <span className="min-w-0 flex-1 text-[15px] font-semibold text-slate-900">{t("approvedFields")}</span>
+                  <Chip>{filled.length}</Chip>
+                  <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
                 <div className="divide-y divide-slate-100 border-t border-slate-100">
                   {filled.map((f) => {
@@ -176,15 +176,15 @@ export function FinalVerification() {
                     return (
                       <ListRow
                         key={f.id}
-                        label={<span className="whitespace-normal text-base">{f.labelLocalized}</span>}
+                        label={<span className="whitespace-normal">{f.labelLocalized}</span>}
                         value={displayValue(f, conv.answers[f.id], t)}
-                        sub={spoken ? <span className="text-base text-slate-600">{spoken}</span> : undefined}
+                        sub={spoken ? <span className="text-[13px] text-slate-600">{spoken}</span> : undefined}
                       />
                     );
                   })}
                 </div>
               </details>
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-1 right-2">
                 <SpeakButton text={readback} />
               </div>
             </div>
@@ -209,7 +209,7 @@ export function FinalVerification() {
 
       {generated && (
         <Dock>
-          <p aria-live="polite" className={cn("text-center text-lg font-semibold", listening ? "text-red-700" : "text-slate-900")}>
+          <p aria-live="polite" className={cn("text-center text-[15px] font-medium", listening ? "text-red-700" : "text-slate-900")}>
             {listening ? t("listening") : t("readbackAsk")}
           </p>
           <Button block variant="success" onClick={() => setConsentOpen(true)}>
@@ -293,16 +293,16 @@ function ConsentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={t("consentShort")} closeLabel={t("close")}>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
-          <p id={lineId} className="min-w-0 flex-1 pt-1 text-lg text-slate-700">
+          <p id={lineId} className="min-w-0 flex-1 pt-2 text-[15px] text-slate-700">
             {t("consentLine")}
           </p>
           <SpeakButton text={`${t("consentBody")} ${t("consentPublic")} ${t("consentAgree")}`} />
         </div>
 
         <div>
-          <p className="mb-2 px-1 text-base font-semibold text-slate-600">{t("keepFor")}</p>
+          <p className="mb-1.5 px-1 text-[13px] font-semibold text-slate-600">{t("keepFor")}</p>
           <Segmented
             label={t("keepFor")}
             value={retention}
@@ -311,15 +311,15 @@ function ConsentDialog({
           />
         </div>
 
-        <label className="flex min-h-14 cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 px-4 py-3 transition-colors has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-blue-300">
+        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 px-3 py-2.5 transition-colors has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-blue-300">
           <input
             type="checkbox"
             checked={agree}
             onChange={(e) => setAgree(e.target.checked)}
             aria-describedby={lineId}
-            className="size-7 shrink-0 accent-blue-700 focus-visible:outline-none"
+            className="size-5 shrink-0 accent-blue-700 focus-visible:outline-none"
           />
-          <span className="text-lg font-semibold text-slate-900">{t("agree")}</span>
+          <span className="text-[13px] font-semibold text-slate-900">{t("agree")}</span>
         </label>
 
         {error && <Notice tone="error">{t(error)}</Notice>}

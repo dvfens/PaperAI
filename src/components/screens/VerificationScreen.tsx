@@ -168,23 +168,23 @@ export function VerificationScreen() {
             onClick={pickFile}
             aria-label={t("choosePdf")}
             aria-describedby="verify-hint"
-            className="mt-4 flex w-full flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-blue-300 bg-white px-5 py-10 text-center shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 active:bg-blue-50"
+            className="mt-4 flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-blue-300 bg-white px-4 py-8 text-center shadow-sm transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 active:bg-blue-50"
           >
-            <span className="flex size-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-              <FileUp className="size-10" aria-hidden />
+            <span className="flex size-14 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+              <FileUp className="size-7" aria-hidden />
             </span>
-            <span className="text-xl font-bold text-blue-800">{t("choosePdf")}</span>
-            <span id="verify-hint" className="flex max-w-md items-start gap-2 text-base text-slate-500">
-              <Lock className="mt-1 size-4 shrink-0" aria-hidden />
+            <span className="text-[17px] font-semibold text-blue-800">{t("choosePdf")}</span>
+            <span id="verify-hint" className="flex max-w-md items-start gap-2 text-sm text-slate-500">
+              <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>{t("verifyHint")}</span>
             </span>
           </button>
         )}
 
         {checking && (
-          <Card className="mt-4 flex flex-col items-center gap-3 py-12">
+          <Card className="mt-4 flex flex-col items-center gap-3 py-8">
             <Spinner label={t("checking")} />
-            {file && <p className="max-w-full break-all text-center text-base text-slate-500">{file.name}</p>}
+            {file && <p className="max-w-full break-all text-center text-sm text-slate-500">{file.name}</p>}
           </Card>
         )}
 
@@ -221,14 +221,14 @@ export function VerificationScreen() {
                         return (
                           <li key={e.entityKey} className="flex gap-3">
                             <div className="flex flex-col items-center" aria-hidden>
-                              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                                <EventIcon className="size-5" />
+                              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                                <EventIcon className="size-4" />
                               </span>
                               {!last && <span className="my-1 w-0.5 flex-1 rounded-full bg-slate-200" />}
                             </div>
-                            <div className={cn("min-w-0 flex-1 pt-1", !last && "pb-4")}>
-                              <p className="text-lg font-semibold leading-snug text-slate-900">{t(EVENT_LABEL[e.kind])}</p>
-                              <p className="text-base text-slate-500">{formatDate(lang, e.at * 1000, true)}</p>
+                            <div className={cn("min-w-0 flex-1 pt-0.5", !last && "pb-3")}>
+                              <p className="text-[15px] font-semibold leading-snug text-slate-900">{t(EVENT_LABEL[e.kind])}</p>
+                              <p className="text-[13px] text-slate-500">{formatDate(lang, e.at * 1000, true)}</p>
                             </div>
                           </li>
                         );
@@ -238,18 +238,18 @@ export function VerificationScreen() {
                 </>
               )}
 
-              <p className="mt-4 flex items-start gap-2 px-1 text-base text-slate-500">
-                <Info className="mt-1 size-4 shrink-0" aria-hidden />
+              <p className="mt-4 flex items-start gap-2 px-1 text-[13px] text-slate-500">
+                <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <span>{t("verifyDisclaimer")}</span>
               </p>
 
-              <details className="group mt-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                    <Fingerprint className="size-5" aria-hidden />
+              <details className="group mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-300 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <Fingerprint className="size-4" aria-hidden />
                   </span>
-                  <span className="min-w-0 flex-1 text-lg font-semibold text-slate-900">{t("technicalDetails")}</span>
-                  <ChevronDown className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                  <span className="min-w-0 flex-1 text-[15px] font-medium text-slate-900">{t("technicalDetails")}</span>
+                  <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
                 <dl className="divide-y divide-slate-100 border-t border-slate-100">
                   <DetailRow label={`${t("fingerprint")} (SHA-256)`} mono>
@@ -314,22 +314,22 @@ function StatusCard({
   const s = OUTCOME_STYLE[outcome];
   const StatusIcon = s.icon;
   return (
-    <Card className={cn("relative mt-4 flex flex-col items-center gap-2 border-2 px-5 pb-5 pt-8 text-center", s.card)}>
+    <Card className={cn("relative mt-4 flex flex-col items-center gap-2 border-2 px-4 pb-4 pt-6 text-center", s.card)}>
       <SpeakButton text={spoken} className="absolute right-3 top-3" />
-      <span className={cn("flex size-16 items-center justify-center rounded-full", s.circle)}>
-        <StatusIcon className="size-11" aria-hidden />
+      <span className={cn("flex size-14 items-center justify-center rounded-full", s.circle)}>
+        <StatusIcon className="size-8" aria-hidden />
       </span>
-      <h2 className={cn("mt-2 text-xl font-bold", s.title)}>{title}</h2>
-      {line && <p className="max-w-md text-lg text-slate-700">{line}</p>}
+      <h2 className={cn("mt-1 text-[17px] font-semibold", s.title)}>{title}</h2>
+      {line && <p className="max-w-md text-[15px] text-slate-700">{line}</p>}
       {expires && (
-        <p className="flex items-center gap-1.5 text-base text-slate-500">
+        <p className="flex items-center gap-1.5 text-[13px] text-slate-500">
           <Clock className="size-4 shrink-0" aria-hidden />
           <span>{expires}</span>
         </p>
       )}
       {fileName && (
-        <p className="mt-2 flex w-full items-center justify-center gap-2 border-t border-slate-100 pt-3 text-base text-slate-500">
-          <FileText className="size-5 shrink-0" aria-hidden />
+        <p className="mt-2 flex w-full items-center justify-center gap-2 border-t border-slate-100 pt-3 text-[13px] text-slate-500">
+          <FileText className="size-4 shrink-0" aria-hidden />
           <span className="min-w-0 break-all">{fileName}</span>
         </p>
       )}
@@ -339,9 +339,9 @@ function StatusCard({
 
 function DetailRow({ label, mono, children }: { label: string; mono?: boolean; children: ReactNode }) {
   return (
-    <div className="px-4 py-3">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className={cn("mt-0.5 text-base text-slate-900", mono && "break-all font-mono")}>{children}</dd>
+    <div className="px-4 py-2.5">
+      <dt className="text-xs font-medium text-slate-500">{label}</dt>
+      <dd className={cn("mt-0.5 text-sm text-slate-900", mono && "break-all font-mono")}>{children}</dd>
     </div>
   );
 }

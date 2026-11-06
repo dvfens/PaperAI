@@ -57,7 +57,7 @@ interface ShareInfo {
 }
 
 /** Status chips may hold a full sentence, so they wrap instead of clipping. */
-const STATUS_CHIP = "max-w-full rounded-2xl px-4 py-1.5 text-left text-base";
+const STATUS_CHIP = "max-w-full rounded-xl px-3 py-1 text-left text-[13px]";
 
 /** Receipt, download, next steps, sharing and deletion. */
 export function DoneScreen() {
@@ -98,12 +98,12 @@ export function DoneScreen() {
       <AppBar menu={<AppMenu />} />
       <Page>
         {/* Success hero */}
-        <section className="flex flex-col items-center pt-4 text-center">
-          <span className="flex size-20 items-center justify-center rounded-full bg-green-100 ring-8 ring-green-50">
-            <Check className="size-14 text-green-700" strokeWidth={3} aria-hidden />
+        <section className="flex flex-col items-center pt-3 text-center">
+          <span className="flex size-16 items-center justify-center rounded-full bg-green-100 ring-4 ring-green-50">
+            <Check className="size-8 text-green-700" strokeWidth={3} aria-hidden />
           </span>
-          <h1 className="mt-5 text-xl font-bold text-slate-900">{t("readyTitle")}</h1>
-          <div className="mt-3 flex max-w-full flex-wrap justify-center gap-2" role="status">
+          <h1 className="mt-4 text-xl font-bold text-slate-900">{t("readyTitle")}</h1>
+          <div className="mt-2.5 flex max-w-full flex-wrap justify-center gap-1.5" role="status">
             {!receipt && (
               <Chip icon={Info} className={STATUS_CHIP}>
                 {t("notKept")}
@@ -140,19 +140,19 @@ export function DoneScreen() {
         </section>
 
         {/* Quick actions */}
-        <Card className="mt-6 py-3">
+        <Card className="mt-5 py-2">
           <div className="flex flex-wrap items-start justify-around gap-2">
             <IconAction icon={Download} label={t("download")} onClick={() => downloadBlob(generated.blob, "completed-form.pdf")} />
             {receipt && !erased && <IconAction icon={Share2} label={t("share")} onClick={() => setShareOpen(true)} />}
             {receipt && (
               <Link
                 href={`/verify?h=${receipt.sha256}`}
-                className="group flex min-w-20 max-w-28 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                className="group flex min-w-16 max-w-24 flex-col items-center gap-1 rounded-xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
               >
-                <span className="flex size-14 items-center justify-center rounded-full bg-slate-100 text-slate-800 transition-colors group-hover:bg-slate-200">
-                  <ShieldCheck className="size-7" aria-hidden />
+                <span className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-800 transition-colors group-hover:bg-slate-200">
+                  <ShieldCheck className="size-5" aria-hidden />
                 </span>
-                <span className="text-center text-base font-semibold leading-tight text-slate-700">{t("verify")}</span>
+                <span className="text-center text-xs font-medium leading-tight text-slate-700">{t("verify")}</span>
               </Link>
             )}
           </div>
@@ -176,35 +176,35 @@ export function DoneScreen() {
             <SectionTitle icon={Info}>{t("details")}</SectionTitle>
             <ListGroup>
               <details className="group">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-300 active:bg-slate-100 [&::-webkit-details-marker]:hidden">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                    <Fingerprint className="size-5" aria-hidden />
+                <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-300 active:bg-slate-100 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <Fingerprint className="size-4" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-lg font-semibold text-slate-900">{t("technicalDetails")}</span>
-                    <span className="block truncate font-mono text-sm text-slate-500">{shortHash(receipt.sha256)}</span>
+                    <span className="block text-[15px] font-semibold text-slate-900">{t("technicalDetails")}</span>
+                    <span className="block truncate font-mono text-xs text-slate-500">{shortHash(receipt.sha256)}</span>
                   </span>
-                  <ChevronDown className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
+                  <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
-                <dl className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4">
+                <dl className="flex flex-col gap-2.5 border-t border-slate-100 px-4 py-3">
                   <div>
-                    <dt className="text-sm font-medium text-slate-500">{t("fingerprint")} (SHA-256)</dt>
-                    <dd className="mt-0.5 break-all font-mono text-base text-slate-900">{receipt.sha256}</dd>
+                    <dt className="text-xs font-medium text-slate-500">{t("fingerprint")} (SHA-256)</dt>
+                    <dd className="mt-0.5 break-all font-mono text-[13px] text-slate-900">{receipt.sha256}</dd>
                   </div>
                   {recorded && (
                     <>
                       <div>
-                        <dt className="text-sm font-medium text-slate-500">Arkiv entity</dt>
-                        <dd className="mt-0.5 break-all font-mono text-base text-slate-900">{recorded.commitmentKey}</dd>
+                        <dt className="text-xs font-medium text-slate-500">Arkiv entity</dt>
+                        <dd className="mt-0.5 break-all font-mono text-[13px] text-slate-900">{recorded.commitmentKey}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-slate-500">Transaction</dt>
+                        <dt className="text-xs font-medium text-slate-500">Transaction</dt>
                         <dd>
                           <a
                             href={recorded.explorerTxUrl}
                             target="_blank"
                             rel="noreferrer noopener"
-                            className="inline-flex min-h-12 items-center gap-1 rounded-lg font-mono text-base text-blue-800 underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                            className="inline-flex min-h-10 items-center gap-1 rounded-lg font-mono text-[13px] text-blue-800 underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                           >
                             {shortHash(recorded.txHash)} <ExternalLink className="size-4" aria-hidden />
                           </a>
@@ -218,13 +218,13 @@ export function DoneScreen() {
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(true)}
-                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-red-300 active:bg-red-100"
+                  className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-red-300 active:bg-red-100"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
-                    <Trash2 className="size-5" aria-hidden />
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
+                    <Trash2 className="size-4" aria-hidden />
                   </span>
-                  <span className="min-w-0 flex-1 text-lg font-semibold text-red-700">{t("deleteDocument")}</span>
-                  <ChevronRight className="size-5 shrink-0 text-slate-400" aria-hidden />
+                  <span className="min-w-0 flex-1 text-[15px] font-semibold text-red-700">{t("deleteDocument")}</span>
+                  <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
                 </button>
               )}
             </ListGroup>
@@ -303,7 +303,7 @@ function ShareSection({ documentId, open, onOpenChange }: { documentId: string; 
     <Dialog open={open} onOpenChange={onOpenChange} title={t("shareTitle")} description={t("shareHint")} closeLabel={t("close")}>
       <div className="flex flex-col gap-4 pb-2">
         <div>
-          <p className="mb-2 px-1 text-base font-semibold text-slate-600" aria-hidden>
+          <p className="mb-1.5 px-1 text-[13px] font-semibold text-slate-600" aria-hidden>
             {t("linkFor")}
           </p>
           <Segmented label={t("linkFor")} options={options.map((o) => ({ value: o.h, label: t(o.label) }))} value={hours} onChange={setHours} />
@@ -319,18 +319,18 @@ function ShareSection({ documentId, open, onOpenChange }: { documentId: string; 
           <ul className="flex flex-col gap-3">
             {shares.map((s) =>
               s.revoked ? (
-                <li key={s.shareId} className="flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-lg font-semibold text-slate-600">
-                  <XCircle className="size-6 shrink-0" aria-hidden /> {t("linkStopped")}
+                <li key={s.shareId} className="flex items-center gap-2.5 rounded-xl bg-slate-100 px-3 py-2.5 text-[15px] font-semibold text-slate-600">
+                  <XCircle className="size-5 shrink-0" aria-hidden /> {t("linkStopped")}
                 </li>
               ) : (
-                <li key={s.shareId} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <li key={s.shareId} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <Chip tone="green" icon={Clock} className={STATUS_CHIP}>
                       {t("linkActiveUntil", { date: formatDate(lang, s.expiresAt, true) })}
                     </Chip>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s.qr} alt="QR" className="size-48 rounded-2xl border border-slate-200 bg-white p-2" />
-                    <p className="break-all font-mono text-sm text-slate-500">{s.url}</p>
+                    <img src={s.qr} alt="QR" className="size-40 rounded-xl border border-slate-200 bg-white p-2" />
+                    <p className="break-all font-mono text-xs text-slate-500">{s.url}</p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button

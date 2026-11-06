@@ -331,7 +331,7 @@ export function VoiceConversation() {
   };
   const skip = () => void applyControl("skip");
   const statusCls = cn(
-    "flex min-h-7 items-center justify-center gap-2 text-center text-lg font-semibold",
+    "flex min-h-5 items-center justify-center gap-1.5 text-center text-sm font-medium",
     micState === "listening" ? "text-red-700" : "text-slate-700",
   );
 
@@ -344,11 +344,11 @@ export function VoiceConversation() {
         menu={<AppMenu actions={menuActions} switches={menuSwitches} onOpenChange={onEngineSheet} />}
       />
 
-      <Page className="flex flex-col gap-4 pt-4 pb-64">
+      <Page className="flex flex-col gap-3 pt-3 pb-52">
         {/* 1. What just happened to the previous question. */}
         {showSaved && (
-          <p className={cn("flex items-start gap-2 px-1 text-base", savedOk ? "text-green-800" : "text-slate-600")}>
-            {savedOk ? <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden /> : <CircleDashed className="mt-0.5 size-5 shrink-0" aria-hidden />}
+          <p className={cn("flex items-start gap-1.5 px-1 text-sm", savedOk ? "text-green-800" : "text-slate-600")}>
+            {savedOk ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /> : <CircleDashed className="mt-0.5 size-4 shrink-0" aria-hidden />}
             {/* Wraps (never cut off): for answers that are not read back, this is the only record of what was saved. */}
             <span className="min-w-0 break-words">
               {savedOk
@@ -363,23 +363,23 @@ export function VoiceConversation() {
           <div className="p-4">
             {conv.phase === "paused" ? (
               <>
-                <h2 aria-live="polite" className="flex items-center gap-3 text-2xl font-bold text-slate-900">
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                    <Pause className="size-6" aria-hidden />
+                <h2 aria-live="polite" className="flex items-center gap-2.5 text-xl font-bold text-slate-900">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <Pause className="size-5" aria-hidden />
                   </span>
                   {t("pausedTitle")}
                 </h2>
-                <p className="mt-3 text-lg text-slate-600">{t("convPaused")}</p>
+                <p className="mt-2 text-[15px] text-slate-600">{t("convPaused")}</p>
               </>
             ) : (
               <>
-                {kicker && <p className="break-words text-base font-semibold text-slate-600">{kicker}</p>}
-                <h2 aria-live="polite" className="mt-1 text-2xl font-bold leading-snug text-slate-900">
+                {kicker && <p className="break-words text-[13px] font-semibold text-slate-500">{kicker}</p>}
+                <h2 aria-live="polite" className="mt-1 text-xl font-semibold leading-snug text-slate-900">
                   {heading}
                 </h2>
-                {conv.phase === "asking" && currentField?.hint && <p className="mt-2 text-lg text-slate-600">{currentField.hint}</p>}
+                {conv.phase === "asking" && currentField?.hint && <p className="mt-1.5 text-sm text-slate-600">{currentField.hint}</p>}
                 {conv.phase === "confirming" && conv.pending && (
-                  <p className="mt-3 break-words rounded-2xl bg-blue-50 px-4 py-3 text-2xl font-bold text-blue-950">
+                  <p className="mt-2.5 break-words rounded-xl bg-blue-50 px-3.5 py-2.5 text-lg font-semibold text-blue-950">
                     {currentField?.sensitive ? "••••" : conv.pending.display}
                   </p>
                 )}
@@ -404,11 +404,11 @@ export function VoiceConversation() {
         {/* 3. What the person said — only for the current question. Live words are provisional. */}
         {showHeard && (
           <div className={cn("rounded-2xl border px-4 py-3", liveWords ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white")}>
-            <p className="flex items-center gap-1.5 text-base text-slate-500">
+            <p className="flex items-center gap-1.5 text-[13px] text-slate-500">
               <Mic className="size-4" aria-hidden />
               {t("youSaid")}
             </p>
-            <p className={cn("mt-0.5 break-words text-lg", liveWords ? "italic text-blue-900" : "text-slate-900")}>{heardText}</p>
+            <p className={cn("mt-0.5 break-words text-base", liveWords ? "italic text-blue-900" : "text-slate-900")}>{heardText}</p>
           </div>
         )}
         {/* 4. The extra part of the reply ("Sorry, I didn't understand…"). */}
@@ -426,7 +426,7 @@ export function VoiceConversation() {
               <IconAction icon={SkipForward} label={t("skip")} onClick={skip} disabled={busy} />
             </div>
             <p aria-live="polite" className={statusCls}>
-              {micState === "listening" && <span className="inline-block size-2.5 rounded-full bg-red-600" aria-hidden />}
+              {micState === "listening" && <span className="inline-block size-2 rounded-full bg-red-600" aria-hidden />}
               {micLabel}
             </p>
             <Button
@@ -447,10 +447,10 @@ export function VoiceConversation() {
           <>
             {/* Disabled while a spoken reply is being understood: its result decides this question. */}
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="success" size="lg" className="min-h-16 text-xl" disabled={busy} onClick={() => void applyControl("yes")}>
+              <Button variant="success" size="lg" disabled={busy} onClick={() => void applyControl("yes")}>
                 <Check aria-hidden /> {t("yes")}
               </Button>
-              <Button variant="secondary" size="lg" className="min-h-16 text-xl" disabled={busy} onClick={() => void applyControl("no")}>
+              <Button variant="secondary" size="lg" disabled={busy} onClick={() => void applyControl("no")}>
                 <X aria-hidden /> {t("no")}
               </Button>
             </div>
@@ -466,7 +466,7 @@ export function VoiceConversation() {
             </div>
             {canSpeak && (
               <p aria-live="polite" className={statusCls}>
-                {micState === "listening" && <span className="inline-block size-2.5 rounded-full bg-red-600" aria-hidden />}
+                {micState === "listening" && <span className="inline-block size-2 rounded-full bg-red-600" aria-hidden />}
                 {micState === "idle" ? t("orSayYesNo") : micLabel}
               </p>
             )}
@@ -494,15 +494,15 @@ export function VoiceConversation() {
                 inputMode={
                   currentField?.type === "phone" || currentField?.type === "number" ? "numeric" : currentField?.type === "email" ? "email" : "text"
                 }
-                className="min-h-14 min-w-0 flex-1 rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 text-lg focus:border-blue-600 focus:bg-white focus:outline-none"
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-base focus:border-blue-600 focus:bg-white focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={busy || !typed.trim()}
                 aria-label={t("send")}
-                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
               >
-                {busy ? <Loader2 className="size-6 animate-spin" aria-hidden /> : <Send className="size-6" aria-hidden />}
+                {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Send className="size-5" aria-hidden />}
               </button>
             </form>
             <div className={cn("grid items-start justify-items-center", canSpeak ? "grid-cols-3" : "grid-cols-2")}>
@@ -526,7 +526,7 @@ export function VoiceConversation() {
         )}
 
         {mode === "paused" && (
-          <Button block size="lg" className="min-h-16 text-xl" onClick={() => void applyControl("resume")}>
+          <Button block size="lg" onClick={() => void applyControl("resume")}>
             <Play aria-hidden /> {t("resume")}
           </Button>
         )}
