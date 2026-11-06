@@ -1,9 +1,26 @@
 # Speech recognition benchmark (November 2026)
 
-Why Saathi listens with **ElevenLabs Scribe realtime** (`scribe_v2_realtime`, server VAD +
-`filter_background_audio`) and keeps batch Scribe (`scribe_v2`) only as a backup.
+Why Saathi listens with **OpenAI `gpt-live-transcribe`** by default (noise reduction off) and offers
+**ElevenLabs Scribe realtime** as a switch, with batch recognition only as a backup.
 
-## Method
+## Update: voice at arm's length, and OpenAI without noise reduction
+
+A fourth condition, **far**, has the person speaking from arm's length in a room: a reverberant voice with
+quiet room noise. This is the typical case behind "I have to shout". In the first run, OpenAI's live model
+had `noise_reduction: near_field` turned on, and that setting was cutting out the voice.
+
+| Live recogniser | Clean | TV far | TV near | Far voice | No answer invented |
+|---|---|---|---|---|---|
+| **OpenAI `gpt-live-transcribe`, no noise reduction (default)** | 31/32 | 31/32 | 10/32 | **30/32** | 24/24 |
+| ElevenLabs realtime + background filter | 32/32 | 31/32 | **22/32** | 27/32 | 24/24 |
+| ElevenLabs realtime, no background filter | 32/32 | 31/32 | 23/32 | 24/32 | 23/24 |
+| OpenAI `gpt-live-transcribe` + `near_field` noise reduction | 31/32 | 30/32 | 11/32 | 5/32 | 24/24 |
+
+In ordinary conditions the two engines are equal, and OpenAI is best for a normal or distant voice.
+ElevenLabs is best with a loud TV right next to the phone. Both are offered, and each phone keeps its own
+choice. The ElevenLabs background filter does not cause the need to shout; it helps.
+
+## Method (first run)
 
 - **Answers:** 16 typical form answers (names, dates, phone numbers, PIN, addresses, yes/no, an option) in
   English, Hindi and mixed Hindi–English. Each was spoken by two synthetic voices: ElevenLabs "Bill"

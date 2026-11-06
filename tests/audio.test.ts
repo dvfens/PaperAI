@@ -79,9 +79,19 @@ describe("VoiceActivity", () => {
   it("raises the threshold in a noisy room so background noise is not speech", () => {
     const vad = new VoiceActivity(0);
     for (let t = 0; t < 500; t += 100) vad.update(0.015, t);
-    assert.ok(vad.threshold >= 0.04);
+    assert.ok(vad.threshold >= 0.025);
     for (let t = 500; t < 1500; t += 100) vad.update(0.015, t);
     assert.equal(vad.heardSpeech, false);
+  });
+});
+
+describe("VoiceActivity in a noisy room", () => {
+  it("does not treat fluctuating room noise (0.02–0.035) as speech", () => {
+    const vad = new VoiceActivity(0);
+    const noise = (i: number) => 0.02 + ((i * 7) % 16) / 1000;
+    for (let i = 0; i < 40; i++) vad.update(noise(i), i * 100);
+    assert.equal(vad.heardSpeech, false);
+    assert.ok(vad.threshold > 0.035);
   });
 });
 

@@ -213,6 +213,8 @@ export const CONFIGS = {
   "oa-gt-hien-prompt-kw": (m) => oaTranscribe(m, { languages: ["hi", "en"], prompt: true, keywords: true }),
   "oa-live": (m) => oaLive(m),
   "oa-live-ctx": (m) => oaLive(m, { prompt: true, keywords: true }),
+  "oa-live-far": (m) => oaLive(m, { noise: "far_field", languages: [m.lang] }),
+  "oa-live-nonr": (m) => oaLive(m, { noise: null, languages: [m.lang] }),
   "oa-4o": (m) => oaBatch(m, { model: "gpt-4o-transcribe" }),
   "oa-4o-prompt2": (m) => oaBatch(m, { model: "gpt-4o-transcribe", prompt2: true }),
   "oa-mini-1215-prompt2": (m) => oaBatch(m, { model: "gpt-4o-mini-transcribe-2025-12-15", prompt2: true }),
@@ -241,7 +243,8 @@ async function runConfig(name) {
   const file = join(resultsDir, `${name}.json`);
   const prev = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
   const conc = /realtime|live/.test(name) ? 3 : 6;
-  await pool(manifest, conc, async (m) => {
+  const only = process.env.ONLY_COND ? manifest.filter((m) => process.env.ONLY_COND.split(",").includes(m.cond)) : manifest;
+  await pool(only, conc, async (m) => {
     if (prev[m.name]?.text !== undefined && !prev[m.name].error && !(process.env.RETRY_EMPTY && !prev[m.name].text)) return;
     const t0 = Date.now();
     try {
@@ -312,6 +315,7 @@ function report() {
       clean: acc((m) => m.cond === "clean"),
       "tv far": acc((m) => m.cond === "tv" && m.item !== "none"),
       "tv near": acc((m) => m.cond === "noisy" && m.item !== "none"),
+      far: acc((m) => m.cond === "far"),
       "no invented": acc((m) => m.item === "none"),
       en: acc((m) => m.lang === "en"),
       hi: acc((m) => m.lang === "hi"),

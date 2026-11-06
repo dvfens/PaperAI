@@ -9,7 +9,7 @@
 | Frontend | Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui-style components (Radix) · Lucide icons |
 | Backend | Next.js route handlers (Node runtime) · PostgreSQL via Drizzle (embedded PGlite when `DATABASE_URL` is unset) |
 | AI | Anthropic Claude (`claude-opus-5-5`) — understanding, classification, field extraction, conversation interpretation, Q&A, guidance |
-| Voice | ElevenLabs TTS (`eleven_multilingual_v2`); live speech recognition with Scribe realtime (`scribe_v2_realtime`, words appear as you speak) and batch Scribe (`scribe_v2`) as fallback; browser speech APIs when ElevenLabs is not configured; typing always available. Chosen by measurement: [docs/SPEECH-BENCHMARK.md](docs/SPEECH-BENCHMARK.md) |
+| Voice | Live speech recognition (words appear as you speak) and a natural voice from **OpenAI** (`gpt-live-transcribe`, default for listening) or **ElevenLabs** (Scribe realtime `scribe_v2_realtime`; voice `eleven_turbo_v2_5`, default for speaking), switchable in the app separately for listening and speaking; batch recognition as a backup; browser speech APIs when neither is configured; typing always available. Defaults chosen by measurement: [docs/SPEECH-BENCHMARK.md](docs/SPEECH-BENCHMARK.md) |
 | OCR | Tesseract.js (English + Hindi), server-side |
 | PDF | pdf-lib + fontkit (AcroForm filling, Devanagari shaping), pdf.js for previews |
 | Trust layer | **Arkiv** Rabdi testnet (chain id `7794095`) via `@arkiv-network/sdk` 1.0.1 |
@@ -46,6 +46,7 @@ npm run setup
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Claude understanding & conversation | "Basic mode": deterministic field detection + keyword interpreter, clearly labelled in the UI |
 | `ELEVENLABS_API_KEY` | Natural Hindi/English voice + Scribe recognition | Browser speech synthesis / recognition |
+| `OPENAI_API_KEY` (optional) | OpenAI as a second, switchable speech engine | Only ElevenLabs is offered |
 | `ARKIV_PRIVATE_KEY` (funded) | Recording commitments on Arkiv | Documents are still stored; the UI says the fingerprint could not be recorded |
 | `ARKIV_ACCESS_KEY`, `NEXT_PUBLIC_ARKIV_ACCESS_KEY` | Higher Arkiv RPC rate limits | Public, rate-limited endpoint |
 | `DATABASE_URL` | External PostgreSQL | Embedded PGlite under `.data/` |

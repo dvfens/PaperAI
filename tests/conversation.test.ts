@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { applyTurn, initialState, nextOpenField } from "@/lib/conversation/engine";
-import { detectYesNo, interpretWithRules, normaliseAnswer, parseDate } from "@/lib/conversation/rules";
+import { detectYesNo, interpretWithRules, normaliseAnswer, parseDate, plainYesNo } from "@/lib/conversation/rules";
 import type { ConversationState, FormField } from "@/lib/types";
 
 const field = (over: Partial<FormField>): FormField => ({
@@ -136,5 +136,18 @@ describe("conversation engine", () => {
     const back = say(r.state, "Shyam Lal");
     assert.equal(back.state.answers.name.value, "SHYAM LAL");
     assert.equal(back.state.currentFieldId, "mobile", "returns to where it left off");
+  });
+});
+
+describe("plainYesNo (on-device confirmation fast path)", () => {
+  it("accepts replies that are only a yes or only a no", () => {
+    for (const y of ["Yes.", "yes, that is correct", "हाँ, सही है।", "हां जी", "Haan ji", "ठीक है"]) assert.equal(plainYesNo(y), "yes", y);
+    for (const n of ["No.", "नहीं", "गलत है", "नहीं, यह गलत है।", "that is wrong"]) assert.equal(plainYesNo(n), "no", n);
+  });
+
+  it("refuses negations, corrections and anything with extra words", () => {
+    for (const u of ["सही नहीं", "not right", "no, it's Sharma", "yes but the year is 1948", "haan nahi", "नहीं, मेरा नाम सुनीता है", "no wait"]) {
+      assert.equal(plainYesNo(u), null, u);
+    }
   });
 });

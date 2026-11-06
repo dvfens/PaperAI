@@ -45,16 +45,20 @@ Stateless: the browser sends the whole conversation state.
 ## Voice
 
 ### `POST /api/speech/tts`
-`{ text, lang }` → `audio/mpeg` (ElevenLabs). `503 speech_not_configured` without a key.
+`{ text, lang, provider? }` → `audio/mpeg`. `provider` is `elevenlabs` (default, `eleven_turbo_v2_5`) or `openai`
+(`gpt-4o-mini-tts`). `503 speech_not_configured` when that provider has no key.
 
 ### `POST /api/speech/token`
-→ `{ token, model }`. Mints an ElevenLabs single-use token (`POST /v1/single-use-token/realtime_scribe`) for ONE realtime
-transcription socket; it expires after 15 minutes. The browser then streams 16 kHz PCM straight to
-`wss://api.elevenlabs.io/v1/speech-to-text/realtime` (`commit_strategy=vad`, `filter_background_audio=true`), so the
-API key never leaves the server. Same-origin only, rate-limited.
+`{ provider?, lang? }` → `{ token, model, provider, expiresAt }`. A short-lived token for ONE realtime transcription
+socket, so the API keys never leave the server. Same-origin only, rate-limited.
+- `elevenlabs` (default): single-use token (`POST /v1/single-use-token/realtime_scribe`, 15 minutes). The browser streams
+  16 kHz PCM to `wss://api.elevenlabs.io/v1/speech-to-text/realtime` (`commit_strategy=vad`, `filter_background_audio=true`).
+- `openai`: client secret (`POST /v1/realtime/client_secrets`, 10 minutes) for a transcription-only session whose model
+  (`gpt-live-transcribe`), language and noise reduction are fixed by the server. The browser streams 24 kHz PCM to
+  `wss://api.openai.com/v1/realtime?intent=transcription` and commits when the answer ends (this model has no server VAD).
 
 ### `POST /api/speech/stt` — multipart
-`audio` (webm/mp4/wav), `lang` → `{ text, languageCode }` (ElevenLabs Scribe batch). Used when realtime streaming is
+`audio` (webm/mp4/wav), `lang`, `provider?` → `{ text, languageCode }` (ElevenLabs Scribe `scribe_v2`, or OpenAI `gpt-transcribe`). Used when realtime streaming is
 unavailable or fails mid-answer; the client then sends the same recording here, so nothing said is lost.
 Optional `hint` (JSON `{ kind, options? }`: the expected answer type, with options only for choice fields) adds
 Scribe keyterms for yes/no and options. It is best-effort: a malformed or oversized hint is ignored, never rejected.

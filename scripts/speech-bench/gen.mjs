@@ -158,10 +158,17 @@ async function main() {
     clean: null,
     noisy: { src: () => babble, babbleSnr: 5, pinkSnr: 15 }, // a TV right next to the phone
     tv: { src: () => babbleRev, babbleSnr: 10, pinkSnr: 22 }, // a TV across the room
+    far: { src: null, pinkSnr: 18, reverbSpeech: true }, // speaking from arm's length, quiet room
   };
   const mixNoise = (mix, total, cond, seedA, seedB, speechRms) => {
     const c = COND[cond];
     if (!c) return;
+    if (!c.src) {
+      const pn = pink(total, seedB);
+      const pGain = speechRms / (rms(pn) || 1) / Math.pow(10, c.pinkSnr / 20);
+      for (let i = 0; i < total; i++) mix[i] += pn[i] * pGain;
+      return;
+    }
     const src = c.src();
     const bOff = seedA % src.length;
     const bSeg = Float32Array.from({ length: total }, (_, i) => src[(bOff + i) % src.length]);
@@ -201,7 +208,18 @@ async function main() {
       const speechRms = rms(speech.filter((s) => Math.abs(s) > 300)) || rms(speech);
       for (const cond of Object.keys(COND)) {
         const mix = new Float32Array(total);
-        for (let i = 0; i < speech.length; i++) mix[lead + i] = speech[i];
+        if (COND[cond]?.reverbSpeech) {
+          const L = Math.round(0.6 * RATE);
+          const ir = pink(L, 41).map((v, i) => v * Math.exp((-6.9 * i) / L) * 0.06);
+          ir[0] = 0.25;
+          for (let i = 0; i < speech.length; i++) {
+            const x = speech[i];
+            if (!x) continue;
+            for (let k = 0; k < L && lead + i + k < total; k += 2) mix[lead + i + k] += x * ir[k];
+          }
+          const g = speechRms / (rms(mix.filter((v) => Math.abs(v) > 300)) || 1);
+          for (let i = 0; i < total; i++) mix[i] *= g;
+        } else for (let i = 0; i < speech.length; i++) mix[lead + i] = speech[i];
         mixNoise(mix, total, cond, it.id.length * 7919 + v.key.charCodeAt(0) * 31, it.id.length + 3, speechRms);
         save(`${base}.${cond}`, mix, { item: it.id, voice: v.key, cond, lang: it.lang, type: it.type, text: it.text, truth: it.truth });
       }
