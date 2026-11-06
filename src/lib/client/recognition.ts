@@ -61,52 +61,82 @@ class ElevenLabsSpeechInput implements SpeechInput {
       const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
 
-      // Simple voice-activity detection: stop after ~1.6 s of quiet once speech has started.
+      // Adaptive voice-activity detection. Phone microphones differ a lot, so the speech threshold is
+      // set from the room's own noise floor (measured in the first 400 ms) instead of a fixed level.
       const ctx = new AudioContext();
+      // Started without a fresh tap (hands-free), mobile browsers may create the context suspended;
+      // a suspended context reads pure silence, so try to resume it and never trust silence alone.
+      await ctx.resume().catch(() => undefined);
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
       source.connect(analyser);
       const buf = new Float32Array(analyser.fftSize);
       const started = performance.now();
+      const noise: number[] = [];
+      let threshold = 0.02;
+      let vadWorking = false; // any non-zero signal seen at all
       let heardSpeech = false;
-      let lastLoud = performance.now();
-      let raf = 0;
+      let loudSince = 0;
+      let lastLoud = 0;
+      let manualStop = false;
+      let timer = 0;
 
       const stopped = new Promise<void>((resolve) => {
         recorder.onstop = () => resolve();
       });
       const stopRecording = () => {
-        cancelAnimationFrame(raf);
+        window.clearInterval(timer);
         if (recorder.state !== "inactive") recorder.stop();
       };
-      stopFn = stopRecording;
+      stopFn = () => {
+        manualStop = true;
+        stopRecording();
+      };
 
       const tick = () => {
         analyser.getFloatTimeDomainData(buf);
         let sum = 0;
         for (const v of buf) sum += v * v;
         const rms = Math.sqrt(sum / buf.length);
-        opts.onLevel?.(Math.min(1, rms * 12));
+        if (rms > 0.0005) vadWorking = true;
         const now = performance.now();
-        if (rms > 0.03) {
-          heardSpeech = true;
-          lastLoud = now;
-        }
         const elapsed = now - started;
-        if ((heardSpeech && now - lastLoud > 1600) || (!heardSpeech && elapsed > 9000) || elapsed > 30000) {
-          stopRecording();
-          return;
+        if (elapsed < 400) {
+          noise.push(rms);
+          if (noise.length >= 5) {
+            const sorted = [...noise].sort((a, b) => a - b);
+            threshold = Math.min(0.06, Math.max(0.008, sorted[Math.floor(sorted.length / 2)] * 3));
+          }
         }
-        raf = requestAnimationFrame(tick);
+        opts.onLevel?.(Math.min(1, rms / (threshold * 4)));
+        if (rms > threshold) {
+          loudSince ||= now;
+          lastLoud = now;
+          if (now - loudSince > 150) heardSpeech = true; // ignore clicks and taps
+        } else if (now - lastLoud > 250) {
+          loudSince = 0;
+        }
+        if (
+          (heardSpeech && now - lastLoud > 1400) || // finished speaking
+          (!heardSpeech && vadWorking && elapsed > 10000) || // nobody spoke
+          (!vadWorking && elapsed > 8000) || // meter silent (suspended audio): fixed window
+          elapsed > 30000
+        ) {
+          stopRecording();
+        }
       };
 
       recorder.start(250);
-      raf = requestAnimationFrame(tick);
+      // A timer, not requestAnimationFrame: it keeps running when the screen dims or the tab is hidden.
+      timer = window.setInterval(tick, 50);
       await stopped;
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();
-      if (cancelled || !heardSpeech) return "";
+      const duration = performance.now() - started;
+      // Transcribe whenever speech may have happened: detected speech, the person tapped stop, or the
+      // meter could not hear anything at all (then silence proves nothing).
+      if (cancelled || duration < 400 || !(heardSpeech || manualStop || !vadWorking)) return "";
       opts.onProcessing?.();
       const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
       const { text } = await api.stt(blob, opts.lang);

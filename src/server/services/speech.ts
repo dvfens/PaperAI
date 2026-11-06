@@ -44,7 +44,9 @@ class ElevenLabsSpeech implements SpeechService {
   async transcribe(audio: Blob, lang: LanguageCode) {
     const form = new FormData();
     form.append("model_id", env.elevenLabsSttModel);
-    form.append("file", audio, "speech.webm");
+    // Name the file by its real container: Chrome/Android record WebM/Opus, iPhones MP4/AAC.
+    const ext = /mp4|aac|m4a/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : /wav/.test(audio.type) ? "wav" : "webm";
+    form.append("file", audio, `speech.${ext}`);
     form.append("language_code", LANGUAGES[lang].isoCode);
     form.append("tag_audio_events", "false");
     const res = await fetch(`${API}/speech-to-text`, {
