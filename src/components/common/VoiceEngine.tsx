@@ -70,8 +70,8 @@ function MicCheck() {
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4">
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("micCheck")}</p>
-      <p className="text-sm text-slate-600">{t("micCheckHint")}</p>
+      <p className="text-base font-bold text-slate-600">{t("micCheck")}</p>
+      <p className="text-base text-slate-600">{t("micCheckHint")}</p>
       {phase === "listening" ? (
         <>
           <div className="h-2 overflow-hidden rounded-full bg-slate-200" aria-hidden>
@@ -92,7 +92,7 @@ function MicCheck() {
         <ul className="flex flex-col gap-2" aria-live="polite">
           {heard.map((h) => (
             <li key={h.label} className="rounded-xl bg-white px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{h.label}</p>
+              <p className="text-base font-semibold text-slate-600">{h.label}</p>
               <p className="text-base text-slate-900">{h.text || t("micCheckNothing")}</p>
             </li>
           ))}
@@ -104,14 +104,66 @@ function MicCheck() {
 }
 
 /**
- * Switch between the ElevenLabs and OpenAI speech engines, separately for listening and for the
- * speaking voice. Only shown when both are configured on the server.
+ * The voice-engine sheet: switch between the ElevenLabs and OpenAI speech engines (separately for
+ * listening and for the speaking voice, when both are configured) and run the microphone check.
+ * Used by the Menu (AppMenu) and by VoiceEngineButton on the camera screen.
+ */
+export function VoiceEngineSheet({
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+}) {
+  const { t, voice, speak, stopSpeaking } = useApp();
+  const both = voice.available.elevenlabs && voice.available.openai;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) stopSpeaking();
+        onOpenChange(o);
+      }}
+      onCloseAutoFocus={onCloseAutoFocus}
+      title={t("voiceEngine")}
+      description={t("voiceEngineSub")}
+      closeLabel={t("close")}
+    >
+      <div className="flex flex-col gap-5">
+        {both && (
+          <>
+            <div className="flex flex-col gap-2">
+              <p className="text-base font-bold text-slate-600">{t("engineListen")}</p>
+              <Segmented options={ENGINES} value={voice.stt} onChange={voice.setStt} label={t("engineListen")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-base font-bold text-slate-600">{t("engineVoice")}</p>
+              <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
+              {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
+            </div>
+            <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
+              <Volume2 aria-hidden />
+              {t("hearSample")}
+            </Button>
+          </>
+        )}
+        <MicCheck />
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * Icon button that opens the voice-engine sheet (camera screen). Only shown when at least one
+ * server engine is configured. onOpenChange(true) fires on open, onOpenChange(false) on close.
  */
 export function VoiceEngineButton({ tone = "plain", onOpenChange }: { tone?: "plain" | "dark"; onOpenChange?: (open: boolean) => void }) {
-  const { t, voice, speak, stopSpeaking } = useApp();
+  const { t, voice } = useApp();
   const [open, setOpen] = useState(false);
   if (!voice.available.elevenlabs && !voice.available.openai) return null;
-  const both = voice.available.elevenlabs && voice.available.openai;
 
   return (
     <>
@@ -124,38 +176,13 @@ export function VoiceEngineButton({ tone = "plain", onOpenChange }: { tone?: "pl
           setOpen(true);
         }}
       />
-      <Dialog
+      <VoiceEngineSheet
         open={open}
         onOpenChange={(o) => {
-          if (!o) stopSpeaking();
           setOpen(o);
           if (!o) onOpenChange?.(false);
         }}
-        title={t("voiceEngine")}
-        description={t("voiceEngineSub")}
-        closeLabel={t("close")}
-      >
-        <div className="flex flex-col gap-5">
-          {both && (
-            <>
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineListen")}</p>
-                <Segmented options={ENGINES} value={voice.stt} onChange={voice.setStt} label={t("engineListen")} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t("engineVoice")}</p>
-                <Segmented options={ENGINES} value={voice.tts} onChange={voice.setTts} label={t("engineVoice")} />
-                {voice.tts === "openai" && <Notice tone="info">{t("engineSlowNote")}</Notice>}
-              </div>
-              <Button size="md" variant="secondary" block onClick={() => void speak(t("voiceSample"))}>
-                <Volume2 aria-hidden />
-                {t("hearSample")}
-              </Button>
-            </>
-          )}
-          <MicCheck />
-        </div>
-      </Dialog>
+      />
     </>
   );
 }

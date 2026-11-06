@@ -78,7 +78,7 @@ export const hi: Strings = {
   convSkipped: "ठीक है, इसे अभी छोड़ देते हैं।",
   convRequiredSkipped: "यह फ़ॉर्म में ज़रूरी है। हम इसे बाद में भर लेंगे।",
   convDontKnow: "कोई बात नहीं। इसे अभी खाली छोड़ देता हूँ।",
-  convPaused: "ठीक है, मैंने रोक दिया है। तैयार होने पर माइक दबाइए।",
+  convPaused: "ठीक है, मैंने रोक दिया है। तैयार होने पर “जारी रखें” दबाइए।",
   convResumed: "फिर से स्वागत है।",
   convAllDone: "सारे सवाल हो गए। आइए, मिलकर आपके जवाब जाँच लें।",
   convSaidYesNo: "कृपया हाँ या नहीं कहिए।",
@@ -99,6 +99,7 @@ export const hi: Strings = {
   speakAnswer: "बोलकर बताएँ",
   makeDocument: "मेरा कागज़ बनाइए",
   requiredMissing: "{n} ज़रूरी जवाब अभी खाली हैं।",
+  requiredMissingOne: "एक ज़रूरी जवाब अभी खाली है।",
   answerMissing: "खाली सवालों के जवाब दें",
   uncertainPlacement: "मुझे पूरा यकीन नहीं कि यह पन्ने पर कहाँ जाएगा। कृपया झलक देख लीजिए।",
   emptyValue: "(खाली)",
@@ -266,4 +267,24 @@ export const hi: Strings = {
   snippetConfirm: "नीले खाने में “{value}” लिखा जाएगा।",
   snippetAskChoice: "आपकी पसंद इनमें से एक नीले खाने में लगाई जाएगी।",
   snippetConfirmChoice: "“{value}” वाले नीले खाने में निशान लगाया जाएगा।",
+  // Menu sheet
+  menu: "मेनू",
+  on: "चालू",
+  off: "बंद",
+  // Question screen
+  savedPrev: "भर दिया — {label}: {value}",
+  leftEmpty: "खाली छोड़ा — {label}",
+  orSayYesNo: "या “हाँ” / “नहीं” बोलिए",
+  speakInstead: "बोलकर बताएँ",
+  // Answers screen
+  answeredOf: "{total} में से {n} के जवाब हो गए",
+  allAnswered: "सभी सवालों के जवाब हो गए",
+  neededOnForm: "फ़ॉर्म में यह ज़रूरी है",
+  statusEmpty: "खाली",
+  // Overview screen
+  unsureTitle: "इन बातों को जाँचें",
+  startNewTitle: "नया कागज़ शुरू करें?",
+  startNewBody: "इस फ़ॉर्म के लिए दिए गए आपके जवाब इस फ़ोन से हट जाएँगे।",
+  keepAnswers: "मेरे जवाब रखें",
+  startNew: "नया शुरू करें",
 };

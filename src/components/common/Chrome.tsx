@@ -3,8 +3,17 @@
 /**
  * Mobile app design system for Saathi.
  *
- * Principles: one idea per screen, few words, icons with one-word labels, large touch targets
- * (≥48px), a compact app bar at the top and a thumb-reachable dock at the bottom.
+ * Rules:
+ * - Each screen has one focus and at most ONE filled (blue or green) button.
+ * - Primary actions live in the Dock.
+ * - IconAction is the labelled secondary action.
+ * - IconButton (icon only) is only for Back, Close and speaker buttons.
+ * - Chip is for STATUS only. MetaLine is for neutral facts.
+ * - Colours: blue = current item or action, green = saved or done, amber = needs attention,
+ *   red = recording or error, slate = neutral, empty or skipped.
+ * - Text size is at least 16px everywhere.
+ * - ChevronLeft goes to the previous screen. X is only for closing a sheet or cancelling a
+ *   running task (AnalyzingScreen).
  */
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Info, Loader2, Volume2, VolumeX, X } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
@@ -12,21 +21,29 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app/AppContext";
 import { LanguageSelector } from "./LanguageSelector";
 
-type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+export type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
 // --- Layout ------------------------------------------------------------------------------------
 
-/** Compact top app bar: back/close on the left, short title in the middle, language on the right. */
+/**
+ * Compact top app bar: back/close on the left, short title next to it, the screen's Menu on the
+ * right (or the language switch when no `menu` is passed). `progress` (0–1) adds a thin bar below.
+ * AppBar does not import AppMenu (no import cycle): screens pass `menu={<AppMenu />}`.
+ */
 export function AppBar({
   title,
   onBack,
   back = "back",
   right,
+  menu,
+  progress,
 }: {
   title?: string;
   onBack?: () => void;
   back?: "back" | "close";
   right?: ReactNode;
+  menu?: ReactNode;
+  progress?: number;
 }) {
   const { t } = useApp();
   const BackIcon = back === "close" ? X : ChevronLeft;
@@ -38,13 +55,28 @@ export function AppBar({
         ) : (
           <span className="pl-2 text-lg font-extrabold tracking-tight text-blue-700">{t("appName")}</span>
         )}
-        <h1 className="truncate text-center text-lg font-bold text-slate-900">{title}</h1>
+        {title ? <h1 className="min-w-0 truncate text-left text-lg font-bold text-slate-900">{title}</h1> : <span aria-hidden />}
         <div className="flex items-center justify-end gap-1">
           {right}
-          <LanguageSelector />
+          {menu ?? <LanguageSelector />}
         </div>
       </div>
+      {progress !== undefined && (
+        <div className="mx-auto max-w-2xl px-4 pb-2">
+          <ProgressBar value={progress} />
+        </div>
+      )}
     </header>
+  );
+}
+
+/** The app's only progress style: a thin blue bar (value 0–1). */
+export function ProgressBar({ value, className }: { value: number; className?: string }) {
+  const pct = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  return (
+    <div className={cn("h-2 overflow-hidden rounded-full bg-slate-200", className)} aria-hidden>
+      <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${pct}%` }} />
+    </div>
   );
 }
 
@@ -85,12 +117,22 @@ export function Card({ children, className, onClick }: { children: ReactNode; cl
 export function SectionTitle({ icon: I, children, right }: { icon?: Icon; children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-2 mt-6 flex items-center justify-between gap-2 px-1">
-      <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-        {I && <I className="size-5" aria-hidden />}
+      <h2 className="flex items-center gap-2 text-base font-bold text-slate-700">
+        {I && <I className="size-5 text-slate-500" aria-hidden />}
         {children}
       </h2>
       {right}
     </div>
+  );
+}
+
+/** A neutral fact (no pill): small icon + text. Use Chip only for status. */
+export function MetaLine({ icon: I, children }: { icon?: Icon; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-base text-slate-600">
+      {I && <I className="size-5 shrink-0 text-slate-500" aria-hidden />}
+      {children}
+    </span>
   );
 }
 
@@ -134,7 +176,7 @@ export function IconButton({
   );
 }
 
-/** Icon in a circle with a one-word label underneath — the app's secondary action style. */
+/** Icon in a circle with a short label underneath — the app's labelled secondary action. */
 export function IconAction({
   icon: I,
   label,
@@ -142,6 +184,7 @@ export function IconAction({
   disabled,
   active,
   tone = "light",
+  className,
 }: {
   icon: Icon;
   label: string;
@@ -149,6 +192,7 @@ export function IconAction({
   disabled?: boolean;
   active?: boolean;
   tone?: "light" | "dark";
+  className?: string;
 }) {
   return (
     <button
@@ -157,18 +201,21 @@ export function IconAction({
       disabled={disabled}
       aria-pressed={active}
       aria-label={label}
-      className="group flex min-w-16 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40"
+      className={cn(
+        "group flex min-w-20 max-w-28 flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-40",
+        className,
+      )}
     >
       <span
         className={cn(
-          "flex size-12 items-center justify-center rounded-full transition-colors",
+          "flex size-14 items-center justify-center rounded-full transition-colors",
           tone === "light" && (active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-800 group-hover:bg-slate-200"),
           tone === "dark" && (active ? "bg-white text-slate-900" : "bg-white/15 text-white group-hover:bg-white/25"),
         )}
       >
-        <I className="size-6" aria-hidden />
+        <I className="size-7" aria-hidden />
       </span>
-      <span className={cn("text-xs font-semibold", tone === "dark" ? "text-white" : "text-slate-700")}>{label}</span>
+      <span className={cn("text-center text-base font-semibold leading-tight", tone === "dark" ? "text-white" : "text-slate-700")}>{label}</span>
     </button>
   );
 }
@@ -183,7 +230,7 @@ const CHIP_TONES = {
 
 export function Chip({ tone = "neutral", icon: I, children, className }: { tone?: keyof typeof CHIP_TONES; icon?: Icon; children: ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold", CHIP_TONES[tone], className)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-3 py-1 text-base font-semibold", CHIP_TONES[tone], className)}>
       {I && <I className="size-4" aria-hidden />}
       {children}
     </span>
@@ -195,58 +242,66 @@ export function ListGroup({ children, className }: { children: ReactNode; classN
   return <div className={cn("divide-y divide-slate-100 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm", className)}>{children}</div>;
 }
 
-/** One row: small label above a bold value; optional status/right slot; tappable when onClick is set. */
+/**
+ * One row: label above a bold value; optional `lead` (or `icon`) on the left and a right slot;
+ * tappable when onClick is set. `quiet` tints a non-tappable row (e.g. "you do this by hand").
+ */
 export function ListRow({
   label,
   value,
   sub,
   icon: I,
+  lead,
   right,
   onClick,
   muted,
+  quiet,
 }: {
   label?: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
   icon?: Icon;
+  lead?: ReactNode;
   right?: ReactNode;
   onClick?: () => void;
   muted?: boolean;
+  quiet?: boolean;
 }) {
   const body = (
     <>
-      {I && (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-          <I className="size-5" aria-hidden />
-        </span>
-      )}
+      {lead ??
+        (I && (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+            <I className="size-5" aria-hidden />
+          </span>
+        ))}
       <span className="min-w-0 flex-1">
-        {label && <span className="block truncate text-sm font-medium text-slate-500">{label}</span>}
-        <span className={cn("block break-words text-base font-semibold", muted ? "font-normal italic text-slate-400" : "text-slate-900")}>{value}</span>
-        {sub && <span className="block text-sm text-slate-500">{sub}</span>}
+        {label && <span className="block break-words text-base font-medium text-slate-600">{label}</span>}
+        <span className={cn("block break-words text-lg font-semibold", muted ? "font-normal italic text-slate-500" : "text-slate-900")}>{value}</span>
+        {sub && <span className="mt-0.5 block text-base text-slate-600">{sub}</span>}
       </span>
       {right}
       {onClick && <ChevronRight className="size-5 shrink-0 text-slate-400" aria-hidden />}
     </>
   );
-  const cls = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
+  const cls = "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left";
   return onClick ? (
     <button type="button" onClick={onClick} className={cn(cls, "hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:outline-none active:bg-slate-100")}>
       {body}
     </button>
   ) : (
-    <div className={cls}>{body}</div>
+    <div className={cn(cls, quiet && "bg-slate-50")}>{body}</div>
   );
 }
 
-/** Segmented control (two or three options). */
+/** Segmented control (two or three options). `lang` marks an option written in another language (e.g. "हिन्दी"). */
 export function Segmented<T extends string | number>({
   options,
   value,
   onChange,
   label,
 }: {
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; lang?: string }[];
   value: T;
   onChange: (v: T) => void;
   label: string;
@@ -259,9 +314,10 @@ export function Segmented<T extends string | number>({
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          lang={o.lang}
           onClick={() => onChange(o.value)}
           className={cn(
-            "min-h-11 rounded-xl px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
+            "min-h-12 rounded-xl px-2 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300",
             value === o.value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
           )}
         >

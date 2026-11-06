@@ -14,6 +14,7 @@ export function Dialog({
   children,
   closeLabel,
   className,
+  onCloseAutoFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,12 +23,19 @@ export function Dialog({
   children: ReactNode;
   closeLabel: string;
   className?: string;
+  /**
+   * Runs when the sheet has closed and focus is about to move. The sheet is not opened by a Radix
+   * trigger, so without this focus goes to <body>: call event.preventDefault() and focus the button
+   * that opened it.
+   */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-slate-900/45" />
         <DialogPrimitive.Content
+          onCloseAutoFocus={onCloseAutoFocus}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-[2rem] bg-white px-5 pt-3 pb-safe shadow-2xl focus:outline-none",
             "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(92vw,30rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[2rem] sm:pb-6",

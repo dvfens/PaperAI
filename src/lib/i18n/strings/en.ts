@@ -81,7 +81,7 @@ export const en = {
   convSkipped: "Okay, I'll leave this for now.",
   convRequiredSkipped: "This one is needed on the form. We can come back to it later.",
   convDontKnow: "That's okay. I'll leave it empty for now.",
-  convPaused: "Okay, I've paused. Tap the microphone when you are ready.",
+  convPaused: "Okay, I've paused. Tap “Continue” when you are ready.",
   convResumed: "Welcome back.",
   convAllDone: "That's all the questions. Let's check your answers together.",
   convSaidYesNo: "Please say yes or no.",
@@ -103,6 +103,7 @@ export const en = {
   speakAnswer: "Speak answer",
   makeDocument: "Make my document",
   requiredMissing: "{n} required answers are still empty.",
+  requiredMissingOne: "One required answer is still empty.",
   answerMissing: "Answer the empty questions",
   uncertainPlacement: "I'm not fully sure where this goes on the page. Please look at the preview.",
   emptyValue: "(empty)",
@@ -278,6 +279,26 @@ export const en = {
   snippetConfirm: "“{value}” will be written in the blue box.",
   snippetAskChoice: "Your choice will be marked in one of the blue boxes.",
   snippetConfirmChoice: "“{value}” will be marked in the blue box.",
+  // Menu sheet
+  menu: "Menu",
+  on: "On",
+  off: "Off",
+  // Question screen
+  savedPrev: "Saved — {label}: {value}",
+  leftEmpty: "Left empty — {label}",
+  orSayYesNo: "Or say “Yes” or “No”",
+  speakInstead: "Speak instead",
+  // Answers screen
+  answeredOf: "{n} of {total} answered",
+  allAnswered: "Every question is answered",
+  neededOnForm: "The form needs this",
+  statusEmpty: "Empty",
+  // Overview screen
+  unsureTitle: "Things to check",
+  startNewTitle: "Start a new document?",
+  startNewBody: "The answers you gave for this form will be removed from this phone.",
+  keepAnswers: "Keep my answers",
+  startNew: "Start new",
 } as const;
 
 export type StringKey = keyof typeof en;

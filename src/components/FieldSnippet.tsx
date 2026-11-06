@@ -1,6 +1,7 @@
 "use client";
 
 import type { Box, PageImage } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -11,8 +12,22 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  *
  * The crop is a readable strip: room for the printed label to the left, the start of the box(es),
  * and a little of the lines above and below.
+ *
+ * `variant="card"` (default) is a standalone bordered picture; `variant="inset"` sits flush at the
+ * bottom of a Card (no own border or rounding, caption as a tinted footer). Both captions start with
+ * a small square drawn like the highlight, so "the blue box" points at something visible.
  */
-export function FieldSnippet({ page, boxes, caption }: { page: PageImage; boxes: Box[]; caption: string }) {
+export function FieldSnippet({
+  page,
+  boxes,
+  caption,
+  variant = "card",
+}: {
+  page: PageImage;
+  boxes: Box[];
+  caption: string;
+  variant?: "card" | "inset";
+}) {
   if (!boxes.length) return null;
   const W = page.width || 1;
   const H = page.height || 1;
@@ -35,9 +50,13 @@ export function FieldSnippet({ page, boxes, caption }: { page: PageImage; boxes:
   const pct = (v: number) => `${v * 100}%`;
 
   return (
-    <figure className="w-full">
+    <figure className={cn("w-full", variant === "inset" && "border-t border-slate-200")}>
       <div
-        className="relative w-full overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm"
+        className={
+          variant === "inset"
+            ? "relative w-full overflow-hidden bg-white"
+            : "relative w-full overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm"
+        }
         style={{ aspectRatio: `${wc * W} / ${hc * H}` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -62,7 +81,16 @@ export function FieldSnippet({ page, boxes, caption }: { page: PageImage; boxes:
           />
         ))}
       </div>
-      <figcaption className="mt-1.5 text-sm text-slate-600">{caption}</figcaption>
+      <figcaption
+        className={
+          variant === "inset"
+            ? "flex items-start gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-700"
+            : "mt-2 flex items-start gap-2 text-base text-slate-700"
+        }
+      >
+        <span aria-hidden className="mt-1 inline-block size-4 shrink-0 rounded border-2 border-blue-600 bg-blue-500/15" />
+        <span className="min-w-0">{caption}</span>
+      </figcaption>
     </figure>
   );
 }
