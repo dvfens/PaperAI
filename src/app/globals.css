@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-noto-sans), var(--font-noto-devanagari), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  /* Larger base size: every rem-based size in the UI scales up for older eyes. */
+  font-size: 112.5%;
+  -webkit-text-size-adjust: 100%;
+  background: #ffffff;
+}
+
+body {
+  background: #ffffff;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Devanagari needs a little more line height for matras. */
+:lang(hi) body {
+  line-height: 1.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes listening-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(220 38 38 / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgb(220 38 38 / 0);
+  }
+}
+
+.listening-ring {
+  animation: listening-ring 1.4s ease-out infinite;
+}
+
+.pb-safe {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
