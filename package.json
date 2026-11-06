@@ -19,7 +19,7 @@
     "arkiv:query": "tsx --env-file-if-exists=.env.local scripts/arkiv-query.ts",
     "demo:tamper": "node scripts/tamper-pdf.mjs",
     "cleanup": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cleanup.ts",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --conditions=react-server --test tests/*.test.ts",
     "setup": "node scripts/setup.mjs",
     "test:e2e": "node scripts/e2e.mjs"
   },

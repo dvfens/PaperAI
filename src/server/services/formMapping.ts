@@ -35,15 +35,99 @@ function normWord(s: string) {
   return s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-/** Where on the label's line the printed label ends and the blank (underscores/dots) begins. */
+/** Gap between two words of one printed item (fraction of page width); a wider gap starts a new item. */
+const ITEM_GAP = 0.03;
+
+const isLeader = (w: OcrWord) => LEADER.test(w.text.trim()) || /_{3,}/.test(w.text);
+
+/** Edit distance of at most one (OCR often gets one letter of a word wrong). */
+function nearlySame(a: string, b: string) {
+  if (a === b) return true;
+  if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+export interface LabelSpan {
+  /** Word indexes of the printed label on the line: [start, end). */
+  start: number;
+  end: number;
+  box: Box;
+  /** Where the next printed item on the same line starts (another field's label), if any. */
+  nextX: number | null;
+}
+
+/**
+ * Where this field's own label is printed on an OCR line. On two-column forms one OCR line often holds
+ * two labels side by side ("Full Name   Date of Birth"), so the whole line cannot be the anchor: that
+ * put the right-hand answer into the left-hand box.
+ */
+export function findLabel(line: OcrLine, label: string): LabelSpan | null {
+  const want = label.split(/\s+/).map(normWord).filter(Boolean);
+  const words = line.words;
+  const norm = words.map((w) => normWord(w.text));
+  if (!want.length || !words.length) return null;
+  let best = { start: -1, last: -1, score: 0 };
+  for (let i = 0; i < words.length; i++) {
+    if (!norm[i]) continue;
+    for (let k0 = 0; k0 < want.length; k0++) {
+      let k = k0;
+      let j = i;
+      let last = -1;
+      while (j < words.length && k < want.length) {
+        if (!norm[j]) {
+          j++; // "*", ":", "(₹)" — punctuation between label words
+          continue;
+        }
+        if (!nearlySame(norm[j], want[k])) break;
+        last = j;
+        j++;
+        k++;
+      }
+      const score = k - k0;
+      if (score > best.score) best = { start: i, last, score };
+    }
+  }
+  if (best.score < Math.max(1, Math.ceil(want.length / 2))) return null;
+
+  // Words printed right after the label belong to it: "*", ":", "(₹)" (often misread), hints such as
+  // "(in BLOCK LETTERS)" when the label was given without them. A wider gap starts the next item.
+  let end = best.last + 1;
+  while (end < words.length && !isLeader(words[end]) && words[end].box.x - (words[end - 1].box.x + words[end - 1].box.w) < ITEM_GAP) end++;
+  let nextX: number | null = null;
+  for (let n = end; n < words.length; n++) {
+    if (norm[n] && !isLeader(words[n])) {
+      nextX = words[n].box.x;
+      break;
+    }
+  }
+  return { start: best.start, end, box: unionBox(words.slice(best.start, end), line.page), nextX };
+}
+
+/** Old behaviour, for a label that cannot be found on its line: the whole line is the anchor. */
 function analyseLine(line: OcrLine, label: string) {
   const labelWords = new Set(label.split(/\s+/).map(normWord).filter(Boolean));
   let labelEnd = line.box.x;
   let leaderStart: number | null = null;
   let leaderEnd: number | null = null;
   for (const w of line.words) {
-    const isLeader = LEADER.test(w.text.trim()) || /_{3,}/.test(w.text);
-    if (isLeader) {
+    if (isLeader(w)) {
       leaderStart ??= w.box.x;
       leaderEnd = w.box.x + w.box.w;
       continue;
@@ -66,7 +150,51 @@ export function resolvePlacement(
   }
   const line = draft.anchorLineId ? linesById.get(draft.anchorLineId) : undefined;
   const est = draft.estimate;
-  if (line && draft.placement === "right_of_label") {
+  const span = line && (draft.placement === "right_of_label" || draft.placement === "below_label") ? findLabel(line, draft.label) : null;
+
+  if (line && span && draft.placement === "right_of_label") {
+    // The blank starts after this label: underscores/dots if the OCR kept them, else empty space.
+    let leaderStart: number | null = null;
+    let leaderEnd: number | null = null;
+    for (const w of line.words.slice(span.end)) {
+      if (isLeader(w)) {
+        leaderStart ??= w.box.x;
+        leaderEnd = w.box.x + w.box.w;
+      } else if (normWord(w.text)) break; // the next printed item
+    }
+    const x = (leaderStart ?? span.box.x + span.box.w + 0.01) + 0.004;
+    const limit = span.nextX !== null ? span.nextX - 0.015 : 0.95;
+    const estRight = est && est.x + est.w > x + 0.03 && est.x < limit ? est.x + est.w : null;
+    const right = Math.min(limit, leaderEnd ?? estRight ?? x + 0.45);
+    if (right - x >= 0.03) {
+      return {
+        box: clampBox({ page: line.page, x, y: span.box.y - span.box.h * 0.35, w: right - x, h: span.box.h * 1.5 }),
+        confidence: leaderStart !== null ? "high" : "medium",
+      };
+    }
+  }
+  if (line && span && draft.placement === "below_label") {
+    // The answer goes under this label, no further right than the next label on the same line.
+    const x = span.box.x;
+    const limit = span.nextX !== null ? span.nextX - 0.015 : 0.95;
+    const estFits = Boolean(
+      est && est.x < limit && est.x + est.w > x && est.y > span.box.y - 0.01 && est.y < span.box.y + span.box.h + 0.08,
+    );
+    const w = Math.min(limit - x, estFits ? est!.w : Math.max(0.4, span.box.w));
+    if (w >= 0.03) {
+      return {
+        box: clampBox({
+          page: line.page,
+          x,
+          y: span.box.y + span.box.h * 1.15,
+          w,
+          h: estFits ? Math.max(span.box.h * 1.2, Math.min(0.3, est!.h)) : span.box.h * 1.6,
+        }),
+        confidence: "medium",
+      };
+    }
+  }
+  if (line && !span && draft.placement === "right_of_label") {
     const { labelEnd, leaderStart, leaderEnd } = analyseLine(line, draft.label);
     const x = (leaderStart ?? labelEnd + 0.01) + 0.004;
     const right = leaderEnd ?? (est ? est.x + est.w : Math.min(0.95, x + 0.45));
@@ -75,7 +203,7 @@ export function resolvePlacement(
       confidence: leaderStart !== null ? "high" : "medium",
     };
   }
-  if (line && draft.placement === "below_label") {
+  if (line && !span && draft.placement === "below_label") {
     return {
       box: clampBox({
         page: line.page,
@@ -93,12 +221,53 @@ export function resolvePlacement(
   return { box: undefined, confidence: "low" };
 }
 
+/** Share of the smaller box that the two boxes have in common (0 = apart, 1 = one inside the other). */
+export function overlapShare(a: Box, b: Box): number {
+  if (a.page !== b.page) return 0;
+  const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  if (ix <= 0 || iy <= 0) return 0;
+  return (ix * iy) / Math.min(a.w * a.h, b.w * b.h);
+}
+
+/**
+ * Two answers must never be written on top of each other. When a field's place collides with an
+ * earlier field's, use the model's own estimate for it if that is free; otherwise keep it but mark
+ * both as "low" so the person is asked to check them before printing.
+ */
+export function separateOverlaps(
+  placed: { box: Box | undefined; confidence: MappingConfidence }[],
+  estimates: (Box | null)[],
+): void {
+  const CLASH = 0.5;
+  for (let i = 0; i < placed.length; i++) {
+    const own = placed[i].box;
+    if (!own) continue;
+    const clashes = (b: Box) => placed.some((o, j) => j !== i && j < i && o.box && overlapShare(b, o.box) > CLASH);
+    if (!clashes(own)) continue;
+    const est = estimates[i];
+    if (placed[i].confidence !== "high" && est && !placed.some((o, j) => j !== i && o.box && overlapShare(est, o.box) > 0.2)) {
+      placed[i] = { box: est, confidence: "low" };
+      continue;
+    }
+    placed[i] = { ...placed[i], confidence: placed[i].confidence === "high" ? "high" : "low" };
+    placed.forEach((o, j) => {
+      if (j < i && o.box && o.confidence !== "high" && overlapShare(own, o.box) > CLASH) placed[j] = { ...o, confidence: "low" };
+    });
+  }
+}
+
 export function finaliseFields(drafts: FieldDraft[], ocr: OcrPage[] | null, acro: AcroFieldInfo[]): FormField[] {
   const linesById = new Map((ocr ?? []).flatMap((p) => p.lines).map((l) => [l.id, l]));
   const acroByName = new Map(acro.map((a) => [a.name, a]));
   const seen = new Set<string>();
+  const placed = drafts.map((d) => resolvePlacement(d, linesById, acroByName));
+  separateOverlaps(
+    placed,
+    drafts.map((d) => (d.estimate && !d.acroName ? clampBox({ page: d.page, ...d.estimate }) : null)),
+  );
   return drafts.map((d, i) => {
-    const { box, confidence } = resolvePlacement(d, linesById, acroByName);
+    const { box, confidence } = placed[i];
     let id = d.id.replace(/[^a-z0-9_]/gi, "_").toLowerCase() || `field_${i + 1}`;
     while (seen.has(id)) id = `${id}_${i + 1}`;
     seen.add(id);

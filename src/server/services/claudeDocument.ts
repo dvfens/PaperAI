@@ -76,6 +76,7 @@ Placement on the page
 - If fillable PDF fields are listed, set acroName to the matching field name and placement "acro".
 - Otherwise set anchorLineId to the id of the OCR line that contains the printed label (null if none), and placement: "right_of_label" when the blank is on the same line after the label (underscores, dots or empty space), "below_label" when the answer goes on the line below, "in_box" when there is a drawn box, "unknown" otherwise.
 - Always also give "box": your best estimate of the blank answer area as fractions of the page (x, y = top-left corner, w, h, all between 0 and 1), and "page" as the zero-based page index.
+- On forms with two or more columns, one OCR line often holds several labels side by side. Still use that line as the anchor, but "box" must be this field's own blank (under or beside its own label), never a neighbour's.
 
 Document level
 - category: the closest match. kind: blank_form, instructions, filled_document (already filled in) or other. A letter or notice with nothing to fill gets an empty fields list.
