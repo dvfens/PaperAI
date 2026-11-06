@@ -1,16 +1,38 @@
 "use client";
 
-import { CameraOff, Check, Flashlight, FlashlightOff, FolderOpen, ImageUp, Loader2, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { CameraOff, Flashlight, FlashlightOff, FolderOpen, ImageUp, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
-import { captureVideoFrame, imageFileToPage, MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
+import { MAX_UPLOAD_BYTES, pdfToPages, type PreparedPage } from "@/lib/client/media";
+import { findPage, grabFrame, imageToCanvas, PHOTO_EDGE, type NormQuad } from "@/lib/client/scanner";
 import { IconAction } from "@/components/common/Chrome";
 import { LanguageSelector } from "@/components/common/LanguageSelector";
 import { VoiceEngineButton } from "@/components/common/VoiceEngine";
+import { LiveOutline, type TrackState } from "@/components/scan/LiveOutline";
+import { ScanReview } from "@/components/scan/ScanReview";
 import { useApp, type SourceDocument } from "@/components/app/AppContext";
 
 type CameraState = "starting" | "live" | "unavailable";
+
+/** The analysis and fill requests take up to four page images. */
+const MAX_PAGES = 4;
+
+interface Draft {
+  id: number;
+  /** The photo at full resolution. */
+  source: HTMLCanvasElement;
+  /** Page outline found in it (null: none found, the whole photo is used). */
+  quad: NormQuad | null;
+}
+
+function safeFind(source: HTMLCanvasElement): NormQuad | null {
+  try {
+    return findPage(source, source.width, source.height, PHOTO_EDGE);
+  } catch {
+    return null;
+  }
+}
 
 interface TorchCapabilities extends MediaTrackCapabilities {
   torch?: boolean;
@@ -28,7 +50,15 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
   const [camera, setCamera] = useState<CameraState>("starting");
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
-  const [captured, setCaptured] = useState<PreparedPage | null>(null);
+  // The photo being checked, and pages already kept with "Add page".
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [pages, setPages] = useState<PreparedPage[]>([]);
+  const draftId = useRef(0);
+  const [track, setTrack] = useState<TrackState>("searching");
+  const [flash, setFlash] = useState(false);
+  const liveQuad = useRef<NormQuad | null>(null);
+  // No automatic photo in the first moments after the camera opens or a photo is put away.
+  const [autoAfter, setAutoAfter] = useState(() => Date.now() + 1500);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Forms this phone saved earlier: shown as a "My forms" button only when there are some.
@@ -51,7 +81,8 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("no camera api");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        // A sharper stream than the screen needs: the page is cut out of it, so every pixel counts.
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -85,16 +116,26 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
     }
   };
 
-  const capture = async () => {
+  /** Take the photo (shutter button, or automatically once the page has been still for a moment). */
+  const capture = () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
-    setCaptured(await captureVideoFrame(video));
+    if (!video || !video.videoWidth || draft || busy) return;
+    setFlash(true);
+    setTimeout(() => setFlash(false), 160);
+    navigator.vibrate?.(30);
+    const source = grabFrame(video);
+    // A closer look at the full photo; the live outline is the fallback.
+    setDraft({ id: ++draftId.current, source, quad: safeFind(source) ?? liveQuad.current });
   };
 
-  const useCaptured = () => {
-    if (!captured) return;
+  const putAwayDraft = () => {
+    setDraft(null);
+    setAutoAfter(Date.now() + 2500);
+  };
+
+  const finish = (all: PreparedPage[]) => {
     stopCamera();
-    onDocument({ kind: "image", pdf: null, pages: [captured], pageCount: 1 });
+    onDocument({ kind: "image", pdf: null, pages: all, pageCount: all.length });
   };
 
   const handleFile = async (file: File) => {
@@ -113,9 +154,9 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
         stopCamera();
         onDocument({ kind: "pdf", pdf: new Blob([data], { type: "application/pdf" }), pages, pageCount });
       } else if (file.type.startsWith("image/")) {
-        const page = await imageFileToPage(file);
-        stopCamera();
-        onDocument({ kind: "image", pdf: null, pages: [page], pageCount: 1 });
+        // Photos from the gallery get the same cut-out, straightening and clean-up as camera photos.
+        const source = await imageToCanvas(file);
+        setDraft({ id: ++draftId.current, source, quad: safeFind(source) });
       } else {
         setError(t("errorFileType"));
       }
@@ -151,16 +192,16 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
 
   return (
     <div className="relative h-dvh overflow-hidden bg-black text-white">
-      {/* Viewfinder / captured photo */}
-      {captured ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={captured.dataUrl} alt={t("scanTitle")} className="absolute inset-0 h-full w-full object-contain" />
-      ) : (
-        <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+      {/* Viewfinder, with the page outline tracked live. The camera keeps running while a photo is
+          checked, so "Retake" and "Add page" are instant. */}
+      <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+      {camera === "live" && (
+        <LiveOutline videoRef={videoRef} active={!draft && !busy} autoAfter={autoAfter} quadRef={liveQuad} onState={setTrack} onSteady={capture} />
       )}
+      {flash && <div className="pointer-events-none absolute inset-0 z-30 bg-white/70" aria-hidden />}
 
       {/* Top bar */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6">
+      <div inert={Boolean(draft)} className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6">
         <span className="text-[17px] font-bold tracking-tight">{t("appName")}</span>
         <div className="flex items-center gap-2">
           <VoiceEngineButton tone="dark" />
@@ -168,21 +209,25 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
         </div>
       </div>
 
-      {/* Frame guide */}
-      {!captured && camera === "live" && (
-        <div className="pointer-events-none absolute inset-x-8 top-20 bottom-52" aria-hidden>
-          <span className="absolute left-0 top-0 size-10 rounded-tl-2xl border-l-[3px] border-t-[3px] border-white/90" />
-          <span className="absolute right-0 top-0 size-10 rounded-tr-2xl border-r-[3px] border-t-[3px] border-white/90" />
-          <span className="absolute bottom-0 left-0 size-10 rounded-bl-2xl border-b-[3px] border-l-[3px] border-white/90" />
-          <span className="absolute bottom-0 right-0 size-10 rounded-br-2xl border-b-[3px] border-r-[3px] border-white/90" />
-          <span className="absolute inset-x-0 top-4 mx-auto w-fit rounded-full bg-black/55 px-3 py-1 text-[13px] font-medium backdrop-blur">
-            {t("cam_hint")}
+      {/* Frame guide while no page is in view; "hold still" once the outline has found it. */}
+      {!draft && camera === "live" && (
+        <div className="pointer-events-none absolute inset-x-8 top-20 bottom-52">
+          {track === "searching" && (
+            <>
+              <span className="absolute left-0 top-0 size-10 rounded-tl-2xl border-l-[3px] border-t-[3px] border-white/90" aria-hidden />
+              <span className="absolute right-0 top-0 size-10 rounded-tr-2xl border-r-[3px] border-t-[3px] border-white/90" aria-hidden />
+              <span className="absolute bottom-0 left-0 size-10 rounded-bl-2xl border-b-[3px] border-l-[3px] border-white/90" aria-hidden />
+              <span className="absolute bottom-0 right-0 size-10 rounded-br-2xl border-b-[3px] border-r-[3px] border-white/90" aria-hidden />
+            </>
+          )}
+          <span role="status" className="absolute inset-x-0 top-4 mx-auto w-fit rounded-full bg-black/55 px-3 py-1 text-[13px] font-medium backdrop-blur">
+            {track === "searching" ? t("cam_hint") : t("scan_hold")}
           </span>
         </div>
       )}
 
       {/* No camera */}
-      {!captured && camera !== "live" && (
+      {!draft && camera !== "live" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-10 pb-40 text-center">
           {camera === "starting" ? (
             <Loader2 className="size-8 animate-spin text-white/70" aria-hidden />
@@ -205,30 +250,13 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
       )}
 
       {/* Bottom controls */}
-      <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div inert={Boolean(draft)} className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-4 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {error && (
           <p role="alert" className="mx-auto mb-3 w-fit rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold">
             {error}
           </p>
         )}
 
-        {captured ? (
-          <div className="mx-auto grid max-w-md grid-cols-2 gap-3">
-            <button
-              onClick={() => setCaptured(null)}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white/15 text-[15px] font-semibold backdrop-blur hover:bg-white/25 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-            >
-              <RotateCcw className="size-5" aria-hidden /> {t("cam_retake")}
-            </button>
-            <button
-              onClick={useCaptured}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 text-[15px] font-semibold hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
-            >
-              <Check className="size-5" aria-hidden /> {t("cam_use")}
-            </button>
-          </div>
-        ) : (
-          <>
             {savedCount > 0 && (
               <div className="mb-2.5 flex justify-center">
                 <Link
@@ -257,7 +285,21 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
             </div>
             <div className="mx-auto grid max-w-md grid-cols-3 items-center">
               <div className="flex justify-center">
-                <IconAction tone="dark" icon={ImageUp} label={t("cam_file")} onClick={() => fileRef.current?.click()} disabled={busy} />
+                {pages.length > 0 ? (
+                  // Pages kept so far: tap to use them, like the stack in a scanner app.
+                  <button
+                    type="button"
+                    onClick={() => finish(pages)}
+                    aria-label={pages.length === 1 ? t("scan_pageDone") : t("scan_pagesDone", { n: pages.length })}
+                    className="relative size-12 rounded-lg border-2 border-white bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={pages[pages.length - 1].dataUrl} alt="" className="h-full w-full rounded-md object-cover" />
+                    <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-blue-600 px-1.5 text-xs font-bold leading-5 text-white">{pages.length}</span>
+                  </button>
+                ) : (
+                  <IconAction tone="dark" icon={ImageUp} label={t("cam_file")} onClick={() => fileRef.current?.click()} disabled={busy} />
+                )}
               </div>
               <div className="flex justify-center">
                 <button
@@ -277,8 +319,6 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
                 )}
               </div>
             </div>
-          </>
-        )}
         <input
           ref={fileRef}
           type="file"
@@ -291,6 +331,22 @@ export function CameraScanner({ onDocument }: { onDocument: (doc: SourceDocument
           }}
         />
       </div>
+
+      {draft && (
+        <ScanReview
+          key={draft.id}
+          source={draft.source}
+          autoQuad={draft.quad}
+          pageNumber={pages.length + 1}
+          canAddPage={pages.length + 1 < MAX_PAGES}
+          onRetake={putAwayDraft}
+          onAddPage={(page) => {
+            setPages((p) => [...p, page]);
+            putAwayDraft();
+          }}
+          onUse={(page) => finish([...pages, page])}
+        />
+      )}
     </div>
   );
 }

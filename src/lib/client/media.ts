@@ -9,7 +9,7 @@ import type { PageImage } from "@/lib/types";
  */
 export const MAX_UPLOAD_BYTES = 3_500_000;
 export const MAX_REQUEST_BYTES = 4_200_000;
-const MAX_EDGE = 1600;
+export const MAX_PAGE_EDGE = 1600;
 
 export interface PreparedPage extends PageImage {
   blob: Blob;
@@ -33,13 +33,13 @@ function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.82): Promise<Blob> 
   );
 }
 
-async function fromCanvas(canvas: HTMLCanvasElement): Promise<PreparedPage> {
+export async function pageFromCanvas(canvas: HTMLCanvasElement): Promise<PreparedPage> {
   const blob = await canvasToBlob(canvas);
   return { blob, dataUrl: canvas.toDataURL("image/jpeg", 0.8), width: canvas.width, height: canvas.height };
 }
 
 function scaledCanvas(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement {
-  const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+  const scale = Math.min(1, MAX_PAGE_EDGE / Math.max(width, height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
@@ -52,14 +52,14 @@ function scaledCanvas(source: CanvasImageSource, width: number, height: number):
 
 /** Grab the current camera frame as a page image. */
 export function captureVideoFrame(video: HTMLVideoElement): Promise<PreparedPage> {
-  return fromCanvas(scaledCanvas(video, video.videoWidth, video.videoHeight));
+  return pageFromCanvas(scaledCanvas(video, video.videoWidth, video.videoHeight));
 }
 
 /** Load an image file (any browser-decodable format) and normalise it to a JPEG page. */
 export async function imageFileToPage(file: Blob): Promise<PreparedPage> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   try {
-    return await fromCanvas(scaledCanvas(bitmap, bitmap.width, bitmap.height));
+    return await pageFromCanvas(scaledCanvas(bitmap, bitmap.width, bitmap.height));
   } finally {
     bitmap.close();
   }
@@ -84,7 +84,7 @@ export async function pdfToPages(data: ArrayBuffer, maxPages = 4, targetWidth = 
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-      pages.push(await fromCanvas(canvas));
+      pages.push(await pageFromCanvas(canvas));
     }
     return { pages, pageCount: doc.numPages };
   } finally {
