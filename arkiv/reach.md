@@ -3,7 +3,7 @@
 ## Who is it for?
 
 - **Elderly people in India** who face paperwork alone — pension life certificates, bank KYC and account forms, ration and health-scheme applications, society and library memberships. India had about **149 million people aged 60+ in 2022 (10.5% of the population), projected to reach 347 million by 2050** ([UNFPA & IIPS, *India Ageing Report 2023*](https://www.downtoearth.org.in/health/india-will-be-greyer-by-2050-women-will-live-longer-than-men-india-ageing-report-2023-91998)).
-- **Anyone who cannot comfortably read or write the language of the form** — the form is in English, they speak Hindi; Saathi asks in Hindi and writes the answer the way the form requires (e.g. BLOCK LETTERS, DD/MM/YYYY).
+- **Anyone who cannot comfortably read or write the language of the form** — the form is in English, they speak Hindi; Paper AI asks in Hindi and writes the answer the way the form requires (e.g. BLOCK LETTERS, DD/MM/YYYY).
 - **The people on the other side of the counter** — bank and office staff who receive these forms can check, from a QR code or link, that the PDF is exactly the version the applicant approved (with the time of approval), without an account.
 
 ## Would they use it?
@@ -20,7 +20,7 @@ The interface was designed around them rather than around the technology:
 
 - Run it locally in minutes: `npm install && npm run setup && npm run dev`, then "Try a sample form" (a non-sensitive library membership form included in the repo). See [README](../README.md) and [docs/DEMO.md](../docs/DEMO.md).
 - `npm run test:e2e` runs the full scenario (scan → conversation with a correction → PDF → approval → verification → tampered copy fails → share → revoke → delete) against the live services.
-- Arkiv data is public: `npm run arkiv:query` lists the commitments written by Saathi's wallet `0x06Ca910E0B9819f11bA30d812648479192bF2909` on Rabdi.
+- Arkiv data is public: `npm run arkiv:query` lists the commitments written by Paper AI's wallet `0x06Ca910E0B9819f11bA30d812648479192bF2909` on Rabdi.
 
 ## Will we keep building after Mumbai?
 

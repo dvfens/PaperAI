@@ -1,10 +1,10 @@
 /**
  * Document signatures, like an e-signature service but with no account: the signer's phone holds a
  * digital key (created silently on first use, never shown) and signs the finished PDF's SHA-256
- * fingerprint as EIP-712 typed data. Saathi records the signature on Arkiv next to the approval.
+ * fingerprint as EIP-712 typed data. Paper AI records the signature on Arkiv next to the approval.
  *
  * Isomorphic: the server checks a signature before recording it, and /verify checks it again in the
- * viewer's own browser, so nobody has to trust Saathi's server that the signature is genuine.
+ * viewer's own browser, so nobody has to trust Paper AI's server that the signature is genuine.
  *
  * What a valid signature shows: the key on that phone signed exactly this file at that time. It is
  * not an Aadhaar eSign and does not prove who holds the phone, or that the contents are true.
@@ -14,6 +14,7 @@ import { recoverTypedDataAddress, type Hex } from "viem";
 /** Arkiv Rabdi testnet — scopes the signature (nothing is sent to that chain by the signer). */
 const SIGN_CHAIN_ID = 7794095;
 
+/** "Saathi" was Paper AI's working name. It is part of every signature already recorded, so it must not change. */
 export const SIGN_DOMAIN = { name: "Saathi", version: "1", chainId: SIGN_CHAIN_ID } as const;
 
 export const SIGN_TYPES = {

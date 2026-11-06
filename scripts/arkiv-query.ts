@@ -1,4 +1,4 @@
-// Query Saathi's entities on Arkiv (Rabdi testnet) — read-only, needs no funds.
+// Query Paper AI's entities on Arkiv (Rabdi testnet) — read-only, needs no funds.
 //
 //   npm run arkiv:query                 # latest commitments written by the configured writer wallet
 //   npm run arkiv:query -- <sha256>     # verify one document fingerprint + its consent history

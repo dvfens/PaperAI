@@ -19,9 +19,9 @@ export function randomToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");
 }
 
-/** Token handed to the browser with a generated PDF, proving Saathi produced exactly these bytes. */
+/** Token handed to the browser with a generated PDF, proving Paper AI produced exactly these bytes. */
 /**
- * Proof that Saathi produced this exact PDF. A signed PDF's token is also bound to the signer key
+ * Proof that Paper AI produced this exact PDF. A signed PDF's token is also bound to the signer key
  * printed on its signature page, so it can only be saved together with that key's signature.
  */
 export function generationToken(sha256: string, signer?: string): string {

@@ -46,7 +46,7 @@ export interface FormField {
   labelLocalized: string;
   type: FieldType;
   required: boolean;
-  /** The question Saathi asks, in the user's language. One question per field. */
+  /** The question Paper AI asks, in the user's language. One question per field. */
   question: string;
   /** Short helpful hint in the user's language, e.g. "10 digit mobile number". */
   hint?: string;
@@ -217,7 +217,7 @@ export interface NextStepsGuide {
   source: AnalysisSource;
   intro: string;
   steps: GuideStep[];
-  /** Always states that Saathi has not submitted the form anywhere. */
+  /** Always states that Paper AI has not submitted the form anywhere. */
   notSubmittedNotice: string;
 }
 
@@ -252,7 +252,7 @@ export interface CommitmentReceipt {
   approvedAt: string;
   retentionUntil: string;
   stored: boolean;
-  /** Present when the person signed the form in Saathi. */
+  /** Present when the person signed the form in Paper AI. */
   signature?: { signer: string; signedAt: string; arkivKey: string | null };
   arkiv:
     | {

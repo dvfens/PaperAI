@@ -72,7 +72,7 @@ const ACCESS_KEY = process.env.NEXT_PUBLIC_ARKIV_ACCESS_KEY ?? "";
 /**
  * Document integrity check. The PDF is hashed on this device (Web Crypto) — it is never uploaded.
  * The fingerprint is looked up directly on Arkiv from the browser, so the check does not depend on
- * trusting Saathi's server; the server route is only a fallback when Arkiv cannot be reached.
+ * trusting Paper AI's server; the server route is only a fallback when Arkiv cannot be reached.
  */
 export function VerificationScreen() {
   const { t, lang, status } = useApp();

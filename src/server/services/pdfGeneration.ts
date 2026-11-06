@@ -32,7 +32,7 @@ import { loadPdf } from "./pdfForm";
  *  - flat PDFs: text is written onto the original vector pages at the mapped positions;
  *  - photos/scans: the scan becomes the page background and answers are written on top.
  * Photo fields are always left for the person. Signature fields too — unless the person signed with
- * a finger in Saathi: then the drawn signature goes into every signature box, and a "Signature record"
+ * a finger in Paper AI: then the drawn signature goes into every signature box, and a "Signature record"
  * page is added at the end (like an e-signature certificate).
  */
 
@@ -207,7 +207,7 @@ async function addSignaturePage(doc: PDFDocument, image: PDFImage, stamp: Signat
   let y = A4_HEIGHT - 72;
   text("Signature record", left, y, 20);
   y -= 18;
-  text("Added by Saathi when this form was signed.", left, y, 10, MUTED);
+  text("Added by Paper AI when this form was signed.", left, y, 10, MUTED);
 
   // The signature itself, in a light frame.
   y -= 24;
@@ -243,7 +243,7 @@ async function addSignaturePage(doc: PDFDocument, image: PDFImage, stamp: Signat
   page.drawLine({ start: { x: left, y }, end: { x: left + width, y }, thickness: 0.75, color: RULE });
   y -= 22;
   const about = [
-    "The signer key is a digital key kept on the signer's phone. The signature made with it covers the exact bytes of this PDF. When the signer saves the form in Saathi, the signature is recorded on the Arkiv blockchain (Rabdi testnet), where it can no longer be changed.",
+    "The signer key is a digital key kept on the signer's phone. The signature made with it covers the exact bytes of this PDF. When the signer saves the form in Paper AI, the signature is recorded on the Arkiv blockchain (Rabdi testnet), where it can no longer be changed.",
     "To check this document, open the address below (or scan the code) and choose this PDF. A match shows when it was signed, by which key, and that the file has not changed since. It does not prove that the information in the form is true, and it is not an Aadhaar eSign.",
   ];
   for (const para of about) {
@@ -386,8 +386,8 @@ export async function generateCompletedPdf(input: {
 
   // Generic metadata only — never personal details.
   doc.setTitle("Completed form");
-  doc.setProducer("Saathi");
-  doc.setCreator("Saathi");
+  doc.setProducer("Paper AI");
+  doc.setCreator("Paper AI");
   doc.setSubject("");
   doc.setKeywords([]);
   doc.setAuthor("");

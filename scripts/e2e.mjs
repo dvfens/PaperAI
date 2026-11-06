@@ -67,7 +67,7 @@ const json = async (path, body) =>
   (await call(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json();
 
 async function main() {
-  console.log(`Saathi E2E against ${BASE}\n`);
+  console.log(`Paper AI E2E against ${BASE}\n`);
   const health = await (await call("/api/health")).json();
   console.log("Services:", JSON.stringify(health));
 

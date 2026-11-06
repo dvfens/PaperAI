@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AppProvider } from "@/components/app/AppContext";
 import { VerificationScreen } from "@/components/screens/VerificationScreen";
 
-export const metadata = { title: "Check a document — Saathi" };
+export const metadata = { title: "Check a document — Paper AI" };
 
 export default function VerifyPage() {
   return (

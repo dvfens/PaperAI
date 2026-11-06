@@ -17,7 +17,7 @@ import { ShareSection } from "./DoneScreen";
 const CHIP = "max-w-full rounded-xl px-2.5 py-1 text-left text-[13px]";
 
 /**
- * "My forms": every form this phone saved and can still open. The PDF is stored encrypted by Saathi
+ * "My forms": every form this phone saved and can still open. The PDF is stored encrypted by Paper AI
  * and opens only with this phone's cookie; Arkiv holds just its fingerprint. Each form can be opened,
  * sent (share link) or deleted — the same actions as the finished-form screen.
  */

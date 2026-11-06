@@ -1,6 +1,6 @@
 # Speech recognition benchmark (November 2026)
 
-Why Saathi listens with **OpenAI `gpt-live-transcribe`** by default (noise reduction off) and offers
+Why Paper AI listens with **OpenAI `gpt-live-transcribe`** by default (noise reduction off) and offers
 **ElevenLabs Scribe realtime** as a switch, with batch recognition only as a backup.
 
 ## Update: voice at arm's length, and OpenAI without noise reduction

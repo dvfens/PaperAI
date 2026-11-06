@@ -1,8 +1,8 @@
 {
-  "name": "saathi",
+  "name": "paper-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "Saathi — a voice-first assistant that helps elderly people and people who cannot comfortably read or write understand and fill in paperwork.",
+  "description": "Paper AI — a voice-first assistant that helps elderly people and people who cannot comfortably read or write understand and fill in paperwork.",
   "license": "MIT",
   "type": "module",
   "engines": {

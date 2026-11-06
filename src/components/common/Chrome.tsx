@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Mobile app design system for Saathi.
+ * Mobile app design system for Paper AI.
  *
  * Rules:
  * - Each screen has one focus and at most ONE filled (blue or green) button.

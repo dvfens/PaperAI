@@ -1,10 +1,10 @@
-# Saathi — a voice-first paperwork helper
+# Paper AI — a voice-first paperwork helper
 
-> **Saathi fills in your form by talking with you — and hands it over in a way the office can trust.**
+> **Paper AI fills in your form by talking with you — and hands it over in a way the office can trust.**
 >
 > Two people use it: the **person filling the form** (talk → form ready → save it or send it to family or the bank) and the **person receiving it** (open the link or the PDF → see "Not changed", checked against Arkiv). Sharing and verification are the hand-over half of the same job, not a separate product.
 
-**Saathi** ("companion" in Hindi) helps elderly people, and anyone who cannot comfortably read or write, deal with paperwork by talking. Point the phone at a form; Saathi explains it in simple Hindi or English, asks the questions one at a time by voice, fills in the form, reads everything back for approval, produces a completed PDF, and explains what to do next. A tamper-evident fingerprint of the approved document, with the consent event, is recorded on **Arkiv** so the person — or the bank clerk they hand it to — can check that it has not been changed.
+**Paper AI** helps elderly people, and anyone who cannot comfortably read or write, deal with paperwork by talking. Point the phone at a form; Paper AI explains it in simple Hindi or English, asks the questions one at a time by voice, fills in the form, reads everything back for approval, produces a completed PDF, and explains what to do next. A tamper-evident fingerprint of the approved document, with the consent event, is recorded on **Arkiv** so the person — or the bank clerk they hand it to — can check that it has not been changed.
 
 > Built from scratch at ETHGlobal Mumbai 2026 for the **Arkiv — "Build on Arkiv (from scratch)"** track.
 
@@ -30,7 +30,7 @@
 6. **Final check** — completed PDF next to the original, missing items, the important details read aloud, explicit "Yes, everything is correct".
 7. **Sign** — sign with a finger, like an e-signature app: the signature goes into the form's signature boxes and a "Signature record" page is added (time, signer key, QR to check it). A key kept on the phone signs the finished PDF (EIP-712) — no wallet, no account. Skippable ("sign on paper later"). Already have a filled form (a filled PDF, or one filled by hand and scanned)? **Already filled? Sign it** skips the questions: check it, sign it, save and protect it — nothing is written into it except the signature.
 8. **Consent** — "Keep a protected copy?" with a retention choice (1 week / 1 month / 6 months) — or just download. On saving, the fingerprint, the consent event and the signature are recorded on Arkiv in one transaction.
-9. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Saathi always says it has **not** submitted the form anywhere.
+9. **What to do next** — step by step, read aloud: where to sign (highlighted on the page), what to attach, where to hand it in. Paper AI always says it has **not** submitted the form anywhere.
 10. **Share, co-sign & verify** — a short-lived link + QR for the bank or family. Whoever opens it sees the document and can **Co-sign** it as a witness, guarantor, family member or official, with their own phone's key (no account); the co-signature goes on Arkiv next to the owner's. Anyone can check the PDF at `/verify` (hashed on their device, checked against Arkiv from their browser) and see every signer, each signature re-checked there.
 11. **My forms** — saved forms come back any time from the **My forms** button: open, send or delete. The PDF is stored encrypted and opens only on the phone that saved it; Arkiv holds only its fingerprint.
 
@@ -103,7 +103,7 @@ Runs the whole demo scenario against a running dev server through the real API: 
 
 ## Arkiv
 
-- **Writer wallet** (creates every Saathi entity; generated for this deployment): `0x06Ca910E0B9819f11bA30d812648479192bF2909`
+- **Writer wallet** (creates every Paper AI entity; generated for this deployment): `0x06Ca910E0B9819f11bA30d812648479192bF2909`
 - **Chain:** Arkiv Rabdi testnet, chain id `7794095`, explorer <https://rabdi.explorer.arkiv.network>
 - **Entities:** `saathi.commitment.v1` (read-only document fingerprint), `saathi.consent.v1` (read-only consent/audit events), `saathi.share.v1` (share-link grants whose expiry *is* the link lifetime) — see [`arkiv/schema.md`](arkiv/schema.md).
 

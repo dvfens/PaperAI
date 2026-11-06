@@ -8,7 +8,9 @@
  */
 import { addr, bytes, defineSchema, key, str, u64 } from "@arkiv-network/sdk/schema";
 
-/** One approved document. Created read-only: nobody — not even Saathi — can rewrite the hash. */
+// The "saathi." tags are Paper AI's working name; they stay so records already on Arkiv keep matching.
+
+/** One approved document. Created read-only: nobody — not even Paper AI — can rewrite the hash. */
 export const Commitment = defineSchema("saathi.commitment.v1", {
   docHash: str().indexed(), // lowercase hex SHA-256 of the approved PDF bytes
   hashAlg: str().default("sha-256"),

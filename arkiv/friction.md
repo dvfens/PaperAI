@@ -1,6 +1,6 @@
 # Arkiv friction log
 
-Things that got in our way while building Saathi with `@arkiv-network/sdk` **1.0.1** (Node 22, Next.js 16) on the **Rabdi** testnet, in the order we hit them. Each has what we expected, what happened, and how to reproduce.
+Things that got in our way while building Paper AI with `@arkiv-network/sdk` **1.0.1** (Node 22, Next.js 16) on the **Rabdi** testnet, in the order we hit them. Each has what we expected, what happened, and how to reproduce.
 
 ## 1. Docs, SDK and testnet names disagree
 

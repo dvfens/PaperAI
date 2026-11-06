@@ -52,7 +52,7 @@ export interface BlockchainVerificationService {
    * already signed the document, or the document has MAX_SIGNATURES signatures.
    */
   recordCosign(input: { commitmentKey: Hex; docHash: string; signature: SignatureProof; retentionUntil: Date }): Promise<{ signatureKey: Hex; txHash: Hex }>;
-  /** Owner-requested erasure: deletes every live Saathi entity for this fingerprint. */
+  /** Owner-requested erasure: deletes every live Paper AI entity for this fingerprint. */
   erase(docHash: string): Promise<{ txHash: Hex | null; deleted: number }>;
   verify(docHash: string): Promise<VerificationResult>;
   isGrantActive(grantId: string): Promise<{ active: boolean; docHash?: string; expiresAtEstimate?: string | null }>;
@@ -60,7 +60,7 @@ export interface BlockchainVerificationService {
   explorerTxUrl(txHash: string): string;
 }
 
-/** Advisory-lock id for Arkiv writes from Saathi's single writer wallet. */
+/** Advisory-lock id for Arkiv writes from Paper AI's single writer wallet. */
 const ARKIV_WRITE_LOCK = 727_274_002;
 
 const nowSeconds = (d = new Date()) => BigInt(Math.floor(d.getTime() / 1000));

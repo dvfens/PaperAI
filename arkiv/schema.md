@@ -2,7 +2,9 @@
 
 Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defined with `defineSchema` from `@arkiv-network/sdk/schema` 1.0.1). Network: **Rabdi testnet**, chain id `7794095`.
 
-**Writer / owner wallet:** `0x06Ca910E0B9819f11bA30d812648479192bF2909` (Saathi's server wallet — our users are elderly people without crypto wallets, so Saathi writes on their behalf and the UI never mentions crypto).
+**Writer / owner wallet:** `0x06Ca910E0B9819f11bA30d812648479192bF2909` (Paper AI's server wallet — our users are elderly people without crypto wallets, so Paper AI writes on their behalf and the UI never mentions crypto).
+
+**Names:** the schema tags start with `saathi.` — Paper AI's working name when the first entities were written. They stay as they are so records already on Arkiv keep matching; the same goes for the signature domain name `"Saathi"` below.
 
 **Privacy rule for every entity:** only a SHA-256 fingerprint, coarse metadata and timestamps. Never names, numbers, answers, transcripts or document content.
 
@@ -20,7 +22,7 @@ Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defi
 
 - **Created** in one atomic `executeBatch` together with its first consent event, after the person taps "Yes, everything is correct" and consents to storage.
 - **Owner / creator:** the writer wallet. Queries filter with `createdBy(writer)` (creator is immutable; owner can be transferred).
-- **Flags:** `readonly: true` — the fingerprint can never be patched, not even by Saathi.
+- **Flags:** `readonly: true` — the fingerprint can never be patched, not even by Paper AI.
 - **Expiry:** `ExpirationTime.atDate(retentionUntil)` where retention is the person's choice — 7, 30 or 180 days (Arkiv's maximum lifetime is ~182.5 days). The encrypted PDF is deleted off-chain at the same moment.
 - **Deleted** when the person taps "Delete my document".
 
@@ -65,7 +67,7 @@ Source of truth: [`src/lib/arkiv/schemas.ts`](../src/lib/arkiv/schemas.ts) (defi
 
 - **Created** in the same atomic `executeBatch` as the commitment and its consent event, only when the person signed with a finger and then chose "Save & protect". The server first checks that the signature recovers to `signer` over exactly these bytes, and that `signer` is the key printed in the PDF (the generation token is bound to it).
 - **Co-signatures** are created by `POST /api/share/<token>/cosign`: whoever received a share link signs the same `docHash` with their own phone's key. The server checks the link is alive on Arkiv (its `saathi.share.v1` grant), the signature is genuine, and — inside the serialized write queue — that this key has not signed the document yet and it has fewer than 10 signatures, then creates one entity with the commitment's expiry.
-- **Saathi cannot forge it:** the key lives only on the phone; the writer wallet merely carries the signature onto Arkiv. Anyone re-checks it: `/verify` recovers the signer from `signature` in the browser.
+- **Paper AI cannot forge it:** the key lives only on the phone; the writer wallet merely carries the signature onto Arkiv. Anyone re-checks it: `/verify` recovers the signer from `signature` in the browser.
 - **Never stored:** the drawn signature image (it exists only inside the encrypted PDF), names, or anything else about the person.
 - **Owner / creator:** writer wallet. **Flags:** `readonly: true`. **Expiry:** the document's retention. **Deleted** with everything else by "Delete my document".
 

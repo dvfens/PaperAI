@@ -53,7 +53,7 @@ export interface AppState {
   guide: NextStepsGuide | null;
   /** How the final approval was given ("voice+tap" when the person also said yes aloud). */
   approvalMethod: "voice+tap" | "tap";
-  /** "fill": Saathi asks the questions and fills the form. "sign": the form is already filled — only check, sign and protect it. */
+  /** "fill": Paper AI asks the questions and fills the form. "sign": the form is already filled — only check, sign and protect it. */
   intent: "fill" | "sign";
 }
 

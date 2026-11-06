@@ -49,7 +49,7 @@ function receiptFrom(row: DocumentRow): CommitmentReceipt {
 
 /**
  * Called only after the person has explicitly approved the final document and consented to
- * storage. Verifies the PDF is exactly the one Saathi generated, encrypts it, stores it, and
+ * storage. Verifies the PDF is exactly the one Paper AI generated, encrypts it, stores it, and
  * records the commitment + consent event on Arkiv.
  */
 export async function approveAndStore(input: {
@@ -68,7 +68,7 @@ export async function approveAndStore(input: {
   if (!isPdf(input.pdf)) throw new HttpError(400, "not_pdf", "Expected a PDF.");
   const sha = sha256Hex(input.pdf);
   if (!safeEqualHex(generationToken(sha, input.signature?.signer), input.token)) {
-    throw new HttpError(400, "unknown_document", "This PDF was not produced by Saathi or was modified.");
+    throw new HttpError(400, "unknown_document", "This PDF was not produced by Paper AI or was modified.");
   }
   // Checked here and again by anyone on /verify: the signature must come from the key printed in this
   // PDF and cover exactly these bytes.
@@ -369,7 +369,7 @@ export async function purgeExpired(force = false): Promise<number> {
 
 /**
  * Co-sign a shared document: the person who received the link (a witness, guarantor, family member or
- * official) signs the same fingerprint with their own phone's key. Saathi checks the link is still
+ * official) signs the same fingerprint with their own phone's key. Paper AI checks the link is still
  * alive on Arkiv and the signature is genuine, then records it next to the owner's.
  */
 export async function cosignShared(token: string, proof: SignatureProof) {

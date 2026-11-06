@@ -1,5 +1,5 @@
 export const en = {
-  appName: "Saathi",
+  appName: "Paper AI",
   tagline: "Your paperwork helper",
   language: "Language",
   back: "Back",
@@ -127,13 +127,13 @@ export const en = {
   // Consent
   consentTitle: "Keep a protected copy?",
   consentBody:
-    "Saathi can keep a locked copy of this document for you, and record a tamper-proof fingerprint so anyone you give it to can check it has not been changed.",
+    "Paper AI can keep a locked copy of this document for you, and record a tamper-proof fingerprint so anyone you give it to can check it has not been changed.",
   consentPublic: "No names, numbers or answers are ever published. Only the fingerprint is.",
   keepFor: "Keep it for",
   keep7: "1 week",
   keep30: "1 month",
   keep180: "6 months",
-  consentAgree: "I agree to Saathi keeping this document and recording its fingerprint.",
+  consentAgree: "I agree to Paper AI keeping this document and recording its fingerprint.",
   saveProtect: "Save and protect",
   downloadOnly: "Just download, don't keep a copy",
   saving: "Saving…",
@@ -164,7 +164,7 @@ export const en = {
   stepOf: "Step {n} of {total}",
   nextStep: "Next step",
   previousStep: "Previous step",
-  notSubmitted: "Saathi has not sent this form anywhere. You need to hand it in yourself.",
+  notSubmitted: "Paper AI has not sent this form anywhere. You need to hand it in yourself.",
   newDocument: "Start a new document",
   technicalDetails: "Technical details",
   viewRecord: "View record",
@@ -178,7 +178,7 @@ export const en = {
   verifyMatchDetail: "It exactly matches the version approved on {date}.",
   verifyNoMatch: "This document does not match",
   verifyNoMatchDetail:
-    "It may have been changed after it was approved, or it was never approved with Saathi.",
+    "It may have been changed after it was approved, or it was never approved with Paper AI.",
   verifyDisclaimer:
     "This check only shows that the file is unchanged. It does not prove that the information inside is true.",
   verifyUnavailable: "Online checking is not available right now.",

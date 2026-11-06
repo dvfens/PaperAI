@@ -82,7 +82,7 @@ export function DoneScreen() {
     guideRequested.current = true;
     api
       .guide(lang, analysis, state.intent === "sign" ? {} : (state.conversation?.answers ?? {}))
-      // Signed in Saathi: the signature is already in the form, so "sign here" is not a next step.
+      // Signed in Paper AI: the signature is already in the form, so "sign here" is not a next step.
       .then((guide) => update({ guide: generated.signature ? { ...guide, steps: guide.steps.filter((s) => s.kind !== "sign") } : guide }))
       .catch(() => undefined);
   }, [state.guide, lang, analysis, state.conversation, state.intent, generated.signature, update]);

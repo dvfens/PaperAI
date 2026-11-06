@@ -13,7 +13,7 @@ export const maxDuration = 60;
  * POST multipart: fields (JSON), answers (JSON) and the original — either `pdf` or page0..page3 images.
  * Optional, when the person signed with a finger: `signature` (PNG), `signer` (their phone key's
  * address), `signedAt` (unix seconds) and `signMethod`. Returns the completed PDF. Nothing is stored. The X-Generation-Token header lets the person later
- * prove (when they choose to save) that this is exactly the PDF Saathi produced.
+ * prove (when they choose to save) that this is exactly the PDF Paper AI produced.
  */
 export const POST = route("documents.generate", async (req: NextRequest) => {
   assertSameOrigin(req);

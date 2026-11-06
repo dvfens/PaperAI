@@ -139,7 +139,7 @@ function storeOrConfirm(
 
 /**
  * Apply one interpreted utterance to the conversation.
- * Returns the new state and what Saathi should say next.
+ * Returns the new state and what Paper AI should say next.
  */
 export function applyTurn(
   prev: ConversationState,

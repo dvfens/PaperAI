@@ -1,9 +1,9 @@
 /**
  * Read-side Arkiv queries. Isomorphic: the /verify page runs these directly in the browser against
- * Arkiv's public RPC, so a recipient does not have to trust Saathi's server to check a document.
+ * Arkiv's public RPC, so a recipient does not have to trust Paper AI's server to check a document.
  *
  * Every query is restricted with `createdBy(writer)`: anyone can write an entity that matches our
- * schema tag, but only entities created by Saathi's writer wallet count. ($creator is immutable,
+ * schema tag, but only entities created by Paper AI's writer wallet count. ($creator is immutable,
  * unlike $owner, which can be transferred.)
  */
 import { createPublicClient, type PublicArkivClient } from "@arkiv-network/sdk";

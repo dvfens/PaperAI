@@ -23,7 +23,7 @@ export type CosignResult = Awaited<ReturnType<typeof api.cosign>>;
 
 /**
  * Co-sign a document someone shared: pick who you are signing as, then one tap. This phone's key
- * signs the exact document shown; Saathi records the signature on Arkiv — never a name.
+ * signs the exact document shown; Paper AI records the signature on Arkiv — never a name.
  */
 export function CosignSheet({
   open,

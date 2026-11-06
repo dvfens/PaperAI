@@ -91,7 +91,7 @@ No names, answers, transcripts or document text are stored in the database.
 | No PII on-chain | Arkiv entities hold a SHA-256, coarse category, language, timestamps, consent action, grant id |
 | Secure deletion | Wrapped key deleted first (crypto-shredding) and links revoked in one transaction, then the ciphertext is removed (filesystem: overwritten + unlinked; database: row deleted); Arkiv entities deleted. In database mode, the provider's backups / point-in-time-restore history (e.g. Neon) can retain old copies until that window passes — keep it short, or rotate `DOCUMENT_ENCRYPTION_KEY` for a hard guarantee |
 | Short-lived links | 1 h / 1 day / 7 days; enforced in the DB **and** by the Arkiv grant entity's expiry; revocable |
-| Integrity of approvals | `/api/documents/generate` returns an HMAC "generation token" over the PDF hash; storage refuses PDFs Saathi did not produce |
+| Integrity of approvals | `/api/documents/generate` returns an HMAC "generation token" over the PDF hash; storage refuses PDFs Paper AI did not produce |
 | CSRF / abuse | Origin check on state-changing routes, per-IP rate limits, bounded upload sizes, magic-byte checks for PDF/JPEG/PNG |
 | Browser hardening | CSP (Arkiv RPC is the only external `connect-src`), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` (share tokens never leak), Permissions-Policy for camera/mic |
 | Prompt injection | Document text and transcripts are passed as data; prompts instruct Claude to ignore instructions inside them; Claude output is schema-validated and cannot trigger actions |

@@ -11,8 +11,8 @@ const notoDevanagari = Noto_Sans_Devanagari({
 });
 
 export const metadata: Metadata = {
-  title: "Saathi — your paperwork helper",
-  description: "Scan any form. Saathi explains it, asks you the questions by voice, and fills it in for you.",
+  title: "Paper AI — your paperwork helper",
+  description: "Scan any form. Paper AI explains it, asks you the questions by voice, and fills it in for you.",
   robots: { index: false, follow: false },
 };
 
