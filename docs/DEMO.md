@@ -37,3 +37,9 @@ Automated version of the same scenario (API level, typed answers):
 ```bash
 npm run test:e2e
 ```
+
+## Recording a demo video (scripted answers)
+
+Open the app with **`?demo=1`** (for example `https://<your-site>/?demo=1` on the phone; `?demo=0` turns it off, and it lasts for that browser tab). Everything is real — the form is read by Claude, every question is spoken, the PDF is made, signed and recorded on Arkiv — except the person's answers: each one appears word by word under **You said**, as if it were being spoken, and is saved on the phone at once (no listening, no AI round trip). Read-backs are answered "Yes". Record your own voice over those moments afterwards. The parameter is removed from the address bar, so it does not show in the recording.
+
+The script is one fictional person, matched to questions by their label ([`src/lib/client/demo.ts`](../src/lib/client/demo.ts)): Ram Kumar Sharma, born 13 March 1960, 98765 43210, ramsharma.pune@gmail.com, Flat 4, Shanti Niwas, 18 Karve Road, Pune 411004; a **personal** loan of **Rs. 2,00,000** for **medical treatment (knee surgery)**; employer **Indian Railways (retired)**, job **Station Master (retired)**, monthly income **Rs. 35,000 (pension)**; today's date for the application date. It also covers the sample library form (gender, reading language, senior citizen). Dates follow the form's own format (mm/dd/yyyy on the bank loan form). A question the script does not know is listened to as usual. Hindi mode uses Hindi wording for what is "said"; the form still gets the English values.

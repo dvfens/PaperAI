@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
+import { demoAnswer, demoEnabled, demoYes } from "@/lib/client/demo";
 import { applyTurn, introFor, progress, questionFor } from "@/lib/conversation/engine";
 import { interpretWithRules, plainYesNo } from "@/lib/conversation/rules";
 import type { AnswerSource, ConversationState, Interpretation, SpeechHint } from "@/lib/types";
@@ -30,6 +31,8 @@ import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
 import { Button } from "@/components/ui/button";
 import { FieldSnippet } from "@/components/FieldSnippet";
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const control = (intent: Interpretation["intent"]): Interpretation => ({
   intent,
@@ -59,6 +62,12 @@ export function VoiceConversation() {
   const [notice, setNotice] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
   const [typed, setTyped] = useState("");
+  // Demo mode (?demo=1): scripted answers appear word by word instead of listening (lib/client/demo).
+  const [demo] = useState(demoEnabled);
+  const [demoWords, setDemoWords] = useState<string | null>(null);
+  const [demoLevel, setDemoLevel] = useState(0);
+  const demoRun = useRef(0);
+  const demoListening = demoWords !== null;
 
   const convRef = useRef<ConversationState>(conv);
   // Same as `busy`, but set at once (a tap can arrive before the re-render that disables the buttons).
@@ -93,6 +102,11 @@ export function VoiceConversation() {
 
   // Declared before use by the mutually recursive helpers below.
   const hearRef = useRef<() => Promise<void>>(async () => {});
+  const simulateRef = useRef<() => Promise<void>>(async () => {});
+  const cancelDemo = useCallback(() => {
+    demoRun.current += 1;
+    setDemoWords(null);
+  }, []);
 
   const sayThenListen = useCallback(
     async (text: string, c: ConversationState) => {
@@ -105,11 +119,16 @@ export function VoiceConversation() {
       // Not if the person already tapped the mic while this was being spoken: that tap started
       // listening, and a second session here would replace it and lose their first words.
       // Not while the voice-engine sheet is open either.
-      if (handsFreeRef.current && listen.supported && !typingRef.current && !sheetOpen.current && !listen.active() && (c.phase === "asking" || c.phase === "confirming")) {
+      if (typingRef.current || sheetOpen.current || !(c.phase === "asking" || c.phase === "confirming")) return;
+      if (demo && handsFreeRef.current) {
+        void simulateRef.current();
+        return;
+      }
+      if (handsFreeRef.current && listen.supported && !listen.active()) {
         void hearRef.current();
       }
     },
-    [speak, listen.supported, listen.active],
+    [speak, listen.supported, listen.active, demo],
   );
 
   const finishIfComplete = useCallback(
@@ -124,7 +143,7 @@ export function VoiceConversation() {
   );
 
   const processUtterance = useCallback(
-    async (utterance: string, source: AnswerSource) => {
+    async (utterance: string, source: AnswerSource, local?: Interpretation) => {
       const before = convRef.current;
       const beforeFieldId = before.pending?.fieldId ?? before.currentFieldId;
       setLastHeard({ text: utterance, fieldId: beforeFieldId });
@@ -137,7 +156,9 @@ export function VoiceConversation() {
       // phone, instantly. Anything with more words (a correction, "not correct") goes to the interpreter.
       const plain = convRef.current.phase === "confirming" ? plainYesNo(utterance) : null;
       try {
-        next = plain
+        next = local
+          ? applyTurn(convRef.current, fields, local, utterance, source)
+          : plain
           ? applyTurn(convRef.current, fields, { intent: plain, targetFieldId: null, value: null, display: null, valid: true, problem: null, helpText: null }, utterance, source)
           : await api.turn(convRef.current, fields, utterance, analysis.documentLanguage, source);
       } catch {
@@ -188,12 +209,56 @@ export function VoiceConversation() {
   }, [listen, t, sayThenListen, processUtterance, fields]);
   hearRef.current = hear;
 
+  /** Demo mode: the scripted answer (or "Yes" to a read-back) appears word by word, then is applied on the device. */
+  const simulate = useCallback(async () => {
+    const c = convRef.current;
+    let heard: string;
+    let local: Interpretation;
+    if (c.phase === "confirming") {
+      heard = demoYes(lang);
+      local = control("yes");
+    } else {
+      const f = fields.find((x) => x.id === c.currentFieldId);
+      const a = f ? demoAnswer(f, lang) : null;
+      // Not in the script: listen for a real answer.
+      if (!a) {
+        if (listen.supported && !listen.active()) void hearRef.current();
+        return;
+      }
+      heard = a.heard;
+      local = { ...control("answer"), value: a.value, display: a.display };
+    }
+    const run = ++demoRun.current;
+    const still = () => alive.current && demoRun.current === run;
+    const words = heard.split(/\s+/).filter(Boolean);
+    setDemoWords("");
+    await wait(600);
+    for (let i = 1; i <= words.length; i++) {
+      if (!still()) return;
+      setDemoWords(words.slice(0, i).join(" "));
+      await wait(280);
+    }
+    await wait(450);
+    if (!still()) return;
+    setDemoWords(null);
+    await processUtterance(heard, "voice", local);
+  }, [fields, lang, listen, processUtterance]);
+  simulateRef.current = simulate;
+
+  // A moving level on the mic while a demo answer is "being said".
+  useEffect(() => {
+    if (!demoListening) return;
+    const id = setInterval(() => setDemoLevel(0.25 + Math.random() * 0.6), 120);
+    return () => clearInterval(id);
+  }, [demoListening]);
+
   // Local control actions (no network needed): pause / resume / skip / repeat / yes / no.
   const applyControl = async (intent: Interpretation["intent"]) => {
     // While a spoken answer is being understood, its result will replace the state: a yes / no / skip
     // tapped now would be applied to the old question and then overwritten. Pause and resume still work.
     if (busyRef.current && intent !== "pause" && intent !== "resume") return;
     listen.cancel();
+    cancelDemo();
     stopSpeaking();
     setNotice(null);
     setReplyNote(null);
@@ -223,6 +288,7 @@ export function VoiceConversation() {
     return () => {
       alive.current = false;
       listen.cancel();
+      cancelDemo();
       stopSpeaking();
     };
     // Run once per mount.
@@ -235,6 +301,7 @@ export function VoiceConversation() {
     sheetOpen.current = open;
     if (open) {
       listen.cancel();
+      cancelDemo();
       stopSpeaking();
       return;
     }
@@ -244,6 +311,13 @@ export function VoiceConversation() {
 
   const onMic = () => {
     emptyStreak.current = 0;
+    if (demo) {
+      if (demoListening || busy) return;
+      if (conv.phase === "paused") return void applyControl("resume");
+      stopSpeaking();
+      void simulate();
+      return;
+    }
     if (listen.state === "listening") return listen.stop();
     if (busy || listen.state === "processing") return;
     if (conv.phase === "paused") return void applyControl("resume");
@@ -252,7 +326,7 @@ export function VoiceConversation() {
   };
 
   const micState: MicState =
-    listen.state === "listening"
+    demoListening || listen.state === "listening"
       ? "listening"
       : listen.state === "processing" || busy
         ? "processing"
@@ -280,11 +354,11 @@ export function VoiceConversation() {
 
   const canSpeak = listen.supported;
   const showKeyboard = typing || !canSpeak;
-  const liveWords = listen.state !== "idle" && Boolean(listen.partial);
+  const liveWords = Boolean(demoWords) || (listen.state !== "idle" && Boolean(listen.partial));
 
   // Text tied to a question shows only under that question (or its pending confirmation).
   const activeFieldId = conv.pending?.fieldId ?? conv.currentFieldId;
-  const heardText = liveWords ? listen.partial : lastHeard && lastHeard.fieldId === activeFieldId ? lastHeard.text : "";
+  const heardText = liveWords ? demoWords || listen.partial : lastHeard && lastHeard.fieldId === activeFieldId ? lastHeard.text : "";
   const showHeard = conv.phase !== "paused" && Boolean(heardText);
   const reply = conv.phase === "asking" && replyNote && replyNote.fieldId === activeFieldId ? replyNote : null;
   // What just happened to the PREVIOUS question: saved, or left empty.
@@ -422,7 +496,7 @@ export function VoiceConversation() {
           <>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center">
               <IconAction icon={Repeat2} label={t("repeat")} onClick={repeat} disabled={busy} />
-              <MicButton size="lg" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
+              <MicButton size="lg" showLabel={false} state={micState} label={micLabel} level={demoListening ? demoLevel : listen.level} onPress={onMic} />
               <IconAction icon={SkipForward} label={t("skip")} onClick={skip} disabled={busy} />
             </div>
             <p aria-live="polite" className={statusCls}>
@@ -435,6 +509,7 @@ export function VoiceConversation() {
               className="self-center"
               onClick={() => {
                 listen.cancel();
+                cancelDemo();
                 setTyping(true);
               }}
             >
@@ -457,7 +532,7 @@ export function VoiceConversation() {
             <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center">
               <IconAction icon={Repeat2} label={t("repeat")} onClick={repeat} disabled={busy} />
               {canSpeak ? (
-                <MicButton size="md" showLabel={false} state={micState} label={micLabel} level={listen.level} onPress={onMic} />
+                <MicButton size="md" showLabel={false} state={micState} label={micLabel} level={demoListening ? demoLevel : listen.level} onPress={onMic} />
               ) : (
                 <span aria-hidden />
               )}
