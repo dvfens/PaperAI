@@ -11,6 +11,7 @@ import type {
   RetentionChoice,
   ServiceStatus,
   TurnResult,
+  SpeechHint,
   VerificationResult,
 } from "@/lib/types";
 import type { LanguageCode } from "@/lib/i18n/languages";
@@ -165,8 +166,10 @@ export const api = {
     return res.blob();
   },
 
-  stt: (audio: Blob, lang: LanguageCode) => {
+  stt: (audio: Blob, lang: LanguageCode, hint?: SpeechHint, via = "unknown") => {
     const form = new FormData();
+    if (hint) form.set("hint", JSON.stringify(hint));
+    form.set("via", via);
     const ext = /wav/.test(audio.type) ? "wav" : /mp4|aac/.test(audio.type) ? "m4a" : /ogg/.test(audio.type) ? "ogg" : "webm";
     form.set("audio", audio, `speech.${ext}`);
     form.set("lang", lang);

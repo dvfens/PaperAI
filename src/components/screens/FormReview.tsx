@@ -24,6 +24,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { AppBar, AppScreen, Chip, Dock, ListGroup, ListRow, Notice, Page, SectionTitle } from "@/components/common/Chrome";
 import { useListen } from "@/components/common/useListen";
 import { useApp } from "@/components/app/AppContext";
+import { compactHint } from "@/lib/speechHints";
 
 /** What will be printed on the form (e.g. "RAM KUMAR SHARMA", "13/03/1960"). */
 export function displayValue(field: FormField, answer: FieldAnswer | undefined, t: ReturnType<typeof useApp>["t"]) {
@@ -216,7 +217,7 @@ function EditAnswerDialog({
 
   const speakAnswer = async () => {
     if (listen.state === "listening") return listen.stop();
-    const text = await listen.listen();
+    const text = await listen.listen(compactHint(field.type, field.options));
     if (text) setValue(text);
   };
 

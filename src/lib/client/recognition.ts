@@ -1,6 +1,7 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
+import type { SpeechHint } from "@/lib/types";
 import { api } from "./api";
 import { canCapturePcm, MicError, primeAudioOnTap } from "./audioCapture";
 import { RealtimeSpeechInput } from "./realtimeRecognition";
@@ -28,6 +29,10 @@ export interface ListenSession {
 
 export interface ListenOptions {
   lang: LanguageCode;
+  /** What is being answered (question, field type, options): improves recognition. */
+  hint?: SpeechHint;
+  /** Why this input is being used, for server logs (e.g. "recorder:no-audio"). */
+  via?: string;
   onPartial?: (text: string) => void;
   onLevel?: (level: number) => void;
   /** Called when recording ends and transcription starts. */
@@ -140,7 +145,7 @@ class ElevenLabsSpeechInput implements SpeechInput {
       if (cancelled || duration < 400 || !(heardSpeech || manualStop || !vadWorking)) return "";
       opts.onProcessing?.();
       const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-      const { text } = await api.stt(blob, opts.lang);
+      const { text } = await api.stt(blob, opts.lang, opts.hint, opts.via ?? "recorder");
       return text;
     })();
 

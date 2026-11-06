@@ -5,8 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { applyTurn, introFor, progress, questionFor } from "@/lib/conversation/engine";
 import { interpretWithRules } from "@/lib/conversation/rules";
-import type { AnswerSource, ConversationState, Interpretation } from "@/lib/types";
+import type { AnswerSource, ConversationState, Interpretation, SpeechHint } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { compactHint } from "@/lib/speechHints";
 import { AppBar, AppScreen, Chip, Dock, IconAction, IconButton, Notice, Page } from "@/components/common/Chrome";
 import { MicButton, type MicState } from "@/components/common/MicButton";
 import { useListen } from "@/components/common/useListen";
@@ -74,11 +75,13 @@ export function VoiceConversation() {
       setPrompt(text);
       await speak(text);
       if (!alive.current) return;
-      if (handsFreeRef.current && listen.supported && !typingRef.current && (c.phase === "asking" || c.phase === "confirming")) {
+      // Not if the person already tapped the mic while this was being spoken: that tap started
+      // listening, and a second session here would replace it and lose their first words.
+      if (handsFreeRef.current && listen.supported && !typingRef.current && !listen.active() && (c.phase === "asking" || c.phase === "confirming")) {
         void hearRef.current();
       }
     },
-    [speak, listen.supported],
+    [speak, listen.supported, listen.active],
   );
 
   const finishIfComplete = useCallback(
@@ -115,8 +118,14 @@ export function VoiceConversation() {
   );
 
   const hear = useCallback(async () => {
-    const text = await listen.listen();
-    if (!alive.current) return;
+    // Tell recognition what is being answered: a yes/no while confirming, else the current field.
+    const c = convRef.current;
+    const f = fields.find((x) => x.id === c.currentFieldId);
+    const hint: SpeechHint | undefined =
+      c.phase === "confirming" ? compactHint("yesno") : f ? compactHint(f.type, f.options) : undefined;
+    const text = await listen.listen(hint);
+    // Cancelled (Pause, Skip, Repeat, a newer listen or leaving the screen): not "heard nothing".
+    if (text === undefined || !alive.current) return;
     if (text === null) {
       setNotice(t("micUnavailable"));
       setTyping(true);
@@ -131,7 +140,7 @@ export function VoiceConversation() {
     }
     emptyStreak.current = 0;
     await processUtterance(text, "voice");
-  }, [listen, t, sayThenListen, processUtterance]);
+  }, [listen, t, sayThenListen, processUtterance, fields]);
   hearRef.current = hear;
 
   // Local control actions (no network needed): pause / resume / skip / repeat.
@@ -199,7 +208,8 @@ export function VoiceConversation() {
 
   const canSpeak = listen.supported;
   const showKeyboard = typing || !canSpeak;
-  const heard = listen.state === "listening" && listen.partial ? listen.partial : lastHeard;
+  const liveWords = listen.state !== "idle" && Boolean(listen.partial);
+  const heard = liveWords ? listen.partial : lastHeard;
 
   return (
     <AppScreen>
@@ -241,7 +251,14 @@ export function VoiceConversation() {
         </section>
 
         {heard && (
-          <div className="ml-auto max-w-[85%] rounded-3xl rounded-br-lg bg-blue-600 px-4 py-3 text-lg text-white shadow-sm" aria-label={t("youSaid")}>
+          <div
+            className={cn(
+              "ml-auto max-w-[85%] rounded-3xl rounded-br-lg px-4 py-3 text-lg shadow-sm",
+              // Live words are provisional until the final transcript arrives.
+              liveWords ? "bg-blue-50 italic text-blue-900" : "bg-blue-600 text-white",
+            )}
+            aria-label={t("youSaid")}
+          >
             {heard}
           </div>
         )}

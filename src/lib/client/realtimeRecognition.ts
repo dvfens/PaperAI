@@ -18,8 +18,11 @@ import type { ListenOptions, ListenSession, SpeechInput } from "./recognition";
  * handed to the MediaRecorder-based input.
  */
 const WS_URL = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
-/** Pause that ends an answer. Older speakers pause mid-sentence, so speaking again soon after reopens it. */
-const VAD_SILENCE_SECS = 1.2;
+/**
+ * Pause that ends an answer. Older speakers pause mid-sentence, so this is generous, and speaking
+ * again within the grace period below keeps the answer open (1.5 s measured as accurate as 1.2 s).
+ */
+const VAD_SILENCE_SECS = 1.5;
 /** After a final transcript, wait this long for the person to carry on before accepting it. */
 const GRACE_MS = 600;
 const CONNECT_TIMEOUT_MS = 5000;
@@ -88,6 +91,7 @@ export class RealtimeSpeechInput implements SpeechInput {
     const frames: Int16Array[] = [];
     const committed: string[] = [];
     let partial = "";
+    let fallbackReason = "unknown";
     let lastChange = 0;
     let lastCommitAt = 0;
     let graceTimer = 0;
@@ -133,8 +137,9 @@ export class RealtimeSpeechInput implements SpeechInput {
     };
 
     /** Streaming is unavailable: transcribe the whole recording in one request instead. */
-    const transcribeBatch = async () => {
+    const transcribeBatch = async (reason?: string) => {
       if (done) return;
+      if (reason) fallbackReason = reason;
       mode = "batch";
       finishing = true;
       capture?.stop();
@@ -144,7 +149,7 @@ export class RealtimeSpeechInput implements SpeechInput {
       if (cancelled || recorded.length < 4 || !(vad.heardSpeech || stopRequested || !vad.working)) return finish("");
       opts.onProcessing?.();
       try {
-        const { text: heard } = await api.stt(encodeWav(recorded), opts.lang);
+        const { text: heard } = await api.stt(encodeWav(recorded), opts.lang, opts.hint, `stream-backup:${fallbackReason}`);
         finish(heard);
       } catch (err) {
         fail(err);
@@ -159,11 +164,12 @@ export class RealtimeSpeechInput implements SpeechInput {
       capture = null;
       opts.onProcessing?.();
       send("", true);
-      later(FINAL_WAIT_MS, () => (text() ? finish(text()) : void transcribeBatch()));
+      later(FINAL_WAIT_MS, () => (text() ? finish(text()) : void transcribeBatch("no-final-text")));
     };
 
-    const socketFailed = () => {
+    const socketFailed = (reason: string) => {
       if (done) return;
+      fallbackReason = reason;
       closeSocket();
       if (finishing) {
         if (text()) finish(text());
@@ -217,7 +223,7 @@ export class RealtimeSpeechInput implements SpeechInput {
         default:
           if (m.message_type && ERRORS.has(m.message_type)) {
             console.warn("[stt] realtime:", m.message_type);
-            socketFailed();
+            socketFailed(m.message_type.replace(/_/g, "-"));
           }
       }
     };
@@ -261,7 +267,7 @@ export class RealtimeSpeechInput implements SpeechInput {
     ctl.stop = () => {
       stopRequested = true;
       if (mode === "live") requestFinal();
-      else void transcribeBatch();
+      else void transcribeBatch(mode === "connecting" ? "stopped-while-connecting" : undefined);
     };
 
     // Token and microphone in parallel; audio captured before the socket is ready is queued.
@@ -282,15 +288,15 @@ export class RealtimeSpeechInput implements SpeechInput {
         const socket = new WebSocket(`${WS_URL}?${q}`);
         ws = socket;
         socket.onmessage = (e) => onMessage(String(e.data));
-        socket.onclose = () => socketFailed();
+        socket.onclose = () => socketFailed("socket-closed");
         socket.onerror = () => undefined; // onclose follows
       },
       () => {
-        if (!done && mode === "connecting") socketFailed();
+        if (!done && mode === "connecting") socketFailed("no-token");
       },
     );
     later(CONNECT_TIMEOUT_MS, () => {
-      if (mode === "connecting") socketFailed();
+      if (mode === "connecting") socketFailed("connect-timeout");
     });
 
     startPcmCapture(onFrame).then(
@@ -302,7 +308,7 @@ export class RealtimeSpeechInput implements SpeechInput {
           if (done || frames.length) return;
           done = true;
           cleanup();
-          const inner = this.fallback.listen(opts);
+          const inner = this.fallback.listen({ ...opts, via: "recorder:no-audio" });
           ctl.stop = inner.stop;
           ctl.cancel = inner.cancel;
           if (cancelled) inner.cancel();
@@ -315,7 +321,7 @@ export class RealtimeSpeechInput implements SpeechInput {
         if (done) return;
         done = true;
         cleanup();
-        const inner = this.fallback.listen(opts);
+        const inner = this.fallback.listen({ ...opts, via: "recorder:capture-error" });
         ctl.stop = inner.stop;
         ctl.cancel = inner.cancel;
         inner.result.then(resolve, reject);

@@ -83,7 +83,7 @@ export function FinalVerification() {
 
   const sayYesNo = async () => {
     if (listen.state === "listening") return listen.stop();
-    const text = await listen.listen();
+    const text = await listen.listen({ kind: "yesno" }); // no options or question needed
     if (!text) return;
     const yn = detectYesNo(text);
     if (yn === "yes") {
