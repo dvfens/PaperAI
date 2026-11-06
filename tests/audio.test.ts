@@ -9,11 +9,26 @@ const collect = (d: Downsampler, chunks: Float32Array[]) => {
 };
 
 describe("Downsampler", () => {
-  it("turns 48 kHz into 16 kHz, averaging each group of three samples", () => {
-    const input = Float32Array.from({ length: 4800 }, (_, i) => i % 3); // 0,1,2 → average 1
-    const out = collect(new Downsampler(48_000 / PCM_RATE), [input]);
-    assert.equal(out.length, 1600);
-    assert.ok(out.every((v) => Math.abs(v - 1) < 1e-6));
+  const tone = (f: number, rate: number, seconds = 1) => Float32Array.from({ length: rate * seconds }, (_, i) => Math.sin((2 * Math.PI * f * i) / rate));
+  const rms = (a: number[]) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
+  const gainDb = (f: number, from: number, to: number) => {
+    const out = collect(new Downsampler(from / to), [tone(f, from)]);
+    return 20 * Math.log10(rms(out.slice(200)) / Math.SQRT1_2);
+  };
+
+  it("keeps the speech band intact when going from 48 kHz to 16 kHz", () => {
+    for (const f of [300, 1000, 3000, 5000]) assert.ok(Math.abs(gainDb(f, 48000, 16000)) < 0.7, `${f} Hz`);
+  });
+
+  it("stops high sounds folding back into the speech band (48 kHz, 44.1 kHz → 16 kHz)", () => {
+    for (const f of [9000, 12000, 14000]) assert.ok(gainDb(f, 48000, 16000) < -40, `${f} Hz at 48 kHz`);
+    for (const f of [10000, 15000]) assert.ok(gainDb(f, 44100, 16000) < -40, `${f} Hz at 44.1 kHz`);
+  });
+
+  it("keeps DC level and produces about one output per ratio input samples", () => {
+    const out = collect(new Downsampler(3), [new Float32Array(4800).fill(0.5)]);
+    assert.ok(out.length > 1560 && out.length <= 1600);
+    assert.ok(out.slice(20).every((v) => Math.abs(v - 0.5) < 0.005));
   });
 
   it("gives the same output whatever size the incoming chunks are", () => {
@@ -23,7 +38,7 @@ describe("Downsampler", () => {
     for (let i = 0; i < signal.length; i += 128) pieces.push(signal.subarray(i, i + 128));
     const chunked = collect(new Downsampler(44_100 / PCM_RATE), pieces);
     assert.equal(chunked.length, whole.length);
-    assert.ok(Math.abs(whole.length - 16_000) <= 1);
+    assert.ok(Math.abs(whole.length - 16_000) <= 20);
     assert.ok(chunked.every((v, i) => Math.abs(v - whole[i]) < 1e-6));
   });
 

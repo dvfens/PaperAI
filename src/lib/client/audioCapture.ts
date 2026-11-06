@@ -44,15 +44,44 @@ export function canCapturePcm(): boolean {
 }
 
 /**
- * Averages input samples into output slots: a simple low-pass + decimate, good enough for speech.
- * Output sample k covers input samples [⌊k·r⌋, ⌊(k+1)·r⌋), computed from absolute positions so the
- * result does not depend on how the browser happens to chunk the audio.
+ * Band-limited resampler (windowed-sinc low-pass, Blackman window) from the microphone's rate to the
+ * rate a recogniser wants. Phones record at 44.1/48 kHz; without a proper low-pass, hiss and the high
+ * parts of "s", "sh", "ch" fold back into the 2–7 kHz speech band as distortion (simple averaging let
+ * them through at only −5 to −16 dB). This filter keeps speech flat and pushes folding below −50 dB.
+ *
+ * Output sample k sits at input position k·ratio; positions are absolute, so the result does not depend
+ * on how the browser happens to chunk the audio.
  */
 export class Downsampler {
-  private carry = new Float32Array(0);
-  private carryStart = 0; // absolute input index of carry[0]
+  private static readonly RES = 512; // kernel table points per input sample
+  private buf = new Float32Array(0);
+  private bufStart = 0; // absolute input index of buf[0]
   private k = 0; // output samples produced so far
-  constructor(private readonly ratio: number) {}
+  private readonly half: number; // kernel half-width, in input samples
+  private readonly table: Float32Array;
+
+  constructor(private readonly ratio: number) {
+    // Cutoff just below the lower of the two Nyquist frequencies, in cycles per input sample.
+    const cutoff = 0.5 * Math.min(1, 1 / ratio) * 0.9;
+    this.half = Math.ceil(4 / cutoff); // eight zero crossings of the sinc on each side
+    const n = 2 * this.half * Downsampler.RES + 2;
+    this.table = new Float32Array(n);
+    for (let j = 0; j < n; j++) {
+      const x = j / Downsampler.RES - this.half;
+      const u = 2 * cutoff * x;
+      const sinc = u === 0 ? 1 : Math.sin(Math.PI * u) / (Math.PI * u);
+      const t = Math.min(1, Math.abs(x) / this.half);
+      const blackman = 0.42 + 0.5 * Math.cos(Math.PI * t) + 0.08 * Math.cos(2 * Math.PI * t);
+      this.table[j] = 2 * cutoff * sinc * blackman;
+    }
+  }
+
+  private kernel(x: number): number {
+    const idx = (x + this.half) * Downsampler.RES;
+    const i = Math.floor(idx);
+    const f = idx - i;
+    return this.table[i] * (1 - f) + this.table[i + 1] * f;
+  }
 
   push(input: Float32Array, out: (v: number) => void) {
     const r = this.ratio;
@@ -60,22 +89,23 @@ export class Downsampler {
       for (let i = 0; i < input.length; i++) out(input[i]);
       return;
     }
-    const data = new Float32Array(this.carry.length + input.length);
-    data.set(this.carry);
-    data.set(input, this.carry.length);
-    const end = this.carryStart + data.length;
+    const data = new Float32Array(this.buf.length + input.length);
+    data.set(this.buf);
+    data.set(input, this.buf.length);
+    const end = this.bufStart + data.length; // exclusive
     for (;;) {
-      const a = Math.floor(this.k * r);
-      const b = Math.max(a + 1, Math.floor((this.k + 1) * r));
-      if (b > end) break;
+      const t = this.k * r;
+      const centre = Math.floor(t);
+      const last = centre + this.half;
+      if (last >= end) break; // wait for the samples to the right of this output
       let sum = 0;
-      for (let i = a; i < b; i++) sum += data[i - this.carryStart];
-      out(sum / (b - a));
+      for (let n = Math.max(0, centre - this.half + 1); n <= last; n++) sum += data[n - this.bufStart] * this.kernel(t - n);
+      out(sum);
       this.k++;
     }
-    const next = Math.floor(this.k * r);
-    this.carry = data.slice(next - this.carryStart);
-    this.carryStart = next;
+    const keepFrom = Math.max(0, Math.floor(this.k * r) - this.half + 1);
+    this.buf = data.slice(keepFrom - this.bufStart);
+    this.bufStart = keepFrom;
   }
 }
 
