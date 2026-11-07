@@ -134,6 +134,22 @@ Judging files: [`arkiv/schema.md`](arkiv/schema.md) · [`arkiv/friction.md`](ark
 
 ---
 
+## CROPS
+
+**Lead property: S (secure).** A person who cannot read can prove that nothing in their form changed after they approved it, and anyone can check that without trusting us. The demo shows a tampered copy failing the check.
+
+- **C — what we control:** the domain and Vercel deployment, the Next.js server (AI calls, PDF generation, encrypted storage) and the Arkiv writer wallet `0x06Ca910E0B9819f11bA30d812648479192bF2909`. If our server goes down or refuses someone, no new forms can be filled, but every recorded document stays checkable: Arkiv is a public network we don't run, the records are read-only, and `npm run arkiv:query -- <sha256>` (or any Arkiv query filtered by the writer address above) checks a PDF without us. The hosted `/verify` page reads Arkiv from the viewer's browser but still gets the writer address from our server.
+- **O — open source:** MIT ([LICENSE](LICENSE)). Builds and runs from this repo alone (`npm install`, `npm run setup`, `npm run dev`): the database is embedded PGlite, and without API keys the app falls back to a clearly labelled basic mode (rule-based reading, browser speech, typing).
+- **P — what each third party learns:**
+  - *Our server:* the page photos and answers while a form is being filled (not stored), and the finished PDF only after explicit consent, encrypted. The database holds no names, answers or document text, only an HMAC of a device cookie, the SHA-256, a coarse category, the language and timestamps. Logs keep allow-listed metadata only.
+  - *Anthropic (Claude):* the page photos, OCR text and what the person says, to read the form and interpret answers. *OpenAI / ElevenLabs:* the microphone audio while answering, and the text read aloud.
+  - *Arkiv RPC:* everything written on chain, which is public: SHA-256, category, language, timestamps, consent action, share-grant id, signer phone-key address and signature. It also sees the viewer's IP and the hash being checked on `/verify`.
+  - *Vercel:* standard request logs. *Analytics and trackers:* none. The Content Security Policy only allows connections to our own origin, the Arkiv RPC and the two speech services ([`next.config.ts`](next.config.ts)).
+- **S — keys and data:** API keys and the Arkiv writer key stay on the server; the browser only gets single-use speech tokens and the public Arkiv access key. Each stored PDF has its own AES-256-GCM key, wrapped by a server master key; deleting a document destroys its key first. The signing key is generated on the phone and never leaves it; signatures are EIP-712 and re-checked in the viewer's browser. **Trust assumptions:** while a form is being filled you trust our server (it sees the content and holds the master key) to record honestly what you approved. After that, the read-only Arkiv records and the phone-key signature can be checked by anyone without us.
+- **Why personal data leaves the phone:** reading a photographed form and understanding free speech in Hindi and English needs models that don't run on the low-end phones our users have today. Data goes to them only while the form is being filled, and "download only" stores nothing on our server.
+
+---
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, data flow, privacy and security design

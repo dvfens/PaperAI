@@ -26,7 +26,7 @@ export const en = {
   retake: "Take again",
   trySample: "Try a sample form",
   checkDocument: "Check a document",
-  privacyNote: "Your answers stay on this phone until you choose to save the document.",
+  privacyNote: "Your answers are kept on this phone until you choose to save. To understand them, they go to our AI and voice services.",
 
   // Screen 2 — understanding
   analyzingTitle: "Reading your document…",
