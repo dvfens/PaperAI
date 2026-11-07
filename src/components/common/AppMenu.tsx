@@ -1,8 +1,9 @@
 "use client";
 
-import { AudioLines, ChevronRight, EllipsisVertical, type LucideIcon } from "lucide-react";
+import { AudioLines, ChevronRight, EllipsisVertical, SmartphoneNfc, type LucideIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useApp } from "@/components/app/AppContext";
+import { useOpenFromCard } from "@/components/nfc/NfcCard";
 import { Dialog } from "@/components/ui/dialog";
 import { ENABLED_LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,10 @@ export function AppMenu({
     }
   };
   const hasEngine = voice.available.elevenlabs || voice.available.openai;
+  const openCard = useOpenFromCard((event) => {
+    event.preventDefault();
+    pillRef.current?.focus();
+  });
 
   // The pill is not a Radix trigger, so Radix cannot put focus back on it: do it here, once both
   // sheets are closed (not when the menu hands over to the voice-engine sheet, and not when an
@@ -121,7 +126,7 @@ export function AppMenu({
         closeLabel={t("close")}
       >
         <div className="flex flex-col gap-4 pb-2">
-          {actions.length > 0 && (
+          {(actions.length > 0 || openCard.supported) && (
             <ListGroup>
               {actions.map((a) => (
                 <MenuRow
@@ -135,6 +140,18 @@ export function AppMenu({
                   }}
                 />
               ))}
+              {/* Opens its own sheet, which puts focus back on the Menu button when it closes. */}
+              {openCard.supported && (
+                <MenuRow
+                  icon={SmartphoneNfc}
+                  label={t("nfcOpen")}
+                  onClick={() => {
+                    leaving.current = true;
+                    void openCard.start();
+                    setSheet(null);
+                  }}
+                />
+              )}
             </ListGroup>
           )}
           <div className="flex flex-col gap-2">
@@ -156,6 +173,7 @@ export function AppMenu({
           )}
         </div>
       </Dialog>
+      {openCard.sheet}
       {hasEngine && (
         <VoiceEngineSheet open={sheet === "engine"} onOpenChange={(o) => setSheet(o ? "engine" : null)} onCloseAutoFocus={returnFocus} />
       )}

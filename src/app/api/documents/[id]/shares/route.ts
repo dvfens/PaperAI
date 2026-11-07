@@ -6,7 +6,8 @@ import { createShareLink, listShareLinks } from "@/server/services/documents";
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
-const Body = z.object({ hours: z.union([z.literal(1), z.literal(24), z.literal(168)]) });
+// "kept": a card link (for an NFC card) that works for as long as the document is kept.
+const Body = z.object({ hours: z.union([z.literal(1), z.literal(24), z.literal(168), z.literal("kept")]) });
 
 async function owner() {
   const hash = await deviceOwnerHash(false);

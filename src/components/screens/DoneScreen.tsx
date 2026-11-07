@@ -16,6 +16,7 @@ import {
   Link2,
   ListChecks,
   Lock,
+  Nfc,
   Plus,
   Share2,
   ShieldCheck,
@@ -33,6 +34,7 @@ import { isCosignRole } from "@/lib/signing";
 import type { VerificationSignature } from "@/lib/types";
 import { shortHash } from "@/lib/utils";
 import { ROLE_LABEL } from "@/components/sign/CosignSheet";
+import { useSaveToCard } from "@/components/nfc/NfcCard";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -74,6 +76,7 @@ export function DoneScreen() {
   const [erased, setErased] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const card = useSaveToCard();
   const guideRequested = useRef(false);
 
   // Next-step guidance.
@@ -188,6 +191,11 @@ export function DoneScreen() {
               <Share2 aria-hidden /> {t("sendForm")}
             </Button>
           )}
+          {receipt && !erased && card.supported && (
+            <Button block size="lg" variant="secondary" onClick={() => void card.start(receipt.documentId)}>
+              <Nfc aria-hidden /> {t("nfcSave")}
+            </Button>
+          )}
         </div>
 
         {signatures.length > 0 && !erased && (
@@ -297,6 +305,7 @@ export function DoneScreen() {
         </Button>
       </Dock>
 
+      {card.sheet}
       {receipt && !erased && <ShareSection documentId={receipt.documentId} open={shareOpen} onOpenChange={setShareOpen} />}
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete} title={t("deleteDocument")} description={t("deleteConfirm")} closeLabel={t("close")}>

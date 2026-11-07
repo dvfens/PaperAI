@@ -402,6 +402,26 @@ export const en = {
   startNewBody: "The answers you gave for this form will be removed from this phone.",
   keepAnswers: "Keep my answers",
   startNew: "Start new",
+  // NFC card (Web NFC: Chrome on Android)
+  nfcSave: "Save on NFC card",
+  nfcSaveTitle: "Save on your NFC card",
+  nfcPreparing: "Getting your card link ready…",
+  nfcHold: "Hold your card flat against the back of the phone, near the top. Keep it still.",
+  nfcReplaces: "This replaces anything already on the card.",
+  nfcSaved: "Saved on your card",
+  nfcSavedHint: "Tap this card on any phone with NFC to open your signed form. It works until {date}.",
+  nfcKeepSafe: "Anyone who taps the card can open the form, so keep it safe, like a key.",
+  nfcOpen: "Open a form from my NFC card",
+  nfcOpenTitle: "Open from your NFC card",
+  nfcOpenHold: "Hold your card flat against the back of the phone, near the top.",
+  nfcNotOurs: "This card has no Paper AI form on it.",
+  nfcOpening: "Opening your form…",
+  nfcOff: "NFC is switched off. Turn it on in your phone's settings, then try again.",
+  nfcBlocked: "Chrome is not allowed to use NFC here. Allow NFC for this site in Chrome's settings, then try again.",
+  nfcNoReader: "This phone can't use NFC cards here. It needs NFC, and Chrome on Android.",
+  nfcCardLocked: "This card can't store a link. Bank and ID cards are locked. Use a blank NFC card or sticker.",
+  nfcMoved: "The card moved away too soon. Hold it still and try again.",
+  nfcDone: "Done",
 } as const;
 
 export type StringKey = keyof typeof en;

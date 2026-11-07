@@ -3,7 +3,7 @@ import { isCosignRole, SIGN_FRESH_FOR_PDF_S, SIGNATURE_MAX_AGE_S, signatureValid
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { Hex } from "viem";
-import type { CommitmentReceipt, RetentionChoice, SavedForm } from "@/lib/types";
+import type { CommitmentReceipt, RetentionChoice, SavedForm, ShareHours } from "@/lib/types";
 import { generationToken, hmacHex, randomToken, safeEqualHex, sha256Hex } from "@/server/crypto";
 import { db } from "@/server/db/client";
 import { auditEvents, documents, shareLinks, type DocumentRow } from "@/server/db/schema";
@@ -200,12 +200,13 @@ export async function readOwnedPdf(id: string, ownerHash: string): Promise<Buffe
   return secureStorage().get(row.id, row.storageKey, row.wrappedKey);
 }
 
-export async function createShareLink(id: string, ownerHash: string, hours: 1 | 24 | 168, baseUrl: string) {
+/** `hours: "kept"` is a card link (written to an NFC card): it lasts until the document itself is deleted. */
+export async function createShareLink(id: string, ownerHash: string, hours: ShareHours, baseUrl: string) {
   const row = await getOwnedDocument(id, ownerHash);
   if (row.status !== "stored") throw new HttpError(410, "erased", "This document was deleted.");
   const token = randomToken(32);
   const grantId = sha256Hex(token);
-  const requested = Date.now() + hours * 3_600_000;
+  const requested = hours === "kept" ? row.retentionUntil.getTime() : Date.now() + hours * 3_600_000;
   const expiresAt = new Date(Math.min(requested, row.retentionUntil.getTime()));
   const shareId = randomUUID();
   const d = await db();

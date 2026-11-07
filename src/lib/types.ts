@@ -246,6 +246,9 @@ export interface ServiceStatus {
 
 export type RetentionChoice = 7 | 30 | 180;
 
+/** How long a share link works: hours, or "kept" (a card link: as long as the document is kept). */
+export type ShareHours = 1 | 24 | 168 | "kept";
+
 export interface CommitmentReceipt {
   documentId: string;
   sha256: string;

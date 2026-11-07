@@ -10,6 +10,7 @@ import type {
   NextStepsGuide,
   RetentionChoice,
   SavedForm,
+  ShareHours,
   ServiceStatus,
   TurnResult,
   SpeechHint,
@@ -176,7 +177,7 @@ export const api = {
 
   erase: (id: string) => json<{ erased: boolean }>(`/api/documents/${id}`, { method: "DELETE" }),
 
-  createShare: (id: string, hours: 1 | 24 | 168) =>
+  createShare: (id: string, hours: ShareHours) =>
     json<{ shareId: string; url: string; expiresAt: string; arkiv: { txHash: string | null; explorerTxUrl: string | null } | null }>(
       `/api/documents/${id}/shares`,
       post({ hours }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileText, FolderOpen, Lock, Plus, Share2, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, FileText, FolderOpen, Lock, Nfc, Plus, Share2, ShieldCheck, SmartphoneNfc, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
 import { forgetFormTitle, formTitles } from "@/lib/client/form-titles";
@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { AppBar, AppScreen, Card, Chip, Dock, Page, Spinner } from "@/components/common/Chrome";
 import { AppMenu } from "@/components/common/AppMenu";
 import { useApp } from "@/components/app/AppContext";
+import { useOpenFromCard, useSaveToCard } from "@/components/nfc/NfcCard";
 import { ShareSection } from "./DoneScreen";
 
 const CHIP = "max-w-full rounded-xl px-2.5 py-1 text-left text-[13px]";
@@ -27,6 +28,8 @@ export function MyForms() {
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [shareFor, setShareFor] = useState<string | null>(null);
   const [deleteFor, setDeleteFor] = useState<string | null>(null);
+  const card = useSaveToCard();
+  const openCard = useOpenFromCard();
 
   useEffect(() => {
     setTitles(formTitles());
@@ -59,6 +62,12 @@ export function MyForms() {
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{t("myFormsWhere")}</span>
         </p>
+
+        {openCard.supported && (
+          <Button block size="lg" variant="secondary" className="mt-3" onClick={() => void openCard.start()}>
+            <SmartphoneNfc aria-hidden /> {t("nfcOpen")}
+          </Button>
+        )}
 
         {forms === null && (
           <div className="flex justify-center py-12">
@@ -109,13 +118,24 @@ export function MyForms() {
                       <Share2 aria-hidden /> {t("sendShort")}
                     </Button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteFor(f.documentId)}
-                    className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-1 text-[13px] font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
-                  >
-                    <Trash2 className="size-4" aria-hidden /> {t("deleteDocument")}
-                  </button>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3">
+                    {card.supported && (
+                      <button
+                        type="button"
+                        onClick={() => void card.start(f.documentId)}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-1 text-[13px] font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                      >
+                        <Nfc className="size-4" aria-hidden /> {t("nfcSave")}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteFor(f.documentId)}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-1 text-[13px] font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                    >
+                      <Trash2 className="size-4" aria-hidden /> {t("deleteDocument")}
+                    </button>
+                  </div>
                 </Card>
               </li>
             ))}
@@ -129,6 +149,8 @@ export function MyForms() {
         </Button>
       </Dock>
 
+      {card.sheet}
+      {openCard.sheet}
       {shareFor && <ShareSection documentId={shareFor} open onOpenChange={(o) => !o && setShareFor(null)} />}
 
       <Dialog
